@@ -19,7 +19,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   
   // Backend configuration - Using localhost
-  static const String _baseUrl = 'https://free-styel.store/api';
+  static const String _baseUrl = 'http://localhost:8000/api';
   static const String _loginEndpoint = '/auth/login';
 
   @override

@@ -30,7 +30,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
   String _errorMessage = '';
 
   // Backend configuration
-  static const String _baseUrl = 'https://free-styel.store/api';
+  static const String _baseUrl = 'http://localhost:8000/api';
   static const String _getCraftsmanCountEndpoint = '/craftsman/count';
 
   @override

@@ -18,7 +18,7 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
   bool _isLoading = false;
   
   // Backend configuration
-  static const String _baseUrl = 'https://free-styel.store/api';
+  static const String _baseUrl = 'http://localhost:8000/api';
   static const String _promoCodeEndpoint = '/promo-codes';
   static const String _membershipCodeEndpoint = '/membership-codes';
   static const String _affiliateStatsEndpoint = '/affiliate-stats';

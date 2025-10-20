@@ -98,7 +98,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
       });
 
       final response = await http.get(
-        Uri.parse('https://free-styel.store/api/task-types/index.php'),
+        Uri.parse('http://localhost:8000/api/task-types/index.php'),
         headers: {
           'Content-Type': 'application/json',
         },
