@@ -31,8 +31,6 @@ class ProxyApiService {
           method: 'POST',
           headers: headers,
           body: jsonEncode(data),
-          mode: html.RequestMode.cors,
-          credentials: html.RequestCredentials.include,
         ),
       );
       
@@ -76,8 +74,6 @@ class ProxyApiService {
         html.RequestInit(
           method: 'GET',
           headers: headers,
-          mode: html.RequestMode.cors,
-          credentials: html.RequestCredentials.include,
         ),
       );
       
