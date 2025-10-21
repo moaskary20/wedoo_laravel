@@ -25,6 +25,13 @@ return [
         'https://app.free-styel.store',
         'http://localhost:3000',
         'http://127.0.0.1:3000',
+        'http://localhost:8080',
+        'http://127.0.0.1:8080',
+        'http://localhost:5000',
+        'http://127.0.0.1:5000',
+        'http://localhost:8000',
+        'http://127.0.0.1:8000',
+        '*', // Allow all origins for development
     ],
 
     'allowed_origins_patterns' => [],
