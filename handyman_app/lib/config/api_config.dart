@@ -1,5 +1,5 @@
 class ApiConfig {
-  static const String baseUrl = 'https://free-styel.store';
+  static const String baseUrl = 'http://localhost:3001';
   
   // API Endpoints
   static const String taskTypes = '$baseUrl/api/task-types/index.php';
