@@ -14,7 +14,7 @@ class TaskTypesSeeder extends Seeder
 
         $taskTypes = [
             [
-                'category_id' => $categories->where('name', 'خدمات السباكة')->first()->id,
+                'category_id' => $categories->where('name', 'خدمات صيانة المنازل')->first()->id,
                 'name' => 'إصلاح صنابير المياه',
                 'name_en' => 'Water Tap Repair',
                 'description' => 'إصلاح جميع أنواع صنابير المياه والسباكة',
@@ -26,7 +26,7 @@ class TaskTypesSeeder extends Seeder
                 'status' => 'active',
             ],
             [
-                'category_id' => $categories->where('name', 'خدمات التكييف')->first()->id,
+                'category_id' => $categories->where('name', 'خدمات صيانة المنازل')->first()->id,
                 'name' => 'تركيب مكيفات الهواء',
                 'name_en' => 'Air Conditioning Installation',
                 'description' => 'تركيب وصيانة مكيفات الهواء',
@@ -38,7 +38,7 @@ class TaskTypesSeeder extends Seeder
                 'status' => 'active',
             ],
             [
-                'category_id' => $categories->where('name', 'خدمات الدهان')->first()->id,
+                'category_id' => $categories->where('name', 'خدمات صيانة المنازل')->first()->id,
                 'name' => 'دهان المنازل',
                 'name_en' => 'House Painting',
                 'description' => 'دهان داخلي وخارجي للمنازل',
@@ -50,7 +50,7 @@ class TaskTypesSeeder extends Seeder
                 'status' => 'active',
             ],
             [
-                'category_id' => $categories->where('name', 'خدمات الكهرباء')->first()->id,
+                'category_id' => $categories->where('name', 'خدمات صيانة المنازل')->first()->id,
                 'name' => 'إصلاح الكهرباء',
                 'name_en' => 'Electrical Repair',
                 'description' => 'إصلاح جميع مشاكل الكهرباء المنزلية',
@@ -62,7 +62,7 @@ class TaskTypesSeeder extends Seeder
                 'status' => 'active',
             ],
             [
-                'category_id' => $categories->where('name', 'خدمات النجارة')->first()->id,
+                'category_id' => $categories->where('name', 'حرف وخدمات متنوعة')->first()->id,
                 'name' => 'تركيب الأثاث',
                 'name_en' => 'Furniture Assembly',
                 'description' => 'تركيب وتجميع الأثاث المنزلي',
@@ -74,7 +74,7 @@ class TaskTypesSeeder extends Seeder
                 'status' => 'active',
             ],
             [
-                'category_id' => $categories->where('name', 'خدمات صيانة الأجهزة')->first()->id,
+                'category_id' => $categories->where('name', 'خدمات صيانة المنازل')->first()->id,
                 'name' => 'صيانة الأجهزة المنزلية',
                 'name_en' => 'Home Appliance Maintenance',
                 'description' => 'صيانة وإصلاح الأجهزة المنزلية',
