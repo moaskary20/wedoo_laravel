@@ -1,5 +1,5 @@
 class ApiConfig {
-  static const String baseUrl = 'http://192.168.1.44:8000';
+  static const String baseUrl = 'https://free-styel.store';
   
   // API Endpoints
   static const String taskTypes = '$baseUrl/api/task-types/index';
