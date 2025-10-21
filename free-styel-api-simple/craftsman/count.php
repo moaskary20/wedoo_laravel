@@ -1,4 +1,4 @@
-<?php 
+<?php
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
@@ -12,10 +12,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 // Get category_id from query parameter
 $category_id = isset($_GET['category_id']) ? (int)$_GET['category_id'] : 1;
 
-// Sample data for different categories
+// Sample data for different categories (no database needed)
 $sampleCounts = [
     1 => 15, // خدمات صيانة المنازل
-    2 => 12, // خدمات التنظيفa
+    2 => 12, // خدمات التنظيف
     3 => 8,  // النقل والخدمات اللوجستية
     4 => 6,  // خدمات السيارات
     5 => 20, // خدمات طارئة (عاجلة)

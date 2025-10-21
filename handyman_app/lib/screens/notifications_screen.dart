@@ -15,7 +15,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   bool _isLoading = false;
   
   // Backend configuration
-  static const String _baseUrl = 'http://free-styel.store/api';
+  static const String _baseUrl = 'https://free-styel.store/api';
   static const String _notificationsEndpoint = '/notifications';
   static const String _updateNotificationSettingsEndpoint = '/notifications/settings';
   

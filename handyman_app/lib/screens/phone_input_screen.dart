@@ -16,7 +16,7 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
   bool _isLoading = false;
   
   // Backend configuration - Using localhost for development
-  static const String _baseUrl = 'http://free-styel.store/api';
+  static const String _baseUrl = 'https://free-styel.store/api';
   static const String _verifyPhoneEndpoint = '/auth/verify-phone';
 
   @override

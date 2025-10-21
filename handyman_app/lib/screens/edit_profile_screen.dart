@@ -33,7 +33,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final ImagePicker _picker = ImagePicker();
 
   // Backend configuration
-  static const String _baseUrl = 'http://free-styel.store/api';
+  static const String _baseUrl = 'https://free-styel.store/api';
   static const String _updateProfileEndpoint = '/user/update-profile';
 
   @override

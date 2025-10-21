@@ -134,13 +134,13 @@ php -S localhost:8000
 - **Web:** `flutter run -d web`
 
 #### Admin Panel
-- **الرابط:** http://free-styel.store/admin_panel/
+- **الرابط:** https://free-styel.store/admin_panel/
 - **المستخدم:** mo.askary@gmail.com
 - **كلمة المرور:** askary20
 
 #### API
-- **Base URL:** http://free-styel.store/api/
-- **Documentation:** http://free-styel.store/api/README.md
+- **Base URL:** https://free-styel.store/api/
+- **Documentation:** https://free-styel.store/api/README.md
 
 ## 📊 المميزات التقنية
 
@@ -175,7 +175,7 @@ php -S localhost:8000
 ### متغيرات البيئة
 ```bash
 # API Base URL
-API_BASE_URL=http://free-styel.store/api
+API_BASE_URL=https://free-styel.store/api
 
 # Admin Panel
 ADMIN_EMAIL=mo.askary@gmail.com
@@ -282,12 +282,12 @@ $password = '';
 
 ### معلومات الاتصال
 - **البريد الإلكتروني:** mo.askary@gmail.com
-- **الموقع:** http://free-styel.store
+- **الموقع:** https://free-styel.store
 - **GitHub:** [رابط المشروع]
 
 ### الدعم التقني
-- **API Documentation:** http://free-styel.store/api/README.md
-- **Admin Panel Guide:** http://free-styel.store/admin_panel/README.md
+- **API Documentation:** https://free-styel.store/api/README.md
+- **Admin Panel Guide:** https://free-styel.store/admin_panel/README.md
 - **Flutter Documentation:** https://flutter.dev/docs
 
 ## 📄 الترخيص

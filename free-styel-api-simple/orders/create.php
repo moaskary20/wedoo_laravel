@@ -9,43 +9,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
-// Get POST data
 $input = json_decode(file_get_contents('php://input'), true);
 
-if (!$input) {
-    echo json_encode(['success' => false, 'message' => 'Invalid JSON data']);
-    exit();
-}
-
-// Validate required fieldss
+// Validate required fields
 $required_fields = ['user_id', 'task_type_id', 'description', 'location', 'phone'];
 foreach ($required_fields as $field) {
-    if (!isset($input[$field]) || empty($input[$field])) {
+    if (!isset($input[$field])) {
         echo json_encode(['success' => false, 'message' => "Missing required field: $field"]);
         exit();
     }
 }
 
-// Generate order ID
-$order_id = 'ORD' . date('YmdHis') . rand(1000, 9999);
-
 // Simulate order creation
-$order = [
-    'id' => $order_id,
-    'user_id' => $input['user_id'],
-    'task_type_id' => $input['task_type_id'],
-    'description' => $input['description'],
-    'location' => $input['location'],
-    'phone' => $input['phone'],
-    'status' => 'pending',
-    'created_at' => date('Y-m-d H:i:s'),
-    'estimated_price' => '50-200 دينار تونسي',
-    'estimated_duration' => '2-4 ساعات'
-];
+$order_id = 'ORD' . date('Ymd') . uniqid();
+$status = 'pending';
+$created_at = date('Y-m-d H:i:s');
 
 echo json_encode([
     'success' => true,
-    'data' => $order,
+    'data' => [
+        'order_id' => $order_id,
+        'user_id' => $input['user_id'],
+        'task_type_id' => $input['task_type_id'],
+        'description' => $input['description'],
+        'location' => $input['location'],
+        'phone' => $input['phone'],
+        'status' => $status,
+        'created_at' => $created_at
+    ],
     'message' => 'Order created successfully'
 ]);
 ?>

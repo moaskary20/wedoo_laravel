@@ -39,7 +39,7 @@ class _TipsScreenState extends State<TipsScreen> {
       });
 
       final response = await http.get(
-        Uri.parse('http://free-styel.store/api/tips/${widget.categoryId}'),
+        Uri.parse('https://free-styel.store/api/tips/${widget.categoryId}'),
         headers: {
           'Content-Type': 'application/json',
         },

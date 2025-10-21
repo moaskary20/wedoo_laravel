@@ -238,7 +238,7 @@ Map<String, dynamic> requestData = {
 #### **HTTP Request**
 ```dart
 final response = await http.post(
-  Uri.parse('http://free-styel.store/api/requests'),
+  Uri.parse('https://free-styel.store/api/requests'),
   headers: {
     'Content-Type': 'application/json',
   },

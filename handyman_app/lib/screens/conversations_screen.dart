@@ -16,7 +16,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
   bool _isLoading = false;
   
   // Backend configuration
-  static const String _baseUrl = 'http://free-styel.store/api';
+  static const String _baseUrl = 'https://free-styel.store/api';
   static const String _conversationsEndpoint = '/conversations';
   static const String _messagesEndpoint = '/messages';
   static const String _sendMessageEndpoint = '/messages/send';

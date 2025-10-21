@@ -9,7 +9,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
-$url = 'http://free-styel.store' . $_SERVER['REQUEST_URI'];
+$url = 'https://free-styel.store' . $_SERVER['REQUEST_URI'];
 $queryString = $_SERVER['QUERY_STRING'];
 
 if ($queryString) {

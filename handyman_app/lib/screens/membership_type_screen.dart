@@ -17,7 +17,7 @@ class _MembershipTypeScreenState extends State<MembershipTypeScreen> {
   bool _isLoading = false;
   
   // Backend configuration - Using localhost
-  static const String _baseUrl = 'http://free-styel.store/api';
+  static const String _baseUrl = 'https://free-styel.store/api';
   static const String _saveMembershipTypeEndpoint = '/auth/save-membership-type';
 
   @override
