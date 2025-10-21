@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '../config/api_config.dart';
 import 'web_api_service.dart';
+import 'fallback_api_service.dart';
 
 class ApiService {
   static final Dio _dio = Dio();
@@ -40,7 +41,24 @@ class ApiService {
   
   static Future<Response> post(String path, {Map<String, dynamic>? data}) async {
     if (kIsWeb) {
-      return await WebApiService.post(path, data: data);
+      try {
+        // محاولة WebApiService أولاً
+        return await WebApiService.post(path, data: data);
+      } catch (e) {
+        print('WebApiService failed, trying FallbackApiService: $e');
+        try {
+          // استخدام FallbackApiService كبديل
+          final result = await FallbackApiService.post(path, data: data);
+          return Response(
+            data: result,
+            statusCode: 200,
+            requestOptions: RequestOptions(path: path),
+          );
+        } catch (fallbackError) {
+          print('FallbackApiService also failed: $fallbackError');
+          rethrow;
+        }
+      }
     }
     
     try {
@@ -53,7 +71,24 @@ class ApiService {
   
   static Future<Response> get(String path, {Map<String, dynamic>? queryParameters}) async {
     if (kIsWeb) {
-      return await WebApiService.get(path, queryParameters: queryParameters);
+      try {
+        // محاولة WebApiService أولاً
+        return await WebApiService.get(path, queryParameters: queryParameters);
+      } catch (e) {
+        print('WebApiService failed, trying FallbackApiService: $e');
+        try {
+          // استخدام FallbackApiService كبديل
+          final result = await FallbackApiService.get(path, queryParameters: queryParameters);
+          return Response(
+            data: result,
+            statusCode: 200,
+            requestOptions: RequestOptions(path: path),
+          );
+        } catch (fallbackError) {
+          print('FallbackApiService also failed: $fallbackError');
+          rethrow;
+        }
+      }
     }
     
     try {
