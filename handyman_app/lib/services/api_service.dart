@@ -1,20 +1,20 @@
 import 'package:dio/dio.dart';
-import 'package:dio_web_adapter/dio_web_adapter.dart';
 import 'package:flutter/foundation.dart';
 import '../config/api_config.dart';
+import 'web_api_service.dart';
 
 class ApiService {
   static final Dio _dio = Dio();
   
   static void init() {
+    if (kIsWeb) {
+      WebApiService.init();
+      return;
+    }
+    
     _dio.options.baseUrl = ApiConfig.baseUrl;
     _dio.options.connectTimeout = Duration(seconds: 30);
     _dio.options.receiveTimeout = Duration(seconds: 30);
-    
-    // إضافة web adapter للـ Flutter Web
-    if (kIsWeb) {
-      _dio.httpClientAdapter = WebAdapter();
-    }
     
     // إضافة interceptors
     _dio.interceptors.add(InterceptorsWrapper(
@@ -39,6 +39,10 @@ class ApiService {
   }
   
   static Future<Response> post(String path, {Map<String, dynamic>? data}) async {
+    if (kIsWeb) {
+      return await WebApiService.post(path, data: data);
+    }
+    
     try {
       return await _dio.post(path, data: data);
     } catch (e) {
@@ -48,6 +52,10 @@ class ApiService {
   }
   
   static Future<Response> get(String path, {Map<String, dynamic>? queryParameters}) async {
+    if (kIsWeb) {
+      return await WebApiService.get(path, queryParameters: queryParameters);
+    }
+    
     try {
       return await _dio.get(path, queryParameters: queryParameters);
     } catch (e) {
