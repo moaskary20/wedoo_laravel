@@ -60,6 +60,7 @@ dependencies:
   
   # Google Maps
   google_maps_flutter: ^2.5.0
+  dio: ^5.9.0
 
 dev_dependencies:
   flutter_test:

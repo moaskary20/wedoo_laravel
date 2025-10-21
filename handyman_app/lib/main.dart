@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:io';
 import 'screens/login_screen.dart';
+import 'services/api_service.dart';
 
 void main() {
   HttpOverrides.global = MyHttpOverrides();
+  ApiService.init();
   runApp(const HandymanApp());
 }
 

@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'demo_location_screen.dart';
 import 'phone_input_screen.dart';
 import '../config/api_config.dart';
+import '../services/api_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -361,18 +362,17 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      // Send login request to backend
-      final response = await http.post(
-        Uri.parse(ApiConfig.authLogin),
-        headers: ApiConfig.headers,
-        body: jsonEncode({
-          'phone': _phoneController.text.trim(),
-          'password': _passwordController.text.trim(),
-        }),
-      ).timeout(const Duration(seconds: 30));
+      // Initialize ApiService
+      ApiService.init();
+      
+      // Send login request to backend using ApiService
+      final response = await ApiService.post('/api/auth/login', data: {
+        'phone': _phoneController.text.trim(),
+        'password': _passwordController.text.trim(),
+      });
 
       if (response.statusCode == 200) {
-        final responseData = jsonDecode(response.body);
+        final responseData = response.data;
         
         if (responseData['success'] == true) {
           // Save user data to SharedPreferences
