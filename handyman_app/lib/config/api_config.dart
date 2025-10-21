@@ -28,5 +28,7 @@ class ApiConfig {
   static Map<String, String> get headers => {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
+    'User-Agent': 'WedooApp/1.0 (Flutter)',
+    'Origin': 'https://free-styel.store',
   };
 }
