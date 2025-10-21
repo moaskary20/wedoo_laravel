@@ -117,8 +117,8 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
       if (response.statusCode == 200) {
         final responseData = jsonDecode(response.body);
         if (responseData['success'] == true) {
-          // Extract task types for the specific category
-          List<dynamic> allTaskTypes = responseData['data'][categoryId.toString()] ?? [];
+          // Extract task types directly from data array
+          List<dynamic> allTaskTypes = responseData['data'] ?? [];
           
           setState(() {
             _taskTypes = allTaskTypes.cast<Map<String, dynamic>>();
