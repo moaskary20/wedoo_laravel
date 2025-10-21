@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../config/api_config.dart';
 
 class PromoCodeScreen extends StatefulWidget {
   const PromoCodeScreen({super.key});
@@ -17,11 +18,7 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
   int _affiliatedFriends = 5;
   bool _isLoading = false;
   
-  // Backend configuration
-  static const String _baseUrl = 'https://free-styel.store/api';
-  static const String _promoCodeEndpoint = '/promo-codes';
-  static const String _membershipCodeEndpoint = '/membership-codes';
-  static const String _affiliateStatsEndpoint = '/affiliate-stats';
+  // Backend configuration - Using ApiConfig
 
   @override
   void initState() {

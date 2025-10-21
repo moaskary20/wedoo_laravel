@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'membership_type_screen.dart';
+import '../config/api_config.dart';
 
 class PhoneInputScreen extends StatefulWidget {
   const PhoneInputScreen({super.key});
@@ -15,9 +16,7 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
   final TextEditingController _phoneController = TextEditingController();
   bool _isLoading = false;
   
-  // Backend configuration - Using localhost for development
-  static const String _baseUrl = 'https://free-styel.store/api';
-  static const String _verifyPhoneEndpoint = '/auth/verify-phone';
+  // Backend configuration - Using ApiConfig
 
   @override
   void dispose() {

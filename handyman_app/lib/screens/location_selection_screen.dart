@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'login_screen.dart';
+import '../config/api_config.dart';
 
 class LocationSelectionScreen extends StatefulWidget {
   const LocationSelectionScreen({super.key});
@@ -415,10 +416,8 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
 
       // Send registration data to backend
       final response = await http.post(
-        Uri.parse('https://free-styel.store/api/auth/register.php'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        Uri.parse(ApiConfig.authRegister),
+        headers: ApiConfig.headers,
         body: jsonEncode(registrationData),
       );
 
