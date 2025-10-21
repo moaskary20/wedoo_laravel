@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import '../config/api_config.dart';
 import 'web_api_service.dart';
 import 'fallback_api_service.dart';
+import 'proxy_api_service.dart';
+import 'js_api_service.dart';
 
 class ApiService {
   static final Dio _dio = Dio();
@@ -55,8 +57,30 @@ class ApiService {
             requestOptions: RequestOptions(path: path),
           );
         } catch (fallbackError) {
-          print('FallbackApiService also failed: $fallbackError');
-          rethrow;
+          print('FallbackApiService also failed, trying ProxyApiService: $fallbackError');
+          try {
+            // استخدام ProxyApiService كحل أخير
+            final result = await ProxyApiService.post(path, data: data);
+            return Response(
+              data: result,
+              statusCode: 200,
+              requestOptions: RequestOptions(path: path),
+            );
+          } catch (proxyError) {
+            print('ProxyApiService also failed, trying JsApiService: $proxyError');
+            try {
+              // استخدام JsApiService كحل أخير
+              final result = await JsApiService.post(path, data: data);
+              return Response(
+                data: result,
+                statusCode: 200,
+                requestOptions: RequestOptions(path: path),
+              );
+            } catch (jsError) {
+              print('JsApiService also failed: $jsError');
+              rethrow;
+            }
+          }
         }
       }
     }
@@ -85,8 +109,30 @@ class ApiService {
             requestOptions: RequestOptions(path: path),
           );
         } catch (fallbackError) {
-          print('FallbackApiService also failed: $fallbackError');
-          rethrow;
+          print('FallbackApiService also failed, trying ProxyApiService: $fallbackError');
+          try {
+            // استخدام ProxyApiService كحل أخير
+            final result = await ProxyApiService.get(path, queryParameters: queryParameters);
+            return Response(
+              data: result,
+              statusCode: 200,
+              requestOptions: RequestOptions(path: path),
+            );
+          } catch (proxyError) {
+            print('ProxyApiService also failed, trying JsApiService: $proxyError');
+            try {
+              // استخدام JsApiService كحل أخير
+              final result = await JsApiService.get(path, queryParameters: queryParameters);
+              return Response(
+                data: result,
+                statusCode: 200,
+                requestOptions: RequestOptions(path: path),
+              );
+            } catch (jsError) {
+              print('JsApiService also failed: $jsError');
+              rethrow;
+            }
+          }
         }
       }
     }
