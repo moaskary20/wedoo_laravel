@@ -4,6 +4,7 @@ import '../config/api_config.dart';
 import 'web_api_service.dart';
 import 'fallback_api_service.dart';
 import 'direct_web_api_service.dart';
+import 'simple_html_api_service.dart';
 
 class ApiService {
   static final Dio _dio = Dio();
@@ -43,31 +44,42 @@ class ApiService {
   static Future<Response> post(String path, {Map<String, dynamic>? data}) async {
     if (kIsWeb) {
       try {
-        // محاولة DirectWebApiService أولاً (fetch API مباشرة)
-        final result = await DirectWebApiService.post(path, data: data);
+        // محاولة SimpleHtmlApiService أولاً (XMLHttpRequest مباشرة)
+        final result = await SimpleHtmlApiService.post(path, data: data);
         return Response(
           data: result,
           statusCode: 200,
           requestOptions: RequestOptions(path: path),
         );
       } catch (e) {
-        print('DirectWebApiService failed, trying WebApiService: $e');
+        print('SimpleHtmlApiService failed, trying DirectWebApiService: $e');
         try {
-          // محاولة WebApiService ثانياً
-          return await WebApiService.post(path, data: data);
+          // محاولة DirectWebApiService ثانياً
+          final result = await DirectWebApiService.post(path, data: data);
+          return Response(
+            data: result,
+            statusCode: 200,
+            requestOptions: RequestOptions(path: path),
+          );
         } catch (e2) {
-          print('WebApiService failed, trying FallbackApiService: $e2');
+          print('DirectWebApiService failed, trying WebApiService: $e2');
           try {
-            // استخدام FallbackApiService كبديل أخير
-            final result = await FallbackApiService.post(path, data: data);
-            return Response(
-              data: result,
-              statusCode: 200,
-              requestOptions: RequestOptions(path: path),
-            );
-          } catch (fallbackError) {
-            print('All web methods failed: $fallbackError');
-            rethrow;
+            // محاولة WebApiService ثالثاً
+            return await WebApiService.post(path, data: data);
+          } catch (e3) {
+            print('WebApiService failed, trying FallbackApiService: $e3');
+            try {
+              // استخدام FallbackApiService كبديل أخير
+              final result = await FallbackApiService.post(path, data: data);
+              return Response(
+                data: result,
+                statusCode: 200,
+                requestOptions: RequestOptions(path: path),
+              );
+            } catch (fallbackError) {
+              print('All web methods failed: $fallbackError');
+              rethrow;
+            }
           }
         }
       }
@@ -84,31 +96,42 @@ class ApiService {
   static Future<Response> get(String path, {Map<String, dynamic>? queryParameters}) async {
     if (kIsWeb) {
       try {
-        // محاولة DirectWebApiService أولاً (fetch API مباشرة)
-        final result = await DirectWebApiService.get(path, queryParameters: queryParameters);
+        // محاولة SimpleHtmlApiService أولاً (XMLHttpRequest مباشرة)
+        final result = await SimpleHtmlApiService.get(path, queryParameters: queryParameters);
         return Response(
           data: result,
           statusCode: 200,
           requestOptions: RequestOptions(path: path),
         );
       } catch (e) {
-        print('DirectWebApiService failed, trying WebApiService: $e');
+        print('SimpleHtmlApiService failed, trying DirectWebApiService: $e');
         try {
-          // محاولة WebApiService ثانياً
-          return await WebApiService.get(path, queryParameters: queryParameters);
+          // محاولة DirectWebApiService ثانياً
+          final result = await DirectWebApiService.get(path, queryParameters: queryParameters);
+          return Response(
+            data: result,
+            statusCode: 200,
+            requestOptions: RequestOptions(path: path),
+          );
         } catch (e2) {
-          print('WebApiService failed, trying FallbackApiService: $e2');
+          print('DirectWebApiService failed, trying WebApiService: $e2');
           try {
-            // استخدام FallbackApiService كبديل أخير
-            final result = await FallbackApiService.get(path, queryParameters: queryParameters);
-            return Response(
-              data: result,
-              statusCode: 200,
-              requestOptions: RequestOptions(path: path),
-            );
-          } catch (fallbackError) {
-            print('All web methods failed: $fallbackError');
-            rethrow;
+            // محاولة WebApiService ثالثاً
+            return await WebApiService.get(path, queryParameters: queryParameters);
+          } catch (e3) {
+            print('WebApiService failed, trying FallbackApiService: $e3');
+            try {
+              // استخدام FallbackApiService كبديل أخير
+              final result = await FallbackApiService.get(path, queryParameters: queryParameters);
+              return Response(
+                data: result,
+                statusCode: 200,
+                requestOptions: RequestOptions(path: path),
+              );
+            } catch (fallbackError) {
+              print('All web methods failed: $fallbackError');
+              rethrow;
+            }
           }
         }
       }
