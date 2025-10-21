@@ -369,7 +369,7 @@ class _LoginScreenState extends State<LoginScreen> {
           'phone': _phoneController.text.trim(),
           'password': _passwordController.text.trim(),
         }),
-      );
+      ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final responseData = jsonDecode(response.body);
@@ -409,8 +409,14 @@ class _LoginScreenState extends State<LoginScreen> {
         _showErrorSnackBar('خطأ في الاتصال بالخادم');
       }
     } catch (e) {
-      _showErrorSnackBar('خطأ في الاتصال. يرجى التحقق من الإنترنت');
       print('Login error: $e');
+      if (e.toString().contains('TimeoutException')) {
+        _showErrorSnackBar('انتهت مهلة الاتصال. يرجى المحاولة مرة أخرى');
+      } else if (e.toString().contains('SocketException')) {
+        _showErrorSnackBar('خطأ في الاتصال بالخادم. يرجى التحقق من الإنترنت');
+      } else {
+        _showErrorSnackBar('خطأ في الاتصال. يرجى المحاولة مرة أخرى');
+      }
     } finally {
       if (mounted) {
         setState(() {
