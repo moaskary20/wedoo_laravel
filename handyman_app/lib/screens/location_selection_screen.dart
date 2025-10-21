@@ -398,45 +398,81 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
     });
 
     try {
-      // For development - simulate registration without backend
-      await Future.delayed(const Duration(seconds: 2));
-      
       // Get user data from SharedPreferences
       final prefs = await SharedPreferences.getInstance();
       
-      // Simulate successful registration
-      print('Registration data would be sent to admin panel:');
-      print('Name: ${prefs.getString('temp_user_name')}');
-      print('Phone: ${prefs.getString('temp_phone_number')}');
-      print('User Type: ${prefs.getString('temp_user_type')}');
-      print('Location: $_selectedGovernorate, $_selectedCity, $_selectedDistrict');
-      
-      // Clear temporary data
-      await _clearTempData();
-      
-      // Show success message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('تم إنشاء الحساب بنجاح! سيتم إرسال البيانات للـ admin panel عند توفر الاتصال'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 4),
-          ),
-        );
+      // Prepare registration data
+      final registrationData = {
+        'name': prefs.getString('temp_user_name') ?? '',
+        'phone': prefs.getString('temp_phone_number') ?? '',
+        'email': prefs.getString('temp_user_email') ?? '',
+        'password': prefs.getString('temp_user_password') ?? '',
+        'user_type': prefs.getString('temp_user_type') ?? 'customer',
+        'governorate': _selectedGovernorate!,
+        'city': _selectedCity!,
+        'district': _selectedDistrict!,
+      };
 
-        // Navigate back to login screen
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(
-            builder: (context) => const LoginScreen(),
-          ),
-          (route) => false,
-        );
+      // Send registration data to backend
+      final response = await http.post(
+        Uri.parse('https://free-styel.store/api/auth/register.php'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(registrationData),
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        
+        if (responseData['success'] == true) {
+          // Save user data to SharedPreferences
+          final userData = responseData['data'];
+          await prefs.setString('user_id', userData['id'].toString());
+          await prefs.setString('user_name', userData['name']);
+          await prefs.setString('user_phone', userData['phone']);
+          await prefs.setString('user_email', userData['email']);
+          await prefs.setString('user_governorate', userData['governorate']);
+          await prefs.setString('user_city', userData['city']);
+          await prefs.setString('user_area', userData['district']);
+          await prefs.setString('user_membership_code', userData['membership_code']);
+          await prefs.setString('access_token', userData['access_token']);
+          await prefs.setString('refresh_token', userData['refresh_token']);
+          await prefs.setBool('is_logged_in', true);
+          await prefs.setString('login_timestamp', DateTime.now().toIso8601String());
+          
+          // Clear temporary data
+          await _clearTempData();
+          
+          // Show success message
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('تم إنشاء الحساب بنجاح!'),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 3),
+              ),
+            );
+
+            // Navigate back to login screen
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(
+                builder: (context) => const LoginScreen(),
+              ),
+              (route) => false,
+            );
+          }
+        } else {
+          throw Exception(responseData['message'] ?? 'Registration failed');
+        }
+      } else {
+        throw Exception('Registration failed: ${response.statusCode}');
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('خطأ في الاتصال. يرجى التحقق من الإنترنت'),
+          SnackBar(
+            content: Text('خطأ في التسجيل: $e'),
             backgroundColor: Colors.red,
           ),
         );

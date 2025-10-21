@@ -362,39 +362,54 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      // For development - simulate login without backend
-      await Future.delayed(const Duration(seconds: 2));
-      
-      // Simple login validation for demo
-      if (_phoneController.text.trim() == '01000690805' && _passwordController.text.trim() == 'askary20') {
-        // Save user data to SharedPreferences
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('user_id', '1');
-        await prefs.setString('user_name', 'مستخدم تجريبي');
-        await prefs.setString('user_phone', _phoneController.text.trim());
-        await prefs.setString('user_email', 'demo@example.com');
-        await prefs.setString('user_governorate', 'تونس');
-        await prefs.setString('user_city', 'تونس العاصمة');
-        await prefs.setString('user_area', 'المركز');
-        await prefs.setString('user_membership_code', '558206');
-        await prefs.setString('access_token', 'demo_token_123');
-        await prefs.setString('refresh_token', 'demo_refresh_token_123');
-        await prefs.setBool('is_logged_in', true);
-        await prefs.setString('login_timestamp', DateTime.now().toIso8601String());
+      // Send login request to backend
+      final response = await http.post(
+        Uri.parse('https://free-styel.store/api/auth/login.php'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'phone': _phoneController.text.trim(),
+          'password': _passwordController.text.trim(),
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
         
-        // Show success message
-        _showSuccessSnackBar('تم تسجيل الدخول بنجاح');
-        
-        // Navigate to location screen
-        if (mounted) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (context) => const DemoLocationScreen(),
-            ),
-          );
+        if (responseData['success'] == true) {
+          // Save user data to SharedPreferences
+          final userData = responseData['data'];
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('user_id', userData['id'].toString());
+          await prefs.setString('user_name', userData['name']);
+          await prefs.setString('user_phone', userData['phone']);
+          await prefs.setString('user_email', userData['email']);
+          await prefs.setString('user_governorate', userData['governorate']);
+          await prefs.setString('user_city', userData['city']);
+          await prefs.setString('user_area', userData['district']);
+          await prefs.setString('user_membership_code', userData['membership_code']);
+          await prefs.setString('access_token', userData['access_token']);
+          await prefs.setString('refresh_token', userData['refresh_token']);
+          await prefs.setBool('is_logged_in', true);
+          await prefs.setString('login_timestamp', DateTime.now().toIso8601String());
+          
+          // Show success message
+          _showSuccessSnackBar('تم تسجيل الدخول بنجاح');
+          
+          // Navigate to location screen
+          if (mounted) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (context) => const DemoLocationScreen(),
+              ),
+            );
+          }
+        } else {
+          _showErrorSnackBar(responseData['message'] ?? 'رقم الهاتف أو كلمة المرور غير صحيحة');
         }
       } else {
-        _showErrorSnackBar('رقم الهاتف أو كلمة المرور غير صحيحة');
+        _showErrorSnackBar('خطأ في الاتصال بالخادم');
       }
     } catch (e) {
       _showErrorSnackBar('خطأ في الاتصال. يرجى التحقق من الإنترنت');
