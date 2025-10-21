@@ -182,7 +182,7 @@ class _LocationScreenState extends State<LocationScreen> {
   ) async {
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:8000/api/user-locations'),
+        Uri.parse('http://free-styel.store/api/user-locations'),
         headers: {
           'Content-Type': 'application/json',
         },

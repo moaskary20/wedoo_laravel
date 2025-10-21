@@ -25,7 +25,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String? _userProfileImage;
   
   // Backend configuration
-  static const String _baseUrl = 'http://localhost:8000/api';
+  static const String _baseUrl = 'https:///api/api';
   static const String _settingsEndpoint = '/settings';
   
   // App settings from backend

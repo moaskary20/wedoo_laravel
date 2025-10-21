@@ -133,7 +133,7 @@ Widget _buildTipCard(Tip tip, int index) {
 ```dart
 Future<void> _fetchTips() async {
   final response = await http.get(
-    Uri.parse('http://localhost:8000/api/tips/${widget.categoryId}'),
+    Uri.parse('http://free-styel.store/api/tips/${widget.categoryId}'),
     headers: {'Content-Type': 'application/json'},
   );
   

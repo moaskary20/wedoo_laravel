@@ -5,6 +5,7 @@ import 'service_request_form.dart';
 import 'tips_screen.dart';
 import 'service_screen.dart';
 import 'craft_secrets_screen.dart';
+import '../config/api_config.dart';
 
 class CategoryDetailScreen extends StatefulWidget {
   final String categoryName;
@@ -29,10 +30,6 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
   bool _isLoading = true;
   String _errorMessage = '';
 
-  // Backend configuration
-  static const String _baseUrl = 'http://localhost:8000/api';
-  static const String _getCraftsmanCountEndpoint = '/craftsman/count';
-
   @override
   void initState() {
     super.initState();
@@ -46,45 +43,35 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
         _errorMessage = '';
       });
 
-      // For development - simulate API call
-      await Future.delayed(const Duration(seconds: 1));
-      
-      // Simulate different counts based on category
-      int simulatedCount = _getSimulatedCount();
-      
-      setState(() {
-        _craftsmanCount = simulatedCount;
-        _isLoading = false;
-      });
-
-      // TODO: Uncomment when backend is ready
-      /*
       // Real API call to get craftsman count
       final response = await http.get(
-        Uri.parse('$_baseUrl$_getCraftsmanCountEndpoint?category_id=${widget.categoryId}'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-      );
+        Uri.parse('${ApiConfig.craftsmanCount}?category_id=${widget.categoryId}'),
+        headers: ApiConfig.headers,
+      ).timeout(const Duration(seconds: 30));
+
+      print('Craftsman Count API Response Status: ${response.statusCode}');
+      print('Craftsman Count API Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        setState(() {
-          _craftsmanCount = data['count'] ?? 0;
-          _isLoading = false;
-        });
+        if (data['success'] == true) {
+          setState(() {
+            _craftsmanCount = data['data']['count'] ?? 0;
+            _isLoading = false;
+          });
+        } else {
+          throw Exception(data['message'] ?? 'Failed to fetch craftsman count');
+        }
       } else {
-        setState(() {
-          _errorMessage = 'خطأ في تحميل البيانات';
-          _isLoading = false;
-        });
+        throw Exception('Failed to fetch craftsman count: ${response.statusCode}');
       }
-      */
     } catch (e) {
+      print('Error fetching craftsman count: $e');
       setState(() {
-        _errorMessage = 'خطأ في تحميل البيانات';
+        _errorMessage = 'خطأ في الاتصال: ${e.toString()}';
         _isLoading = false;
+        // Fallback to simulated count
+        _craftsmanCount = _getSimulatedCount();
       });
     }
   }

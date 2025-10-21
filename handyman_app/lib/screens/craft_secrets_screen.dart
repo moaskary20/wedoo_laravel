@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 class CraftSecretsScreen extends StatefulWidget {
   const CraftSecretsScreen({Key? key}) : super(key: key);
@@ -79,6 +83,44 @@ class _CraftSecretsScreenState extends State<CraftSecretsScreen>
     );
   }
 
+  Future<void> _openUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  bool _isSupportedWebViewPlatform() {
+    return defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.macOS;
+  }
+
+  void _openArticle(String url, String title) {
+    if (kIsWeb || !_isSupportedWebViewPlatform()) {
+      _openUrl(url);
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _ArticleWebViewScreen(title: title, initialUrl: url),
+      ),
+    );
+  }
+
+  void _openVideo(String url) {
+    final videoId = YoutubePlayer.convertUrlToId(url);
+    if (videoId == null) {
+      _openUrl(url);
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _YouTubePlayerScreen(videoId: videoId),
+      ),
+    );
+  }
+
   Widget _buildArticlesTab() {
     return Container(
       color: Colors.white,
@@ -90,6 +132,7 @@ class _CraftSecretsScreenState extends State<CraftSecretsScreen>
             'تعلم كيفية اختيار الألوان المناسبة وتطبيق الدهانات بطريقة احترافية',
             'وي دو -- نقاشة',
             'assets/images/article1.jpg',
+            'https://www.wikihow.com/Paint-a-Room',
           ),
           const SizedBox(height: 16),
           _buildArticleCard(
@@ -97,6 +140,7 @@ class _CraftSecretsScreenState extends State<CraftSecretsScreen>
             'دليل شامل لأدوات النجارة التي يحتاجها كل صانع',
             'وي دو -- نجارة',
             'assets/images/article2.jpg',
+            'https://www.familyhandyman.com/list/must-have-woodworking-tools/',
           ),
           const SizedBox(height: 16),
           _buildArticleCard(
@@ -104,6 +148,7 @@ class _CraftSecretsScreenState extends State<CraftSecretsScreen>
             'أحدث التقنيات في مجال السباكة والصيانة',
             'وي دو -- سباكة',
             'assets/images/article3.jpg',
+            'https://www.houselogic.com/organize-maintain/home-maintenance-tips/plumbing-tips/',
           ),
         ],
       ),
@@ -120,38 +165,46 @@ class _CraftSecretsScreenState extends State<CraftSecretsScreen>
             'رولة دهان عجيبة - فكرة عمل السرنجة',
             'وي دو -- نقاشة',
             'assets/images/video1.jpg',
+            'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
           ),
           const SizedBox(height: 16),
           _buildVideoCard(
             'أفكار بسيطة و جميلة للدهانات',
             'وي دو -- نقاشة',
             'assets/images/video2.jpg',
+            'https://www.youtube.com/watch?v=ysz5S6PUM-U',
           ),
           const SizedBox(height: 16),
           _buildVideoCard(
             'طريقة عمل ديكور هندسي مميز',
             'وي دو -- نقاشة',
             'assets/images/video3.jpg',
+            'https://www.youtube.com/watch?v=jNQXAC9IVRw',
           ),
           const SizedBox(height: 16),
           _buildVideoCard(
             'تقنيات النجارة المتقدمة',
             'وي دو -- نجارة',
             'assets/images/video4.jpg',
+            'https://www.youtube.com/watch?v=aqz-KE-bpKQ',
           ),
           const SizedBox(height: 16),
           _buildVideoCard(
             'أساسيات السباكة المنزلية',
             'وي دو -- سباكة',
             'assets/images/video5.jpg',
+            'https://www.youtube.com/watch?v=o-YBDTqX_ZU',
           ),
         ],
       ),
     );
   }
 
-  Widget _buildArticleCard(String title, String description, String category, String imagePath) {
-    return Container(
+  Widget _buildArticleCard(String title, String description, String category, String imagePath, String url) {
+    return InkWell(
+      onTap: () => _openArticle(url, title),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -241,11 +294,15 @@ class _CraftSecretsScreenState extends State<CraftSecretsScreen>
           ),
         ],
       ),
+      ),
     );
   }
 
-  Widget _buildVideoCard(String title, String category, String imagePath) {
-    return Container(
+  Widget _buildVideoCard(String title, String category, String imagePath, String url) {
+    return InkWell(
+      onTap: () => _openVideo(url),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -362,7 +419,117 @@ class _CraftSecretsScreenState extends State<CraftSecretsScreen>
           ),
         ],
       ),
+      ),
     );
   }
 
+}
+
+class _ArticleWebViewScreen extends StatefulWidget {
+  final String title;
+  final String initialUrl;
+  const _ArticleWebViewScreen({required this.title, required this.initialUrl});
+
+  @override
+  State<_ArticleWebViewScreen> createState() => _ArticleWebViewScreenState();
+}
+
+class _ArticleWebViewScreenState extends State<_ArticleWebViewScreen> {
+  late final WebViewController _controller;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..enableZoom(true)
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageFinished: (_) {
+            if (mounted) setState(() { _isLoading = false; });
+          },
+        ),
+      )
+      ..loadRequest(Uri.parse(widget.initialUrl));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(widget.title),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.open_in_new),
+              onPressed: () => _openExternal(),
+            )
+          ],
+        ),
+        body: Stack(
+          children: [
+            WebViewWidget(controller: _controller),
+            if (_isLoading)
+              const Center(child: CircularProgressIndicator()),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openExternal() async {
+    final uri = Uri.parse(widget.initialUrl);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+}
+
+class _YouTubePlayerScreen extends StatefulWidget {
+  final String videoId;
+  const _YouTubePlayerScreen({required this.videoId});
+
+  @override
+  State<_YouTubePlayerScreen> createState() => _YouTubePlayerScreenState();
+}
+
+class _YouTubePlayerScreenState extends State<_YouTubePlayerScreen> {
+  late YoutubePlayerController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = YoutubePlayerController(
+      initialVideoId: widget.videoId,
+      flags: const YoutubePlayerFlags(
+        autoPlay: true,
+        mute: false,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('تشغيل الفيديو'),
+        ),
+        body: YoutubePlayer(
+          controller: _controller,
+          showVideoProgressIndicator: true,
+          progressIndicatorColor: Colors.red,
+        ),
+      ),
+    );
+  }
 }

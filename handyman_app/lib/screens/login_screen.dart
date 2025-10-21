@@ -19,7 +19,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   
   // Backend configuration - Using localhost
-  static const String _baseUrl = 'http://localhost:8000/api';
+  static const String _baseUrl = 'https:///api/api';
   static const String _loginEndpoint = '/auth/login';
 
   @override
@@ -340,36 +340,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
-        floatingActionButton: Container(
-          width: 80,
-          height: 80,
-          decoration: BoxDecoration(
-            color: Colors.green,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.green.withValues(alpha: 0.3),
-                blurRadius: 10,
-                offset: const Offset(0, 5),
-              ),
-            ],
-          ),
-          child: FloatingActionButton(
-            onPressed: () {
-              // Handle help
-            },
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            child: const Text(
-              'مساعدة',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ),
+        // floatingActionButton removed (help button)
       ),
     );
   }

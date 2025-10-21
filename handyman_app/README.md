@@ -106,12 +106,12 @@ await prefs.setString('country', country);
 ## API Integration
 
 ### Backend Endpoint
-- **URL**: `http://localhost:8000/api/user-locations`
+- **URL**: `http://free-styel.store/api/user-locations`
 - **Method**: POST
 - **Data**: Device ID, coordinates, address info
 
 ### Category Endpoint
-- **URL**: `http://localhost:8000/api/categories`
+- **URL**: `http://free-styel.store/api/categories`
 - **Method**: GET
 - **Response**: List of 18 categories with Arabic names and icons
 

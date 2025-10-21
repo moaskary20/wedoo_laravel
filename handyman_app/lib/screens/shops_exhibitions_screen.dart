@@ -214,7 +214,7 @@ class _ShopsExhibitionsScreenState extends State<ShopsExhibitionsScreen> {
   Future<List<Map<String, dynamic>>> _loadShopsFromAdminPanel(String categoryName) async {
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:8000/api/shops'),
+        Uri.parse('http://free-styel.store/api/shops'),
         headers: {
           'Content-Type': 'application/json',
         },

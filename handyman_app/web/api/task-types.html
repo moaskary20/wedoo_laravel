@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Task Types API</title>
+    <script src="task-types.js"></script>
+</head>
+<body>
+    <script>
+        // Get category_id from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const categoryId = urlParams.get('category_id') || '1';
+        
+        // Get task types for the category
+        const result = getTaskTypesByCategory(categoryId);
+        
+        // Return JSON response
+        document.write(JSON.stringify(result));
+    </script>
+</body>
+</html>

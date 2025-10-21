@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../config/api_config.dart';
 
 class MyOrdersScreen extends StatefulWidget {
   const MyOrdersScreen({super.key});
@@ -49,42 +51,38 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
 
   Future<List<Map<String, dynamic>>> _loadOrdersFromAdminPanel() async {
     try {
-      // Simulate API call to admin panel
-      await Future.delayed(const Duration(seconds: 1));
+      // Get user ID from shared preferences
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? userId = prefs.getString('user_id');
       
-      // In real app, this would be an actual HTTP request
-      print('Loading orders from admin panel...');
+      if (userId == null) {
+        print('No user ID found, using default');
+        userId = 'user_123'; // Default user ID for demo
+      }
       
-      // Simulate admin panel response
-      List<Map<String, dynamic>> adminOrders = [
-        {
-          'id': 'ADMIN-001',
-          'service': 'نقاش',
-          'description': 'طلبية من الـ admin panel',
-          'location': 'تونس العاصمة',
-          'time': 'اليوم',
-          'progress': 'قدم 1',
-          'status': 'قيد الانتظار',
-          'iconName': 'brush',
-          'serviceType': 'painter',
-          'source': 'admin_panel',
-        },
-        {
-          'id': 'ADMIN-002',
-          'service': 'كهربائي',
-          'description': 'صيانة كهربائية من الـ admin panel',
-          'location': 'صفاقس',
-          'time': 'أمس',
-          'progress': 'قدم 2',
-          'status': 'قيد المعالجة',
-          'iconName': 'electrical_services',
-          'serviceType': 'electrician',
-          'source': 'admin_panel',
-        },
-      ];
+      print('Loading orders from admin panel for user: $userId');
       
-      print('Loaded ${adminOrders.length} orders from admin panel');
-      return adminOrders;
+      // Make actual HTTP request to admin panel
+      final response = await http.get(
+        Uri.parse('${ApiConfig.ordersList}?user_id=$userId'),
+        headers: ApiConfig.headers,
+      ).timeout(const Duration(seconds: 30));
+      
+      print('API Response Status: ${response.statusCode}');
+      print('API Response Body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        if (responseData['success'] == true) {
+          List<dynamic> orders = responseData['data'] ?? [];
+          print('Loaded ${orders.length} orders from admin panel');
+          return orders.cast<Map<String, dynamic>>();
+        } else {
+          throw Exception(responseData['message'] ?? 'Failed to load orders');
+        }
+      } else {
+        throw Exception('Failed to load orders: ${response.statusCode}');
+      }
       
     } catch (e) {
       print('Error loading orders from admin panel: $e');

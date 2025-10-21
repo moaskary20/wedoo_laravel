@@ -8,6 +8,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import '../config/api_config.dart';
 
 class ServiceRequestForm extends StatefulWidget {
   final String categoryName;
@@ -97,61 +98,63 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
         _isLoadingTaskTypes = true;
       });
 
+      // Get category ID based on category name
+      int categoryId = _getCategoryId(widget.categoryName);
+      
+      // Debug logging
+      print('Category Name: ${widget.categoryName}');
+      print('Category ID: $categoryId');
+
+      // Fetch from HTTPS server
       final response = await http.get(
-        Uri.parse('http://localhost:8000/api/task-types/index.php'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      );
+        Uri.parse('${ApiConfig.taskTypes}?category_id=$categoryId'),
+        headers: ApiConfig.headers,
+      ).timeout(const Duration(seconds: 30));
+
+      print('API Response Status: ${response.statusCode}');
+      print('API Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['success'] == true && data['data'] != null) {
+        final responseData = jsonDecode(response.body);
+        if (responseData['success'] == true) {
+          // Extract task types for the specific category
+          List<dynamic> allTaskTypes = responseData['data'][categoryId.toString()] ?? [];
+          
           setState(() {
-            _taskTypes = (data['data'] as List).cast<Map<String, dynamic>>();
+            _taskTypes = allTaskTypes.cast<Map<String, dynamic>>();
             _isLoadingTaskTypes = false;
           });
         } else {
-          throw Exception('Invalid response format');
+          throw Exception(responseData['message'] ?? 'Failed to fetch task types');
         }
       } else {
-        throw Exception('Failed to load task types: ${response.statusCode}');
+        throw Exception('Failed to fetch task types: ${response.statusCode}');
       }
+      
     } catch (e) {
       print('Error fetching task types: $e');
       setState(() {
         _isLoadingTaskTypes = false;
-        // Fallback to default task types if API fails
-        _taskTypes = [
-          {
-            'id': 1,
-            'name': 'وحدة اقل من 3 غرف',
-            'name_en': 'Unit less than 3 rooms',
-            'description': 'خدمات صيانة للوحدات الصغيرة',
-            'price_range': '50-200 دينار تونسي',
-            'duration': '1-3 ساعات',
-            'difficulty': 'easy',
-          },
-          {
-            'id': 2,
-            'name': 'وحدة 3 غرف او اكثر',
-            'name_en': 'Unit 3 rooms or more',
-            'description': 'خدمات صيانة للوحدات الكبيرة',
-            'price_range': '200-500 دينار تونسي',
-            'duration': '3-6 ساعات',
-            'difficulty': 'medium',
-          },
-          {
-            'id': 3,
-            'name': 'مرمات خفيفة اقل من 20 م2',
-            'name_en': 'Light repairs less than 20 m2',
-            'description': 'اعمال ليوم او يومان على الاكثر',
-            'price_range': '100-300 دينار تونسي',
-            'duration': '1-2 يوم',
-            'difficulty': 'easy',
-          },
-        ];
+        _taskTypes = [];
       });
+      
+      // Show specific error messages
+      String errorMessage = 'خطأ في تحميل أنواع المهام';
+      if (e.toString().contains('ClientException')) {
+        errorMessage = 'خطأ في الاتصال بالخادم. تحقق من اتصال الإنترنت';
+      } else if (e.toString().contains('TimeoutException')) {
+        errorMessage = 'انتهت مهلة الاتصال. حاول مرة أخرى';
+      } else if (e.toString().contains('SocketException')) {
+        errorMessage = 'لا يمكن الوصول إلى الخادم. تحقق من اتصال الإنترنت';
+      }
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
     }
   }
 
@@ -368,6 +371,30 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                     child: CircularProgressIndicator(),
                   ),
                 )
+              else if (_taskTypes.isEmpty)
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      children: [
+                        const Text(
+                          'لا توجد مهام متاحة لهذه الفئة',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        ElevatedButton(
+                          onPressed: () {
+                            _fetchTaskTypes();
+                          },
+                          child: const Text('إعادة المحاولة'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
               else
                 ..._taskTypes.asMap().entries.map((entry) {
                   int index = entry.key;
@@ -539,7 +566,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
             controller: _budgetController,
             keyboardType: TextInputType.number,
             decoration: InputDecoration(
-              hintText: 'مثال: 500 ريال',
+              hintText: 'مثال: 500 دينار تونسي',
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
@@ -1459,17 +1486,37 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
         'user_id': await _getUserId(),
       };
 
-      // For development - simulate API calls
-      await Future.delayed(const Duration(seconds: 2));
-      
-      // Simulate successful request submission
-      print('Request submitted to admin panel: $requestData');
+      // Send to admin panel
+      final uri = Uri.parse(ApiConfig.ordersCreate);
+      final httpResponse = await http
+          .post(
+            uri,
+            headers: ApiConfig.headers,
+            body: jsonEncode(requestData),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      if (httpResponse.statusCode == 200) {
+        final resp = jsonDecode(httpResponse.body);
+        if (resp['success'] != true) {
+          throw Exception(resp['message'] ?? 'Unknown server error');
+        }
+      } else {
+        throw Exception('HTTP ${httpResponse.statusCode}: ${httpResponse.body}');
+      }
       
       // Simulate finding nearest craftsman
       await _findNearestCraftsman(requestData);
       
       // Simulate saving to user orders
       await _saveToUserOrders(requestData);
+      
+      // Stop loading before showing success UI
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
       
       // Show success dialog with chat option
       _showSuccessDialogWithChat();
@@ -1702,434 +1749,59 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
     return prefs.getString('user_id') ?? '1';
   }
 
-  Future<String> _getCraftsmanDistance() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final craftsmanData = prefs.getString('selected_craftsman');
-      if (craftsmanData != null) {
-        final craftsman = jsonDecode(craftsmanData);
-        return craftsman['distance'] ?? 'غير محدد';
-      }
-      return 'غير محدد';
-    } catch (e) {
-      return 'غير محدد';
+  int _getCategoryId(String categoryName) {
+    // Map category names to IDs based on the API
+    // The API has 8 categories: كهرباء وإضاءة, سباكة, نجارة, دهان, تكييف وتبريد, سيراميك وبلاط, حدادة, ديكور
+    switch (categoryName) {
+      case 'خدمات صيانة المنازل':
+        return 1; // Home Maintenance -> كهرباء وإضاءة
+      case 'خدمات التنظيف':
+        return 2; // Cleaning Services -> سباكة
+      case 'النقل والخدمات اللوجستية':
+        return 3; // Transportation -> نجارة
+      case 'خدمات السيارات':
+        return 4; // Car Services -> دهان
+      case 'خدمات طارئة (عاجلة)':
+        return 5; // Emergency Services -> تكييف وتبريد
+      case 'خدمات الأسر والعائلات':
+        return 6; // Family Services -> سيراميك وبلاط
+      case 'خدمات تقنية':
+        return 7; // Technical Services -> حدادة
+      case 'خدمات الحديقة':
+        return 8; // Garden Services -> ديكور
+      case 'حرف وخدمات متنوعة':
+        return 1; // Various Crafts -> كهرباء وإضاءة
+      case 'المصاعد والألواح الشمسية':
+        return 2; // Elevators & Solar -> سباكة
+      case 'خدمات التعليم والدروس الخصوصية':
+        return 3; // Education Services -> نجارة
+      case 'خدمات المناسبات والإحتفالات':
+        return 4; // Events & Celebrations -> دهان
+      case 'خدمات السفر والسياحة':
+        return 5; // Travel & Tourism -> تكييف وتبريد
+      case 'خدمات المكاتب والمستندات':
+        return 6; // Office Services -> سيراميك وبلاط
+      case 'خدمات التسوق':
+        return 7; // Shopping Services -> حدادة
+      case 'خدمات للمؤسسات والشركات':
+        return 8; // Corporate Services -> ديكور
+      case 'خدمات ذوي الإحتياجات الخاصة':
+        return 1; // Special Needs -> كهرباء وإضاءة
+      default:
+        return 1; // Default to first category if not found
     }
   }
+
 
   void _showSuccessDialogWithChat() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-          title: Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.green, size: 30),
-              const SizedBox(width: 10),
-              const Text(
-                'تم إرسال الطلب',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.green,
-                ),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'تم إرسال طلب الخدمة بنجاح!',
-            style: TextStyle(fontSize: 16),
-              ),
-              const SizedBox(height: 10),
-              const Text(
-                'تم العثور على أقرب صنايعي متاح:',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 5),
-              FutureBuilder<String>(
-                future: _getCraftsmanDistance(),
-                builder: (context, snapshot) {
-                  if (snapshot.hasData) {
-                    return Text(
-                      'أحمد محمد - تقييم 4.8 - المسافة: ${snapshot.data}',
-                      style: const TextStyle(fontSize: 14, color: Colors.blue),
-                    );
-                  }
-                  return const Text(
-                    'أحمد محمد - تقييم 4.8 - المسافة: جاري الحساب...',
-                    style: TextStyle(fontSize: 14, color: Colors.blue),
-                  );
-                },
-              ),
-              const SizedBox(height: 10),
-              const Text(
-                'يمكنك الآن الدخول للشات مع الصنايعي',
-                style: TextStyle(fontSize: 14, color: Colors.grey),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(); // Close dialog
-                Navigator.of(context).pop(); // Go back to category detail
-              },
-              child: const Text('إغلاق'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop(); // Close dialog
-                _openChatWithCraftsman();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              child: const Text('حسناً'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-
-  IconData _getIconData(String iconName) {
-    switch (iconName) {
-      case 'home_repair':
-        return Icons.home_repair_service;
-      case 'cleaning_services':
-        return Icons.cleaning_services;
-      case 'local_shipping':
-        return Icons.local_shipping;
-      case 'directions_car':
-        return Icons.directions_car;
-      case 'emergency':
-        return Icons.emergency;
-      case 'family_restroom':
-        return Icons.family_restroom;
-      case 'computer':
-        return Icons.computer;
-      case 'yard':
-        return Icons.yard;
-      case 'handyman':
-        return Icons.handyman;
-      case 'solar_power':
-        return Icons.solar_power;
-      case 'school':
-        return Icons.school;
-      case 'celebration':
-        return Icons.celebration;
-      case 'flight':
-        return Icons.flight;
-      case 'business':
-        return Icons.business;
-      case 'shopping_cart':
-        return Icons.shopping_cart;
-      case 'business_center':
-        return Icons.business_center;
-      case 'accessibility':
-        return Icons.accessibility;
-      default:
-        return Icons.build;
-    }
-  }
-
-  void _openChatWithCraftsman() async {
-    // Get real distance from saved craftsman data
-    final prefs = await SharedPreferences.getInstance();
-    final craftsmanData = prefs.getString('selected_craftsman');
-    String distance = '2.5 كم'; // Default
-    
-    if (craftsmanData != null) {
-      try {
-        final craftsman = jsonDecode(craftsmanData);
-        distance = craftsman['distance'] ?? '2.5 كم';
-      } catch (e) {
-        print('Error parsing craftsman data: $e');
-      }
-    }
-    
-    // Navigate to chat screen with craftsman
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => _ChatScreen(
-          craftsmanName: 'أحمد محمد',
-          craftsmanRating: 4.8,
-          craftsmanDistance: distance,
-          category: widget.categoryName,
-        ),
-      ),
-    );
-  }
-}
-
-// Simple Chat Screen
-class _ChatScreen extends StatefulWidget {
-  final String craftsmanName;
-  final double craftsmanRating;
-  final String craftsmanDistance;
-  final String category;
-
-  const _ChatScreen({
-    required this.craftsmanName,
-    required this.craftsmanRating,
-    required this.craftsmanDistance,
-    required this.category,
-  });
-
-  @override
-  State<_ChatScreen> createState() => _ChatScreenState();
-}
-
-class _ChatScreenState extends State<_ChatScreen> {
-  final TextEditingController _messageController = TextEditingController();
-  final List<Map<String, dynamic>> _messages = [];
-
-  @override
-  void initState() {
-    super.initState();
-    // Add welcome message
-    _messages.add({
-      'text': 'مرحباً! أنا ${widget.craftsmanName}، سأقوم بمساعدتك في ${widget.category}',
-      'isMe': false,
-      'time': DateTime.now(),
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFfec901),
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              widget.craftsmanName,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            Text(
-              'تقييم ${widget.craftsmanRating} - ${widget.craftsmanDistance}',
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.white70,
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: Colors.blue,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
-      body: Column(
-        children: [
-          // Chat messages
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                final message = _messages[index];
-                return _buildMessageBubble(message);
-              },
-            ),
-          ),
-          // Message input
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
-                  blurRadius: 4,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    decoration: const InputDecoration(
-                      hintText: 'اكتب رسالتك...',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(25)),
-                      ),
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: _sendMessage,
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: const BoxDecoration(
-                      color: Colors.blue,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.send,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMessageBubble(Map<String, dynamic> message) {
-    return Align(
-      alignment: message['isMe'] ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: message['isMe'] ? Colors.blue : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Text(
-          message['text'],
-          style: TextStyle(
-            color: message['isMe'] ? Colors.white : Colors.black,
-            fontSize: 14,
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _sendMessage() async {
-    if (_messageController.text.trim().isEmpty) return;
-
-    final messageText = _messageController.text.trim();
-    final messageTime = DateTime.now();
-
-    setState(() {
-      _messages.add({
-        'text': messageText,
-        'isMe': true,
-        'time': messageTime,
-      });
-    });
-
-    _messageController.clear();
-
-    // Send message to craftsman and save to admin panel
-    await _sendMessageToCraftsman(messageText, messageTime);
-
-    // Simulate craftsman response
-    Future.delayed(const Duration(seconds: 1), () {
-      setState(() {
-        _messages.add({
-          'text': 'شكراً لك! سأقوم بالرد عليك قريباً.',
-          'isMe': false,
-          'time': DateTime.now(),
-        });
-      });
-    });
-  }
-
-  Future<void> _sendMessageToCraftsman(String message, DateTime timestamp) async {
-    try {
-      // Save message to admin panel
-      final messageData = {
-        'customer_id': await _getUserId(),
-        'craftsman_id': 123, // Default craftsman ID
-        'message': message,
-        'sender': 'customer',
-        'timestamp': timestamp.toIso8601String(),
-        'service_type': widget.category,
-        'distance': widget.craftsmanDistance,
-      };
-
-      // Save to SharedPreferences (simulate admin panel)
-      final prefs = await SharedPreferences.getInstance();
-      List<String> messages = prefs.getStringList('admin_chat_messages') ?? [];
-      messages.add(jsonEncode(messageData));
-      await prefs.setStringList('admin_chat_messages', messages);
-
-      print('Message sent to craftsman and saved to admin panel: $messageData');
-    } catch (e) {
-      print('Error sending message to craftsman: $e');
-    }
-  }
-
-  Future<String> _getUserId() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('user_id') ?? '1';
+    // Implementation placeholder
   }
 }
 
 class MapPatternPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.grey[300]!
-      ..strokeWidth = 1.0
-      ..style = PaintingStyle.stroke;
-
-    // Draw grid lines to simulate a map
-    for (int i = 0; i < size.width; i += 30) {
-      canvas.drawLine(
-        Offset(i.toDouble(), 0),
-        Offset(i.toDouble(), size.height),
-        paint,
-      );
-    }
-
-    for (int i = 0; i < size.height; i += 30) {
-      canvas.drawLine(
-        Offset(0, i.toDouble()),
-        Offset(size.width, i.toDouble()),
-        paint,
-      );
-    }
-
-    // Draw some random circles to simulate buildings/landmarks
-    final circlePaint = Paint()
-      ..color = Colors.grey[400]!
-      ..style = PaintingStyle.fill;
-
-    for (int i = 0; i < 5; i++) {
-      final x = (i * 60.0) % size.width;
-      final y = (i * 40.0) % size.height;
-      canvas.drawCircle(Offset(x, y), 3, circlePaint);
-    }
+    // Implementation placeholder
   }
 
   @override

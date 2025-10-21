@@ -22,7 +22,7 @@ class _CustomerRegistrationScreenState extends State<CustomerRegistrationScreen>
   final List<String> _ageRanges = ['20-35', '35-45', '45-65'];
   
   // Backend configuration - Using localhost
-  static const String _baseUrl = 'http://localhost:8000/api';
+  static const String _baseUrl = 'http://free-styel.store/api';
   static const String _saveCustomerDataEndpoint = '/auth/save-customer-data';
 
   @override

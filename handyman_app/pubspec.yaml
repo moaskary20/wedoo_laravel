@@ -52,6 +52,8 @@ dependencies:
   
   # URL launcher for external links
   url_launcher: ^6.2.2
+  youtube_player_flutter: ^9.0.2
+  webview_flutter: ^4.8.0
   
   # Image picker for camera and gallery
   image_picker: ^1.0.4

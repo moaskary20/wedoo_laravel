@@ -20,7 +20,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
   bool _isLoading = true;
   
   // Backend configuration
-  static const String _baseUrl = 'http://localhost:8000/api';
+  static const String _baseUrl = 'http://free-styel.store/api';
   static const String _contactUsEndpoint = '/contact-us';
   static const String _supportSettingsEndpoint = '/settings/support';
   
