@@ -3,9 +3,13 @@ import 'package:http/http.dart' as http;
 import 'dart:io';
 import 'screens/login_screen.dart';
 import 'services/api_service.dart';
+import 'package:flutter/foundation.dart';
 
 void main() {
-  HttpOverrides.global = MyHttpOverrides();
+  // فقط للـ mobile platforms
+  if (!kIsWeb) {
+    HttpOverrides.global = MyHttpOverrides();
+  }
   ApiService.init();
   runApp(const HandymanApp());
 }

@@ -31,6 +31,8 @@ return [
         'http://127.0.0.1:5000',
         'http://localhost:8000',
         'http://127.0.0.1:8000',
+        'http://localhost:42033',
+        'http://127.0.0.1:42033',
         '*', // Allow all origins for development
     ],
 

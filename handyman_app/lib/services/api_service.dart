@@ -1,4 +1,6 @@
 import 'package:dio/dio.dart';
+import 'package:dio_web_adapter/dio_web_adapter.dart';
+import 'package:flutter/foundation.dart';
 import '../config/api_config.dart';
 
 class ApiService {
@@ -8,6 +10,11 @@ class ApiService {
     _dio.options.baseUrl = ApiConfig.baseUrl;
     _dio.options.connectTimeout = Duration(seconds: 30);
     _dio.options.receiveTimeout = Duration(seconds: 30);
+    
+    // إضافة web adapter للـ Flutter Web
+    if (kIsWeb) {
+      _dio.httpClientAdapter = WebAdapter();
+    }
     
     // إضافة interceptors
     _dio.interceptors.add(InterceptorsWrapper(
