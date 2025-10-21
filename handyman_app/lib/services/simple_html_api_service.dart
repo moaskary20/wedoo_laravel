@@ -32,11 +32,12 @@ class SimpleHtmlApiService {
       print('Simple HTML API Response Text: ${xhr.responseText}');
       
       if (xhr.status == 200) {
-        final result = jsonDecode(xhr.responseText);
+        final responseText = xhr.responseText ?? '';
+        final result = jsonDecode(responseText);
         print('Simple HTML API Response Data: $result');
         return result;
       } else {
-        throw Exception('HTTP ${xhr.status}: ${xhr.responseText}');
+        throw Exception('HTTP ${xhr.status}: ${xhr.responseText ?? 'No response'}');
       }
     } catch (e) {
       print('Simple HTML API Error: $e');
@@ -71,11 +72,12 @@ class SimpleHtmlApiService {
       print('Simple HTML API Response Text: ${xhr.responseText}');
       
       if (xhr.status == 200) {
-        final result = jsonDecode(xhr.responseText);
+        final responseText = xhr.responseText ?? '';
+        final result = jsonDecode(responseText);
         print('Simple HTML API Response Data: $result');
         return result;
       } else {
-        throw Exception('HTTP ${xhr.status}: ${xhr.responseText}');
+        throw Exception('HTTP ${xhr.status}: ${xhr.responseText ?? 'No response'}');
       }
     } catch (e) {
       print('Simple HTML API Error: $e');
