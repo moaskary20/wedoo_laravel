@@ -5,26 +5,23 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class TaskType extends Model
+class Service extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'category_id',
         'name',
-        'name_en',
         'description',
-        'icon',
-        'color',
-        'price_range',
+        'price',
         'duration',
-        'difficulty',
+        'category_id',
+        'craftsman_id',
         'status',
     ];
 
     protected $casts = [
+        'price' => 'decimal:2',
         'status' => 'string',
-        'difficulty' => 'string',
     ];
 
     public function category()
@@ -32,8 +29,8 @@ class TaskType extends Model
         return $this->belongsTo(Category::class);
     }
 
-    public function orders()
+    public function craftsman()
     {
-        return $this->hasMany(Order::class);
+        return $this->belongsTo(User::class, 'craftsman_id');
     }
 }
