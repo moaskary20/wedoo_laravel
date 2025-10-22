@@ -9,7 +9,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
-$url = 'https://free-styel.store' . $_SERVER['REQUEST_URI'];
+// Extract the API path from REQUEST_URI, removing /proxy.php prefix
+$requestUri = $_SERVER['REQUEST_URI'];
+$apiPath = str_replace('/proxy.php', '', $requestUri);
+
+// If no API path, default to root
+if (empty($apiPath) || $apiPath === '/') {
+    $apiPath = '/';
+}
+
+// Build the target URL
+$url = 'https://free-styel.store' . $apiPath;
 $queryString = $_SERVER['QUERY_STRING'];
 
 if ($queryString) {
@@ -37,7 +47,15 @@ curl_setopt($ch, CURLOPT_HTTPHEADER, [
 
 $response = curl_exec($ch);
 $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+$curlError = curl_error($ch);
 curl_close($ch);
+
+// Handle cURL errors
+if ($response === false) {
+    http_response_code(500);
+    echo json_encode(['error' => 'Proxy error: ' . $curlError]);
+    exit();
+}
 
 http_response_code($httpCode);
 echo $response;
