@@ -26,6 +26,12 @@ if ($queryString) {
     $url .= '?' . $queryString;
 }
 
+// Debug logging
+error_log("Proxy Debug - Request URI: " . $requestUri);
+error_log("Proxy Debug - API Path: " . $apiPath);
+error_log("Proxy Debug - Final URL: " . $url);
+error_log("Proxy Debug - Method: " . $_SERVER['REQUEST_METHOD']);
+
 $ch = curl_init();
 curl_setopt($ch, CURLOPT_URL, $url);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -37,6 +43,7 @@ curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $_SERVER['REQUEST_METHOD']);
 if ($_SERVER['REQUEST_METHOD'] === 'POST' || $_SERVER['REQUEST_METHOD'] === 'PUT') {
     $input = file_get_contents('php://input');
     curl_setopt($ch, CURLOPT_POSTFIELDS, $input);
+    error_log("Proxy Debug - POST Data: " . $input);
 }
 
 curl_setopt($ch, CURLOPT_HTTPHEADER, [
@@ -50,8 +57,14 @@ $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 $curlError = curl_error($ch);
 curl_close($ch);
 
+// Debug logging
+error_log("Proxy Debug - Response Code: " . $httpCode);
+error_log("Proxy Debug - Response: " . substr($response, 0, 200));
+error_log("Proxy Debug - cURL Error: " . $curlError);
+
 // Handle cURL errors
 if ($response === false) {
+    error_log("Proxy Debug - cURL failed: " . $curlError);
     http_response_code(500);
     echo json_encode(['error' => 'Proxy error: ' . $curlError]);
     exit();
