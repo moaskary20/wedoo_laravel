@@ -21,9 +21,18 @@ curl_setopt($ch, CURLOPT_URL, $url);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
 curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $_SERVER['REQUEST_METHOD']);
+
+// Handle POST data
+if ($_SERVER['REQUEST_METHOD'] === 'POST' || $_SERVER['REQUEST_METHOD'] === 'PUT') {
+    $input = file_get_contents('php://input');
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $input);
+}
+
 curl_setopt($ch, CURLOPT_HTTPHEADER, [
     'Accept: application/json',
     'Content-Type: application/json',
+    'User-Agent: WedooApp/1.0 (Flutter Web)',
 ]);
 
 $response = curl_exec($ch);

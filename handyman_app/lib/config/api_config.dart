@@ -1,5 +1,6 @@
 class ApiConfig {
-  static const String baseUrl = 'http://localhost:8000';
+  static const String baseUrl = 'https://free-styel.store';
+  static const String webProxyUrl = '/proxy.php';
   
   // API Endpoints
   static const String taskTypes = '$baseUrl/api/task-types/index';
@@ -30,5 +31,12 @@ class ApiConfig {
     'Accept': 'application/json',
     'User-Agent': 'WedooApp/1.0 (Flutter)',
     'Origin': 'https://free-styel.store',
+  };
+  
+  // Web-specific headers (for proxy usage)
+  static Map<String, String> get webHeaders => {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    'User-Agent': 'WedooApp/1.0 (Flutter Web)',
   };
 }
