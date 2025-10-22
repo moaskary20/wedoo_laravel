@@ -6,13 +6,8 @@ class SimpleApiService {
   static final Dio _dio = Dio();
   
   static void init() {
-    // Use proxy for web platform to avoid CORS issues
-    if (kIsWeb) {
-      // For web, use relative path to proxy
-      _dio.options.baseUrl = '';
-    } else {
-      _dio.options.baseUrl = ApiConfig.baseUrl;
-    }
+    // Use direct API calls for all platforms
+    _dio.options.baseUrl = ApiConfig.baseUrl;
     _dio.options.connectTimeout = Duration(seconds: 30);
     _dio.options.receiveTimeout = Duration(seconds: 30);
     
@@ -41,9 +36,7 @@ class SimpleApiService {
   static Future<Response> post(String path, {Map<String, dynamic>? data}) async {
     try {
       print('🚀 Simple API: محاولة POST $path');
-      // For web, prepend proxy path
-      final actualPath = kIsWeb ? 'proxy.php$path' : path;
-      final response = await _dio.post(actualPath, data: data);
+      final response = await _dio.post(path, data: data);
       print('✅ Simple API: نجح POST $path');
       return response;
     } catch (e) {
@@ -55,9 +48,7 @@ class SimpleApiService {
   static Future<Response> get(String path, {Map<String, dynamic>? queryParameters}) async {
     try {
       print('🚀 Simple API: محاولة GET $path');
-      // For web, prepend proxy path
-      final actualPath = kIsWeb ? 'proxy.php$path' : path;
-      final response = await _dio.get(actualPath, queryParameters: queryParameters);
+      final response = await _dio.get(path, queryParameters: queryParameters);
       print('✅ Simple API: نجح GET $path');
       return response;
     } catch (e) {
@@ -69,9 +60,7 @@ class SimpleApiService {
   static Future<Response> put(String path, {Map<String, dynamic>? data}) async {
     try {
       print('🚀 Simple API: محاولة PUT $path');
-      // For web, prepend proxy path
-      final actualPath = kIsWeb ? 'proxy.php$path' : path;
-      final response = await _dio.put(actualPath, data: data);
+      final response = await _dio.put(path, data: data);
       print('✅ Simple API: نجح PUT $path');
       return response;
     } catch (e) {
@@ -83,9 +72,7 @@ class SimpleApiService {
   static Future<Response> delete(String path) async {
     try {
       print('🚀 Simple API: محاولة DELETE $path');
-      // For web, prepend proxy path
-      final actualPath = kIsWeb ? 'proxy.php$path' : path;
-      final response = await _dio.delete(actualPath);
+      final response = await _dio.delete(path);
       print('✅ Simple API: نجح DELETE $path');
       return response;
     } catch (e) {

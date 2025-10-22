@@ -33,10 +33,13 @@ class ApiConfig {
     'Origin': 'https://free-styel.store',
   };
   
-  // Web-specific headers (for proxy usage)
+  // Web-specific headers (for CORS compatibility)
   static Map<String, String> get webHeaders => {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
     'User-Agent': 'WedooApp/1.0 (Flutter Web)',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept, Origin, X-Requested-With',
   };
 }
