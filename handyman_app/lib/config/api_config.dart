@@ -1,6 +1,6 @@
 class ApiConfig {
   static const String baseUrl = 'https://free-styel.store';
-  static const String webProxyUrl = '/proxy.php';
+  static const String webProxyUrl = 'proxy.php';
   
   // API Endpoints
   static const String taskTypes = '$baseUrl/api/task-types/index';
