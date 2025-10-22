@@ -378,16 +378,16 @@ class _LoginScreenState extends State<LoginScreen> {
           // Save user data to SharedPreferences
           final userData = responseData['data'];
           final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('user_id', userData['id'].toString());
-          await prefs.setString('user_name', userData['name']);
-          await prefs.setString('user_phone', userData['phone']);
-          await prefs.setString('user_email', userData['email']);
-          await prefs.setString('user_governorate', userData['governorate']);
-          await prefs.setString('user_city', userData['city']);
-          await prefs.setString('user_area', userData['district']);
-          await prefs.setString('user_membership_code', userData['membership_code']);
-          await prefs.setString('access_token', userData['access_token']);
-          await prefs.setString('refresh_token', userData['refresh_token']);
+          await prefs.setString('user_id', userData['id']?.toString() ?? '');
+          await prefs.setString('user_name', userData['name'] ?? '');
+          await prefs.setString('user_phone', userData['phone'] ?? '');
+          await prefs.setString('user_email', userData['email'] ?? '');
+          await prefs.setString('user_governorate', userData['governorate'] ?? '');
+          await prefs.setString('user_city', userData['city'] ?? '');
+          await prefs.setString('user_area', userData['district'] ?? '');
+          await prefs.setString('user_membership_code', userData['membership_code'] ?? '');
+          await prefs.setString('access_token', userData['access_token'] ?? '');
+          await prefs.setString('refresh_token', userData['refresh_token'] ?? '');
           await prefs.setBool('is_logged_in', true);
           await prefs.setString('login_timestamp', DateTime.now().toIso8601String());
           
