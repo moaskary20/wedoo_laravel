@@ -368,7 +368,7 @@ class _LoginScreenState extends State<LoginScreen> {
       // Send login request to backend using ApiService
       final response = await ApiService.post('/api/auth/login', data: {
         'phone': _phoneController.text.trim(),
-        'password': _passwordController.text.trim(),
+        'password': _passwordController.text.trim().toLowerCase(),
       });
 
       if (response.statusCode == 200) {
