@@ -44,7 +44,7 @@ android {
         create("release") {
             keyAlias = keystoreProperties["keyAlias"] as String?
             keyPassword = keystoreProperties["keyPassword"] as String?
-            storeFile = keystoreProperties["storeFile"]?.let { file(it) }
+            storeFile = file("../key.jks")
             storePassword = keystoreProperties["storePassword"] as String?
         }
         create("keystore") {
@@ -57,8 +57,8 @@ android {
 
     buildTypes {
         release {
-            // Use the release signing config
-            signingConfig = signingConfigs.getByName("release")
+            // Use the keystore signing config
+            signingConfig = signingConfigs.getByName("keystore")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
