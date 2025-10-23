@@ -57,8 +57,8 @@ android {
 
     buildTypes {
         release {
-            // Use the keystore signing config
-            signingConfig = signingConfigs.getByName("keystore")
+            // Use the release signing config with key.jks
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
