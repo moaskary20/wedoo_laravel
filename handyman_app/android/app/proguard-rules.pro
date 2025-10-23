@@ -41,18 +41,18 @@
 -keep class com.google.android.gms.location.** { *; }
 -keep class com.google.android.gms.common.** { *; }
 
-# Keep Google Play Core classes
--keep class com.google.android.play.core.** { *; }
--keep interface com.google.android.play.core.** { *; }
+# Google Play Core classes removed due to SDK 34 incompatibility
+# -keep class com.google.android.play.core.** { *; }
+# -keep interface com.google.android.play.core.** { *; }
 
-# Keep Flutter deferred components
--keep class io.flutter.embedding.engine.deferredcomponents.** { *; }
--keep class io.flutter.embedding.android.FlutterPlayStoreSplitApplication { *; }
+# Flutter deferred components (disabled for SDK 34 compatibility)
+# -keep class io.flutter.embedding.engine.deferredcomponents.** { *; }
+# -keep class io.flutter.embedding.android.FlutterPlayStoreSplitApplication { *; }
 
-# Keep Google Play Core tasks
--keep class com.google.android.play.core.tasks.** { *; }
--keep interface com.google.android.play.core.tasks.** { *; }
+# Google Play Core tasks (disabled for SDK 34 compatibility)
+# -keep class com.google.android.play.core.tasks.** { *; }
+# -keep interface com.google.android.play.core.tasks.** { *; }
 
-# Keep split install classes
--keep class com.google.android.play.core.splitinstall.** { *; }
--keep class com.google.android.play.core.splitcompat.** { *; }
+# Split install classes (disabled for SDK 34 compatibility)
+# -keep class com.google.android.play.core.splitinstall.** { *; }
+# -keep class com.google.android.play.core.splitcompat.** { *; }

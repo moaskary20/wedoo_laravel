@@ -74,6 +74,7 @@ flutter {
 }
 
 dependencies {
-    implementation("com.google.android.play:core:1.10.3")
-    implementation("com.google.android.play:core-ktx:1.8.1")
+    // Google Play Core libraries removed due to SDK 34 incompatibility
+    // implementation("com.google.android.play:core:1.10.3")
+    // implementation("com.google.android.play:core-ktx:1.8.1")
 }
