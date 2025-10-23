@@ -40,3 +40,19 @@
 # Keep location services
 -keep class com.google.android.gms.location.** { *; }
 -keep class com.google.android.gms.common.** { *; }
+
+# Keep Google Play Core classes
+-keep class com.google.android.play.core.** { *; }
+-keep interface com.google.android.play.core.** { *; }
+
+# Keep Flutter deferred components
+-keep class io.flutter.embedding.engine.deferredcomponents.** { *; }
+-keep class io.flutter.embedding.android.FlutterPlayStoreSplitApplication { *; }
+
+# Keep Google Play Core tasks
+-keep class com.google.android.play.core.tasks.** { *; }
+-keep interface com.google.android.play.core.tasks.** { *; }
+
+# Keep split install classes
+-keep class com.google.android.play.core.splitinstall.** { *; }
+-keep class com.google.android.play.core.splitcompat.** { *; }
