@@ -8,11 +8,18 @@ use App\Models\User;
 
 class CraftsmanController extends Controller
 {
-    public function count()
+    public function count(Request $request)
     {
-        $count = User::where('user_type', 'craftsman')
-            ->where('status', 'active')
-            ->count();
+        // Build query for active craftsmen
+        $query = User::where('user_type', 'craftsman')
+            ->where('status', 'active');
+
+        // Filter by category_id if provided
+        if ($request->has('category_id') && $request->category_id) {
+            $query->where('category_id', $request->category_id);
+        }
+
+        $count = $query->count();
 
         return response()->json([
             'success' => true,

@@ -761,7 +761,7 @@ abstract class AppLocalizations {
   /// No description provided for @craftsmanCount.
   ///
   /// In ar, this message translates to:
-  /// **'عدد الصنايعي'**
+  /// **'يتواجد في هذه المهمة'**
   String get craftsmanCount;
 
   /// No description provided for @createServiceRequestButton.

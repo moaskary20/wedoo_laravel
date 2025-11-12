@@ -347,7 +347,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get createAccount => 'Créer un compte';
 
   @override
-  String get craftsmanCount => 'Nombre d\'artisans';
+  String get craftsmanCount => 'Présent dans cette tâche';
 
   @override
   String get createServiceRequestButton => 'Créer une demande de service';

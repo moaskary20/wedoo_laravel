@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'service_request_form.dart';
 import 'tips_screen.dart';
+import 'conversations_screen.dart';
+import '../config/api_config.dart';
 import 'package:handyman_app/l10n/app_localizations.dart';
 
-class ServiceScreen extends StatelessWidget {
+class ServiceScreen extends StatefulWidget {
   final String categoryName;
   final String categoryIcon;
   final Color categoryColor;
@@ -18,6 +22,60 @@ class ServiceScreen extends StatelessWidget {
   });
 
   @override
+  State<ServiceScreen> createState() => _ServiceScreenState();
+}
+
+class _ServiceScreenState extends State<ServiceScreen> {
+  int _craftsmanCount = 0;
+  bool _isLoading = true;
+  String _errorMessage = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCraftsmanCount();
+  }
+
+  Future<void> _fetchCraftsmanCount() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
+    try {
+      // Real API call to get craftsman count
+      final response = await http.get(
+        Uri.parse('${ApiConfig.craftsmanCount}?category_id=${widget.categoryId}'),
+        headers: ApiConfig.headers,
+      ).timeout(const Duration(seconds: 30));
+
+      print('Craftsman Count API Response Status: ${response.statusCode}');
+      print('Craftsman Count API Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true) {
+          setState(() {
+            _craftsmanCount = data['data']['count'] ?? 0;
+            _isLoading = false;
+          });
+        } else {
+          throw Exception(data['message'] ?? 'Failed to fetch craftsman count');
+        }
+      } else {
+        throw Exception('Failed to fetch craftsman count: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error fetching craftsman count: $e');
+      setState(() {
+        _errorMessage = 'خطأ في الاتصال: ${e.toString()}';
+        _isLoading = false;
+        _craftsmanCount = 0; // Set to 0 on error
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -25,7 +83,7 @@ class ServiceScreen extends StatelessWidget {
         backgroundColor: const Color(0xFFfec901),
         appBar: AppBar(
           title: Text(
-            categoryName,
+            widget.categoryName,
             style: const TextStyle(
               fontWeight: FontWeight.bold,
               color: Colors.white,
@@ -64,15 +122,29 @@ class ServiceScreen extends StatelessWidget {
                   const SizedBox(height: 10),
                   
                   // Large number display
-                  Text(
-                    '17979',
-                    style: TextStyle(
-                      fontSize: 48,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.teal[600],
+                  if (_isLoading)
+                    const CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.teal),
+                    )
+                  else if (_errorMessage.isNotEmpty)
+                    Text(
+                      _errorMessage,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: Colors.red,
+                      ),
+                      textAlign: TextAlign.center,
+                    )
+                  else
+                    Text(
+                      _craftsmanCount.toString(),
+                      style: TextStyle(
+                        fontSize: 48,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.teal[600],
+                      ),
+                      textAlign: TextAlign.center,
                     ),
-                    textAlign: TextAlign.center,
-                  ),
                   
                   const SizedBox(height: 30),
                   
@@ -105,16 +177,16 @@ class ServiceScreen extends StatelessWidget {
                     children: [
                       _buildActionButton(
                         context,
-                        'انشاء طلب',
+                        AppLocalizations.of(context)?.createServiceRequestButton ?? 'انشاء طلب',
                         Icons.arrow_back,
                         () {
                           Navigator.of(context).push(
                             MaterialPageRoute(
                               builder: (context) => ServiceRequestForm(
-                                categoryName: categoryName,
-                                categoryIcon: categoryIcon,
-                                categoryColor: categoryColor,
-                                categoryId: categoryId, // Pass category ID directly from backend
+                                categoryName: widget.categoryName,
+                                categoryIcon: widget.categoryIcon,
+                                categoryColor: widget.categoryColor,
+                                categoryId: widget.categoryId, // Pass category ID directly from backend
                               ),
                             ),
                           );
@@ -125,16 +197,16 @@ class ServiceScreen extends StatelessWidget {
                       
                       _buildActionButton(
                         context,
-                        'اعرف سر الصنعة',
+                        AppLocalizations.of(context)?.craftSecrets ?? 'اعرف سر الصنعة',
                         Icons.arrow_back,
                         () {
                           Navigator.of(context).push(
                             MaterialPageRoute(
                               builder: (context) => TipsScreen(
-                                categoryName: categoryName,
-                                categoryIcon: categoryIcon,
-                                categoryColor: categoryColor,
-                                categoryId: categoryId,
+                                categoryName: widget.categoryName,
+                                categoryIcon: widget.categoryIcon,
+                                categoryColor: widget.categoryColor,
+                                categoryId: widget.categoryId,
                               ),
                             ),
                           );
@@ -151,15 +223,10 @@ class ServiceScreen extends StatelessWidget {
               left: 20,
               top: 100,
               child: _buildFloatingHelpButton(
-                'مساعدة',
+                AppLocalizations.of(context)?.help ?? 'مساعدة',
                 Icons.message,
                 () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('مساعدة'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
+                  openSupportChat(context);
                 },
               ),
             ),

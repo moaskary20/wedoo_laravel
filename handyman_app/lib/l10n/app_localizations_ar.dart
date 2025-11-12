@@ -342,7 +342,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get createAccount => 'إنشاء حساب';
 
   @override
-  String get craftsmanCount => 'عدد الصنايعي';
+  String get craftsmanCount => 'يتواجد في هذه المهمة';
 
   @override
   String get createServiceRequestButton => 'إنشاء طلب خدمة';
