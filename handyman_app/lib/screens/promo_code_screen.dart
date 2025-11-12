@@ -4,6 +4,9 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
+import '../services/language_service.dart';
+import 'conversations_screen.dart';
+import 'package:handyman_app/l10n/app_localizations.dart';
 
 class PromoCodeScreen extends StatefulWidget {
   const PromoCodeScreen({super.key});
@@ -17,6 +20,7 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
   String _membershipCode = '558206';
   int _affiliatedFriends = 5;
   bool _isLoading = false;
+  Locale _currentLocale = LanguageService.defaultLocale;
   
   // Backend configuration - Using ApiConfig
 
@@ -24,6 +28,16 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
   void initState() {
     super.initState();
     _loadUserData();
+    _loadCurrentLocale();
+  }
+
+  Future<void> _loadCurrentLocale() async {
+    final locale = await LanguageService.getSavedLocale();
+    if (mounted) {
+      setState(() {
+        _currentLocale = locale;
+      });
+    }
   }
 
   @override
@@ -33,8 +47,10 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
   }
 
   Future<void> _confirmPromoCode() async {
+    final l10n = AppLocalizations.of(context)!;
+    
     if (_promoCodeController.text.trim().isEmpty) {
-      _showErrorSnackBar('يرجى إدخال كود البرومو');
+      _showErrorSnackBar(l10n.pleaseEnterPromoCode);
       return;
     }
 
@@ -85,14 +101,14 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
       List<String> validPromoCodes = ['PROMO123', 'DISCOUNT50', 'WELCOME20', 'SAVE10'];
       
       if (validPromoCodes.contains(enteredCode)) {
-        _showSuccessSnackBar('تم قبول الكود');
+        _showSuccessSnackBar(l10n.codeAccepted);
         _promoCodeController.clear();
       } else {
-        _showErrorSnackBar('لا يوجد هذا الكود');
+        _showErrorSnackBar(l10n.codeNotFound);
       }
 
     } catch (e) {
-      _showErrorSnackBar('خطأ في تأكيد كود البرومو');
+      _showErrorSnackBar(l10n.errorConfirmingPromoCode);
       print('Error confirming promo code: $e');
     } finally {
       setState(() {
@@ -135,10 +151,12 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
       }
       */
 
-      _showSuccessSnackBar('تم نسخ كود العضوية');
+      final l10n = AppLocalizations.of(context)!;
+      _showSuccessSnackBar(l10n.membershipCodeCopied);
 
     } catch (e) {
-      _showErrorSnackBar('خطأ في نسخ كود العضوية');
+      final l10n = AppLocalizations.of(context)!;
+      _showErrorSnackBar(l10n.errorCopyingMembershipCode);
       print('Error copying membership code: $e');
     }
   }
@@ -146,14 +164,17 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isRtl = _currentLocale.languageCode == 'ar';
+    
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
         backgroundColor: const Color(0xFFfec901),
         appBar: AppBar(
-          title: const Text(
-            'البرومو كود',
-            style: TextStyle(
+          title: Text(
+            l10n.promoCode,
+            style: const TextStyle(
               fontWeight: FontWeight.bold,
               color: Colors.white,
               fontSize: 20,
@@ -203,12 +224,14 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
   }
 
   Widget _buildPromoCodeSection() {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'هل لديك برومو كود ؟',
-          style: TextStyle(
+        Text(
+          l10n.doYouHavePromoCode,
+          style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
             color: Colors.black87,
@@ -237,7 +260,7 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
                   controller: _promoCodeController,
                   textAlign: TextAlign.right,
                   decoration: InputDecoration(
-                    hintText: 'أدخل البرومو كود',
+                    hintText: l10n.enterPromoCode,
                     hintStyle: TextStyle(
                       color: Colors.grey[600],
                       fontSize: 16,
@@ -287,9 +310,9 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
                           valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                         ),
                       )
-                    : const Text(
-                        'تأكيد',
-                        style: TextStyle(
+                    : Text(
+                        l10n.confirm,
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -304,12 +327,14 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
   }
 
   Widget _buildMembershipCodeSection() {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'كود العضوية الخاص بك هو',
-          style: TextStyle(
+        Text(
+          l10n.yourMembershipCode,
+          style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
             color: Colors.black87,
@@ -355,9 +380,9 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
         const SizedBox(height: 20),
         
         // Share Instruction
-        const Text(
-          'شاركه مع الاصدقاء لتستفيدوا جميعاً بهدايا وي دو',
-          style: TextStyle(
+        Text(
+          l10n.shareWithFriends,
+          style: const TextStyle(
             fontSize: 16,
             color: Colors.black87,
             fontWeight: FontWeight.w500,
@@ -377,7 +402,7 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'الاصدقاء المنتسبين لي .. ( $_affiliatedFriends )',
+                '${l10n.affiliatedFriends} .. ( $_affiliatedFriends )',
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -398,12 +423,7 @@ class _PromoCodeScreenState extends State<PromoCodeScreen> {
   Widget _buildFloatingHelpButton() {
     return GestureDetector(
       onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('مساعدة'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        openSupportChat(context);
       },
       child: Container(
         width: 60,

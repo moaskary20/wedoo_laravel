@@ -1,127 +1,112 @@
 import 'package:flutter/material.dart';
 import 'category_detail_screen.dart';
+import '../services/language_service.dart';
+import 'package:handyman_app/l10n/app_localizations.dart';
 
 class CategoryGridScreen extends StatelessWidget {
   const CategoryGridScreen({super.key});
 
-  // Static list of 18 categories with Arabic titles
+  // Static list of 18 categories with translation keys
   static const List<Map<String, dynamic>> _categories = [
     {
       'id': 1,
-      'name': 'Home Maintenance',
-      'nameAr': 'خدمات صيانة المنازل',
+      'nameKey': 'homeMaintenance',
       'icon': 'home_repair',
       'color': Colors.blue,
     },
     {
       'id': 2,
-      'name': 'Cleaning Services',
-      'nameAr': 'خدمات التنظيف',
+      'nameKey': 'cleaningServices',
       'icon': 'cleaning_services',
       'color': Colors.green,
     },
     {
       'id': 3,
-      'name': 'Transportation',
-      'nameAr': 'النقل والخدمات اللوجستية',
+      'nameKey': 'transportation',
       'icon': 'local_shipping',
       'color': Colors.orange,
     },
     {
       'id': 4,
-      'name': 'Car Services',
-      'nameAr': 'خدمات السيارات',
+      'nameKey': 'carServices',
       'icon': 'directions_car',
       'color': Colors.red,
     },
     {
       'id': 5,
-      'name': 'Emergency Services',
-      'nameAr': 'خدمات طارئة (عاجلة)',
+      'nameKey': 'emergencyServices',
       'icon': 'emergency',
       'color': Colors.redAccent,
     },
     {
       'id': 6,
-      'name': 'Family Services',
-      'nameAr': 'خدمات الأسر والعائلات',
+      'nameKey': 'familyServices',
       'icon': 'family_restroom',
       'color': Colors.purple,
     },
     {
       'id': 7,
-      'name': 'Technical Services',
-      'nameAr': 'خدمات تقنية',
+      'nameKey': 'technicalServices',
       'icon': 'computer',
       'color': Colors.blueGrey,
     },
     {
       'id': 8,
-      'name': 'Garden Services',
-      'nameAr': 'خدمات الحديقة',
+      'nameKey': 'gardenServices',
       'icon': 'yard',
       'color': Colors.lightGreen,
     },
     {
       'id': 9,
-      'name': 'Various Crafts',
-      'nameAr': 'حرف وخدمات متنوعة',
+      'nameKey': 'variousCrafts',
       'icon': 'handyman',
       'color': Colors.brown,
     },
     {
       'id': 10,
-      'name': 'Elevators & Solar',
-      'nameAr': 'المصاعد والألواح الشمسية',
+      'nameKey': 'elevatorsSolar',
       'icon': 'solar_power',
       'color': const Color(0xFFfec901),
     },
     {
       'id': 11,
-      'name': 'Education Services',
-      'nameAr': 'خدمات التعليم والدروس الخصوصية',
+      'nameKey': 'educationServices',
       'icon': 'school',
       'color': Colors.indigo,
     },
     {
       'id': 12,
-      'name': 'Events & Celebrations',
-      'nameAr': 'خدمات المناسبات والإحتفالات',
+      'nameKey': 'eventsCelebrations',
       'icon': 'celebration',
       'color': Colors.pink,
     },
     {
       'id': 13,
-      'name': 'Travel & Tourism',
-      'nameAr': 'خدمات السفر والسياحة',
+      'nameKey': 'travelTourism',
       'icon': 'flight',
       'color': Colors.cyan,
     },
     {
       'id': 14,
-      'name': 'Office Services',
-      'nameAr': 'خدمات المكاتب والمستندات',
+      'nameKey': 'officeServices',
       'icon': 'business',
       'color': Colors.grey,
     },
     {
       'id': 15,
-      'name': 'Shopping Services',
-      'nameAr': 'خدمات التسوق',
+      'nameKey': 'shoppingServices',
       'icon': 'shopping_cart',
       'color': Colors.teal,
     },
     {
       'id': 16,
-      'name': 'Corporate Services',
-      'nameAr': 'خدمات للمؤسسات والشركات',
+      'nameKey': 'corporateServices',
       'icon': 'business_center',
       'color': Colors.deepPurple,
     },
     {
       'id': 17,
-      'name': 'Special Needs',
-      'nameAr': 'خدمات ذوي الإحتياجات الخاصة',
+      'nameKey': 'specialNeeds',
       'icon': 'accessibility',
       'color': Colors.deepOrange,
     },
@@ -129,17 +114,22 @@ class CategoryGridScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text(
-          'الصنايع',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-            fontSize: 20,
+    final l10n = AppLocalizations.of(context)!;
+    final isRtl = Localizations.localeOf(context).languageCode == 'ar';
+    
+    return Directionality(
+      textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          title: Text(
+            l10n.services,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              fontSize: 20,
+            ),
           ),
-        ),
         backgroundColor: Colors.blue,
         elevation: 0,
         centerTitle: true,
@@ -156,20 +146,47 @@ class CategoryGridScreen extends StatelessWidget {
           itemCount: _categories.length,
           itemBuilder: (context, index) {
             final category = _categories[index];
-            return _buildCategoryCard(context, category);
+            final l10n = AppLocalizations.of(context)!;
+            return _buildCategoryCard(context, category, l10n);
           },
         ),
+      ),
       ),
     );
   }
 
-  Widget _buildCategoryCard(BuildContext context, Map<String, dynamic> category) {
+  String _getCategoryName(AppLocalizations l10n, String nameKey) {
+    switch (nameKey) {
+      case 'homeMaintenance': return l10n.homeMaintenance;
+      case 'cleaningServices': return l10n.cleaningServices;
+      case 'transportation': return l10n.transportation;
+      case 'carServices': return l10n.carServices;
+      case 'emergencyServices': return l10n.emergencyServices;
+      case 'familyServices': return l10n.familyServices;
+      case 'technicalServices': return l10n.technicalServices;
+      case 'gardenServices': return l10n.gardenServices;
+      case 'variousCrafts': return l10n.variousCrafts;
+      case 'elevatorsSolar': return l10n.elevatorsSolar;
+      case 'educationServices': return l10n.educationServices;
+      case 'eventsCelebrations': return l10n.eventsCelebrations;
+      case 'travelTourism': return l10n.travelTourism;
+      case 'officeServices': return l10n.officeServices;
+      case 'shoppingServices': return l10n.shoppingServices;
+      case 'corporateServices': return l10n.corporateServices;
+      case 'specialNeeds': return l10n.specialNeeds;
+      default: return '';
+    }
+  }
+
+  Widget _buildCategoryCard(BuildContext context, Map<String, dynamic> category, AppLocalizations l10n) {
+    final categoryName = _getCategoryName(l10n, category['nameKey']);
+    
     return GestureDetector(
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (context) => CategoryDetailScreen(
-              categoryName: category['nameAr'],
+              categoryName: categoryName,
               categoryIcon: category['icon'],
               categoryColor: category['color'],
               categoryId: category['id'],
@@ -206,7 +223,7 @@ class CategoryGridScreen extends StatelessWidget {
             const SizedBox(height: 12),
             // Category name below the circle
             Text(
-              category['nameAr'],
+              categoryName,
               style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,

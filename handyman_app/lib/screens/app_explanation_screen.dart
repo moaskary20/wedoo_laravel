@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../services/language_service.dart';
+import 'conversations_screen.dart';
+import 'package:handyman_app/l10n/app_localizations.dart';
 
 class AppExplanationScreen extends StatefulWidget {
   const AppExplanationScreen({super.key});
@@ -8,16 +11,36 @@ class AppExplanationScreen extends StatefulWidget {
 }
 
 class _AppExplanationScreenState extends State<AppExplanationScreen> {
+  Locale _currentLocale = LanguageService.defaultLocale;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrentLocale();
+  }
+
+  Future<void> _loadCurrentLocale() async {
+    final locale = await LanguageService.getSavedLocale();
+    if (mounted) {
+      setState(() {
+        _currentLocale = locale;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isRtl = _currentLocale.languageCode == 'ar';
+    
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
         backgroundColor: const Color(0xFFfec901),
         appBar: AppBar(
-          title: const Text(
-            'شرح التطبيق',
-            style: TextStyle(
+          title: Text(
+            l10n.appExplanation,
+            style: const TextStyle(
               fontWeight: FontWeight.bold,
               color: Colors.white,
               fontSize: 20,
@@ -38,8 +61,8 @@ class _AppExplanationScreenState extends State<AppExplanationScreen> {
                   
                   // First Card - How to create a request
                   _buildExplanationCard(
-                    'طريقة انشاء طلب',
-                    'تعلم كيفية إنشاء طلب خدمة بسهولة',
+                    l10n.howToCreateRequest,
+                    l10n.learnHowToCreate,
                     Icons.build,
                     Colors.blue,
                     () => _showCreateRequestTutorial(),
@@ -49,8 +72,8 @@ class _AppExplanationScreenState extends State<AppExplanationScreen> {
                   
                   // Second Card - How to choose the right craftsman
                   _buildExplanationCard(
-                    'كيف تختار الصنايعي المناسب',
-                    'نصائح لاختيار أفضل حرفي لخدمتك',
+                    l10n.howToChooseCraftsman,
+                    l10n.tipsForChoosing,
                     Icons.person_search,
                     Colors.green,
                     () => _showCraftsmanSelectionTutorial(),
@@ -60,8 +83,8 @@ class _AppExplanationScreenState extends State<AppExplanationScreen> {
                   
                   // Additional explanation cards
                   _buildExplanationCard(
-                    'كيفية التواصل مع الحرفي',
-                    'طرق التواصل والتفاوض على الأسعار',
+                    l10n.howToCommunicate,
+                    l10n.communicationMethods,
                     Icons.chat,
                     Colors.orange,
                     () => _showCommunicationTutorial(),
@@ -70,8 +93,8 @@ class _AppExplanationScreenState extends State<AppExplanationScreen> {
                   const SizedBox(height: 20),
                   
                   _buildExplanationCard(
-                    'تقييم الخدمة',
-                    'كيفية تقييم جودة الخدمة المقدمة',
+                    l10n.rateService,
+                    l10n.howToRate,
                     Icons.star,
                     Colors.purple,
                     () => _showRatingTutorial(),
@@ -175,67 +198,74 @@ class _AppExplanationScreenState extends State<AppExplanationScreen> {
   }
 
   void _showCreateRequestTutorial() {
+    final l10n = AppLocalizations.of(context)!;
     _showTutorialDialog(
-      'طريقة انشاء طلب',
+      l10n.howToCreateRequest,
       [
-        '1. اختر نوع الخدمة المطلوبة من القائمة',
-        '2. املأ تفاصيل الطلب والموقع',
-        '3. حدد الميزانية المتوقعة',
-        '4. أرفق الصور إذا لزم الأمر',
-        '5. اضغط على "إرسال الطلب"',
-        '6. انتظر رد الحرفيين على طلبك',
+        l10n.step1ChooseService,
+        l10n.step2FillDetails,
+        l10n.step3SetBudget,
+        l10n.step4AttachPhotos,
+        l10n.step5SendRequest,
+        l10n.step6WaitResponse,
       ],
     );
   }
 
   void _showCraftsmanSelectionTutorial() {
+    final l10n = AppLocalizations.of(context)!;
     _showTutorialDialog(
-      'كيف تختار الصنايعي المناسب',
+      l10n.howToChooseCraftsman,
       [
-        '1. راجع تقييمات الحرفيين السابقة',
-        '2. قارن الأسعار المقدمة',
-        '3. تحقق من خبرة الحرفي في المجال',
-        '4. اقرأ التعليقات والمراجعات',
-        '5. تأكد من توفر الحرفي في الوقت المطلوب',
-        '6. تواصل مع الحرفي قبل التعاقد',
+        l10n.step1ReviewRatings,
+        l10n.step2ComparePrices,
+        l10n.step3CheckExperience,
+        l10n.step4ReadComments,
+        l10n.step5CheckAvailability,
+        l10n.step6CommunicateBefore,
       ],
     );
   }
 
   void _showCommunicationTutorial() {
+    final l10n = AppLocalizations.of(context)!;
     _showTutorialDialog(
-      'كيفية التواصل مع الحرفي',
+      l10n.howToCommunicate,
       [
-        '1. استخدم نظام الرسائل في التطبيق',
-        '2. حدد موعد مناسب للزيارة',
-        '3. ناقش تفاصيل العمل والأسعار',
-        '4. تأكد من شروط الضمان',
-        '5. احتفظ بسجل المحادثات',
-        '6. استخدم التقييم بعد انتهاء العمل',
+        l10n.step1UseMessaging,
+        l10n.step2SetAppointment,
+        l10n.step3DiscussDetails,
+        l10n.step4CheckWarranty,
+        l10n.step5KeepRecords,
+        l10n.step6RateAfterWork,
       ],
     );
   }
 
   void _showRatingTutorial() {
+    final l10n = AppLocalizations.of(context)!;
     _showTutorialDialog(
-      'تقييم الخدمة',
+      l10n.rateService,
       [
-        '1. قيم جودة العمل المنجز',
-        '2. قيم التزام الحرفي بالمواعيد',
-        '3. قيم التعامل والاحترافية',
-        '4. اكتب تعليق مفصل عن التجربة',
-        '5. ارفق صور للعمل المنجز',
-        '6. ساعد الآخرين بمراجعتك',
+        l10n.step1RateQuality,
+        l10n.step2RatePunctuality,
+        l10n.step3RateProfessionalism,
+        l10n.step4WriteComment,
+        l10n.step5AttachWorkPhotos,
+        l10n.step6HelpOthers,
       ],
     );
   }
 
   void _showTutorialDialog(String title, List<String> steps) {
+    final l10n = AppLocalizations.of(context)!;
+    final isRtl = _currentLocale.languageCode == 'ar';
+    
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return Directionality(
-          textDirection: TextDirection.rtl,
+          textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
           child: AlertDialog(
             title: Text(
               title,
@@ -288,9 +318,9 @@ class _AppExplanationScreenState extends State<AppExplanationScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text(
-                  'إغلاق',
-                  style: TextStyle(
+                child: Text(
+                  l10n.close,
+                  style: const TextStyle(
                     color: Colors.blue,
                     fontWeight: FontWeight.bold,
                   ),
@@ -304,14 +334,11 @@ class _AppExplanationScreenState extends State<AppExplanationScreen> {
   }
 
   Widget _buildFloatingHelpButton() {
+    final l10n = AppLocalizations.of(context)!;
+    
     return GestureDetector(
       onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('مساعدة'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        openSupportChat(context);
       },
       child: Container(
         width: 60,
@@ -336,9 +363,9 @@ class _AppExplanationScreenState extends State<AppExplanationScreen> {
               size: 20,
             ),
             const SizedBox(height: 2),
-            const Text(
-              'مساعدة',
-              style: TextStyle(
+            Text(
+              l10n.help,
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 10,
                 fontWeight: FontWeight.bold,

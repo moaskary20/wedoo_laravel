@@ -3,6 +3,9 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../services/language_service.dart';
+import 'conversations_screen.dart';
+import 'package:handyman_app/l10n/app_localizations.dart';
 
 class ContactUsScreen extends StatefulWidget {
   const ContactUsScreen({super.key});
@@ -18,6 +21,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _messageController = TextEditingController();
   bool _isLoading = true;
+  Locale _currentLocale = LanguageService.defaultLocale;
   
   // Backend configuration
   static const String _baseUrl = 'https://free-styel.store/api';
@@ -32,6 +36,16 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
     super.initState();
     _loadUserData();
     _loadSupportSettings();
+    _loadCurrentLocale();
+  }
+
+  Future<void> _loadCurrentLocale() async {
+    final locale = await LanguageService.getSavedLocale();
+    if (mounted) {
+      setState(() {
+        _currentLocale = locale;
+      });
+    }
   }
 
   @override
@@ -69,17 +83,19 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
         } else if (userGovernorate.isNotEmpty) {
           _locationController.text = userGovernorate;
         } else {
-          _locationController.text = 'لم يتم تحديد الموقع';
+          final l10n = AppLocalizations.of(context);
+          _locationController.text = l10n?.locationNotSet ?? 'لم يتم تحديد الموقع';
         }
       });
     } catch (e) {
       print('Error loading user data: $e');
       // Set default values on error
+      final l10n = AppLocalizations.of(context);
       setState(() {
-        _nameController.text = 'مستخدم';
+        _nameController.text = l10n?.user ?? 'مستخدم';
         _emailController.text = 'user@example.com';
         _phoneController.text = '0000000000';
-        _locationController.text = 'لم يتم تحديد الموقع';
+        _locationController.text = l10n?.locationNotSet ?? 'لم يتم تحديد الموقع';
       });
     } finally {
       setState(() {
@@ -111,10 +127,12 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
   }
 
   Future<void> _sendMessage() async {
+    final l10n = AppLocalizations.of(context)!;
+    
     if (_messageController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('يرجى كتابة رسالتك'),
+        SnackBar(
+          content: Text(l10n.pleaseWriteMessage),
           backgroundColor: Colors.red,
         ),
       );
@@ -143,10 +161,11 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
       print('Contact message sent to admin panel: $contactData');
       
       // Show success message
+      final l10n = AppLocalizations.of(context)!;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('تم إرسال رسالتك بنجاح إلى الـ admin panel'),
+          SnackBar(
+            content: Text(l10n.messageSentSuccess),
             backgroundColor: Colors.green,
           ),
         );
@@ -154,10 +173,11 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
       }
     } catch (e) {
       print('Error sending contact message: $e');
+      final l10n = AppLocalizations.of(context)!;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('خطأ في إرسال الرسالة'),
+          SnackBar(
+            content: Text(l10n.errorSendingMessage),
             backgroundColor: Colors.red,
           ),
         );
@@ -172,13 +192,14 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
   }
 
   void _launchWhatsApp(String phoneNumber) async {
+    final l10n = AppLocalizations.of(context)!;
     final url = 'https://wa.me/$phoneNumber';
     if (await canLaunchUrl(Uri.parse(url))) {
       await launchUrl(Uri.parse(url));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('لا يمكن فتح WhatsApp'),
+        SnackBar(
+          content: Text(l10n.cannotOpenWhatsApp),
           backgroundColor: Colors.red,
         ),
       );
@@ -187,13 +208,16 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isRtl = _currentLocale.languageCode == 'ar';
+    
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
         backgroundColor: const Color(0xFFfec901),
         appBar: AppBar(
-          title: const Text(
-            'اتصل بنا',
+          title: Text(
+            l10n.contactUs,
             style: TextStyle(
               fontWeight: FontWeight.bold,
               color: Colors.white,
@@ -250,6 +274,8 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
   }
 
   Widget _buildContactForm() {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -268,7 +294,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
         children: [
           // Name Field
           _buildInputField(
-            'الاسم',
+            l10n.name,
             _nameController,
             Icons.person,
           ),
@@ -277,7 +303,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
           
           // Email Field
           _buildInputField(
-            'البريد الإلكتروني',
+            l10n.email,
             _emailController,
             Icons.email,
           ),
@@ -286,7 +312,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
           
           // Location Field
           _buildInputField(
-            'الموقع',
+            l10n.location,
             _locationController,
             Icons.location_on,
           ),
@@ -295,7 +321,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
           
           // Phone Field
           _buildInputField(
-            'رقم الهاتف',
+            l10n.phoneNumber,
             _phoneController,
             Icons.phone,
           ),
@@ -335,7 +361,7 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
           ),
           child: TextField(
             controller: controller,
-            textAlign: TextAlign.right,
+            textAlign: _currentLocale.languageCode == 'ar' ? TextAlign.right : TextAlign.left,
             decoration: InputDecoration(
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -352,12 +378,14 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
   }
 
   Widget _buildMessageField() {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'الرسالة',
-          style: TextStyle(
+        Text(
+          l10n.message,
+          style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
             color: Colors.black87,
@@ -372,10 +400,10 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
           ),
           child: TextField(
             controller: _messageController,
-            textAlign: TextAlign.right,
+            textAlign: _currentLocale.languageCode == 'ar' ? TextAlign.right : TextAlign.left,
             maxLines: 4,
             decoration: InputDecoration(
-              hintText: 'إترك رسالتك',
+              hintText: l10n.writeYourMessage,
               hintStyle: TextStyle(
                 color: Colors.grey[600],
                 fontSize: 16,
@@ -395,6 +423,8 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
   }
 
   Widget _buildSendButton() {
+    final l10n = AppLocalizations.of(context)!;
+    
     return SizedBox(
       width: double.infinity,
       height: 50,
@@ -416,9 +446,9 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               )
-            : const Text(
-                'إرسال',
-                style: TextStyle(
+            : Text(
+                l10n.submit,
+                style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
@@ -428,13 +458,15 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
   }
 
   Widget _buildCustomerServiceSection() {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Center(
+        Center(
           child: Text(
-            'خدمة العملاء',
-            style: TextStyle(
+            l10n.customerService,
+            style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.black87,
@@ -461,6 +493,8 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
   }
 
   Widget _buildWhatsAppButton(String phoneNumber) {
+    final l10n = AppLocalizations.of(context)!;
+    
     return GestureDetector(
       onTap: () => _launchWhatsApp(phoneNumber),
       child: Container(
@@ -491,9 +525,9 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
-                    'اضغط هنا',
-                    style: TextStyle(
+                  Text(
+                    l10n.clickHere,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 12,
                     ),
@@ -513,14 +547,11 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
   }
 
   Widget _buildFloatingHelpButton() {
+    final l10n = AppLocalizations.of(context)!;
+    
     return GestureDetector(
       onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('مساعدة'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        openSupportChat(context);
       },
       child: Container(
         width: 60,
@@ -545,9 +576,9 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
               size: 20,
             ),
             const SizedBox(height: 2),
-            const Text(
-              'مساعدة',
-              style: TextStyle(
+            Text(
+              l10n.help,
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 10,
                 fontWeight: FontWeight.bold,

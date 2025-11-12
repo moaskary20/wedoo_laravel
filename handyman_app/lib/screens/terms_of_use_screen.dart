@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../services/language_service.dart';
+import 'conversations_screen.dart';
+import 'package:handyman_app/l10n/app_localizations.dart';
 
 class TermsOfUseScreen extends StatefulWidget {
   const TermsOfUseScreen({super.key});
@@ -8,15 +11,35 @@ class TermsOfUseScreen extends StatefulWidget {
 }
 
 class _TermsOfUseScreenState extends State<TermsOfUseScreen> {
+  Locale _currentLocale = LanguageService.defaultLocale;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrentLocale();
+  }
+
+  Future<void> _loadCurrentLocale() async {
+    final locale = await LanguageService.getSavedLocale();
+    if (mounted) {
+      setState(() {
+        _currentLocale = locale;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isRtl = _currentLocale.languageCode == 'ar';
+    
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
         backgroundColor: const Color(0xFFfec901),
         appBar: AppBar(
-          title: const Text(
-            'سياسة الاستخدام',
+          title: Text(
+            l10n.termsOfUse,
             style: TextStyle(
               fontWeight: FontWeight.bold,
               color: Colors.white,
@@ -62,6 +85,8 @@ class _TermsOfUseScreenState extends State<TermsOfUseScreen> {
   }
 
   Widget _buildTermsContent() {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -79,10 +104,10 @@ class _TermsOfUseScreenState extends State<TermsOfUseScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header
-          const Center(
+          Center(
             child: Text(
-              'شروط وأحكام استخدام التطبيق',
-              style: TextStyle(
+              l10n.termsTitle,
+              style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
                 color: Colors.black87,
@@ -93,9 +118,9 @@ class _TermsOfUseScreenState extends State<TermsOfUseScreen> {
           
           const SizedBox(height: 20),
           
-          const Text(
-            'آخر تحديث: ديسمبر 2024',
-            style: TextStyle(
+          Text(
+            l10n.lastUpdate,
+            style: const TextStyle(
               fontSize: 14,
               color: Colors.grey,
               fontStyle: FontStyle.italic,
@@ -107,74 +132,74 @@ class _TermsOfUseScreenState extends State<TermsOfUseScreen> {
           
           // Section 1
           _buildSection(
-            '1. قبول الشروط',
-            'باستخدامك لهذا التطبيق، فإنك توافق على الالتزام بشروط وأحكام الاستخدام هذه. إذا كنت لا توافق على هذه الشروط، يرجى عدم استخدام التطبيق.',
+            l10n.acceptTerms,
+            l10n.acceptTermsContent,
           ),
           
           // Section 2
           _buildSection(
-            '2. وصف الخدمة',
-            'تطبيق "الصنايع" هو منصة رقمية تربط بين العملاء والحرفيين المهرة لتقديم خدمات الصيانة والإصلاح. نهدف إلى تسهيل عملية العثور على الحرفيين المناسبين وتقديم خدمات عالية الجودة.',
+            l10n.serviceDescription,
+            l10n.serviceDescriptionContent,
           ),
           
           // Section 3
           _buildSection(
-            '3. التسجيل والحساب',
-            '• يجب أن تكون 18 عاماً أو أكثر لاستخدام التطبيق\n• يجب تقديم معلومات صحيحة ودقيقة عند التسجيل\n• أنت مسؤول عن الحفاظ على سرية حسابك وكلمة المرور\n• يجب إبلاغنا فوراً عن أي استخدام غير مصرح به لحسابك',
+            l10n.registrationAccount,
+            l10n.registrationAccountContent,
           ),
           
           // Section 4
           _buildSection(
-            '4. استخدام التطبيق',
-            '• يمكنك استخدام التطبيق للأغراض القانونية فقط\n• لا يجوز استخدام التطبيق لأي نشاط غير قانوني أو ضار\n• يجب احترام حقوق الملكية الفكرية\n• لا يجوز محاولة اختراق أو تعطيل التطبيق',
+            l10n.appUsage,
+            l10n.appUsageContent,
           ),
           
           // Section 5
           _buildSection(
-            '5. الخدمات والمدفوعات',
-            '• الأسعار المعروضة في التطبيق قد تتغير دون إشعار مسبق\n• المدفوعات تتم عبر طرق آمنة ومعتمدة\n• يمكن إلغاء الطلبات وفقاً للشروط المحددة\n• نحتفظ بالحق في رفض أو إلغاء أي طلب',
+            l10n.servicesPayments,
+            l10n.servicesPaymentsContent,
           ),
           
           // Section 6
           _buildSection(
-            '6. خصوصية البيانات',
-            '• نحن نلتزم بحماية خصوصيتك وبياناتك الشخصية\n• يتم جمع البيانات الضرورية فقط لتقديم الخدمة\n• لا نشارك بياناتك الشخصية مع أطراف ثالثة دون موافقتك\n• يمكنك مراجعة سياسة الخصوصية للحصول على تفاصيل أكثر',
+            l10n.dataPrivacy,
+            l10n.dataPrivacyContent,
           ),
           
           // Section 7
           _buildSection(
-            '7. مسؤولية المستخدم',
-            '• أنت مسؤول عن دقة المعلومات المقدمة\n• يجب التعامل مع الحرفيين باحترام ومهنية\n• لا يجوز إساءة استخدام النظام أو التلاعب به\n• يجب الإبلاغ عن أي مشاكل أو انتهاكات',
+            l10n.userResponsibility,
+            l10n.userResponsibilityContent,
           ),
           
           // Section 8
           _buildSection(
-            '8. مسؤولية التطبيق',
-            '• نحن نسعى لتقديم أفضل الخدمات الممكنة\n• لا نتحمل مسؤولية الأضرار الناتجة عن استخدام التطبيق\n• نحتفظ بالحق في تعديل أو إيقاف الخدمة\n• نعمل على حل النزاعات بطريقة عادلة',
+            l10n.appResponsibility,
+            l10n.appResponsibilityContent,
           ),
           
           // Section 9
           _buildSection(
-            '9. تعديل الشروط',
-            'نحتفظ بالحق في تعديل هذه الشروط في أي وقت. سيتم إشعار المستخدمين بأي تغييرات مهمة. استمرار استخدام التطبيق بعد التعديلات يعني الموافقة على الشروط الجديدة.',
+            l10n.modifyTerms,
+            l10n.modifyTermsContent,
           ),
           
           // Section 10
           _buildSection(
-            '10. إنهاء الخدمة',
-            'يمكن لأي من الطرفين إنهاء هذه الاتفاقية في أي وقت. نحتفظ بالحق في تعليق أو إنهاء حسابك في حالة انتهاك هذه الشروط.',
+            l10n.terminateService,
+            l10n.terminateServiceContent,
           ),
           
           // Section 11
           _buildSection(
-            '11. القانون المطبق',
-            'تخضع هذه الشروط للقوانين المحلية. أي نزاعات ستتم تسويتها من خلال المحاكم المختصة.',
+            l10n.applicableLaw,
+            l10n.applicableLawContent,
           ),
           
           // Section 12
           _buildSection(
-            '12. التواصل معنا',
-            'لأي استفسارات أو شكاوى، يمكنك التواصل معنا عبر:\n• البريد الإلكتروني: support@handyman.com\n• الهاتف: 01234567890\n• العنوان: القاهرة، مصر',
+            l10n.contactUsSection,
+            l10n.contactUsSectionContent,
           ),
           
           const SizedBox(height: 30),
@@ -187,18 +212,18 @@ class _TermsOfUseScreenState extends State<TermsOfUseScreen> {
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: Colors.orange[300]!),
             ),
-            child: const Row(
+            child: Row(
               children: [
-                Icon(
+                const Icon(
                   Icons.info_outline,
                   color: Colors.orange,
                   size: 20,
                 ),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'باستخدامك لهذا التطبيق، فإنك تؤكد أنك قد قرأت وفهمت هذه الشروط والأحكام ووافقت عليها.',
-                    style: TextStyle(
+                    l10n.termsAgreement,
+                    style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                       color: Colors.black87,
@@ -244,14 +269,11 @@ class _TermsOfUseScreenState extends State<TermsOfUseScreen> {
   }
 
   Widget _buildFloatingHelpButton() {
+    final l10n = AppLocalizations.of(context)!;
+    
     return GestureDetector(
       onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('مساعدة'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        openSupportChat(context);
       },
       child: Container(
         width: 60,
@@ -276,9 +298,9 @@ class _TermsOfUseScreenState extends State<TermsOfUseScreen> {
               size: 20,
             ),
             const SizedBox(height: 2),
-            const Text(
-              'مساعدة',
-              style: TextStyle(
+            Text(
+              l10n.help,
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 10,
                 fontWeight: FontWeight.bold,

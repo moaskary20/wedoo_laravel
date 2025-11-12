@@ -39,12 +39,19 @@ class TaskTypeResource extends Resource
                     ->searchable()
                     ->preload(),
                 Forms\Components\TextInput::make('name')
-                    ->label('اسم نوع المهمة')
+                    ->label('اسم نوع المهمة (للرجوع)')
+                    ->maxLength(255)
+                    ->helperText('حقل قديم - يفضل استخدام الحقول أدناه'),
+                Forms\Components\TextInput::make('name_ar')
+                    ->label('اسم نوع المهمة بالعربي *')
                     ->required()
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('name_en')
-                    ->label('اسم نوع المهمة بالإنجليزية')
-                    ->maxLength(255),
+                    ->maxLength(255)
+                    ->helperText('يظهر في التطبيق عند اختيار اللغة العربية'),
+                Forms\Components\TextInput::make('name_fr')
+                    ->label('اسم نوع المهمة بالفرنسية *')
+                    ->required()
+                    ->maxLength(255)
+                    ->helperText('يظهر في التطبيق عند اختيار اللغة الفرنسية'),
                 Forms\Components\Textarea::make('description')
                     ->label('الوصف')
                     ->maxLength(65535)
@@ -89,12 +96,16 @@ class TaskTypeResource extends Resource
                     ->label('الفئة')
                     ->searchable()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('name')
-                    ->label('اسم نوع المهمة')
+                Tables\Columns\TextColumn::make('name_ar')
+                    ->label('الاسم بالعربي')
                     ->searchable()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('name_en')
-                    ->label('الاسم بالإنجليزية')
+                Tables\Columns\TextColumn::make('name_fr')
+                    ->label('الاسم بالفرنسية')
+                    ->searchable()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('name')
+                    ->label('الاسم القديم')
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('description')

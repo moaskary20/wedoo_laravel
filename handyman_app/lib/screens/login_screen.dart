@@ -6,6 +6,9 @@ import 'demo_location_screen.dart';
 import 'phone_input_screen.dart';
 import '../config/api_config.dart';
 import '../services/api_service.dart';
+import '../services/language_service.dart';
+import '../main.dart';
+import 'package:handyman_app/l10n/app_localizations.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -19,6 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
   bool _isPasswordVisible = false;
   bool _isLoading = false;
+  Locale _currentLocale = LanguageService.defaultLocale;
   
   // Backend configuration - Using remote server
 
@@ -26,6 +30,16 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     _checkLoginStatus();
+    _loadCurrentLocale();
+  }
+
+  Future<void> _loadCurrentLocale() async {
+    final locale = await LanguageService.getSavedLocale();
+    if (mounted) {
+      setState(() {
+        _currentLocale = locale;
+      });
+    }
   }
 
   @override
@@ -82,8 +96,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isRtl = _currentLocale.languageCode == 'ar';
+    
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
         backgroundColor: const Color(0xFFfec901),
         body: SafeArea(
@@ -97,30 +114,33 @@ class _LoginScreenState extends State<LoginScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.blue,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.language,
-                            color: Colors.white,
-                            size: 16,
-                          ),
-                          const SizedBox(width: 4),
-                          const Text(
-                            'عربي',
-                            style: TextStyle(
+                    GestureDetector(
+                      onTap: () => _showLanguageBottomSheet(),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.blue,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.language,
                               color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
+                              size: 16,
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 4),
+                            Text(
+                              _currentLocale.languageCode == 'ar' ? l10n.arabic : l10n.french,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
@@ -153,6 +173,26 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 
+                // Text below logo
+                const SizedBox(height: 20),
+                Text(
+                  l10n.yourServicesOnUs,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: 1.2,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black26,
+                        offset: Offset(0, 2),
+                        blurRadius: 4,
+                      ),
+                    ],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                
                 const SizedBox(height: 40),
                 
                 // Phone Number Field
@@ -172,7 +212,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     controller: _phoneController,
                     keyboardType: TextInputType.phone,
                     decoration: InputDecoration(
-                      hintText: '01xxxxxxxxx',
+                      hintText: l10n.enterPhoneNumber,
                       hintStyle: TextStyle(
                         color: Colors.grey[600],
                         fontSize: 16,
@@ -210,7 +250,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     controller: _passwordController,
                     obscureText: !_isPasswordVisible,
                     decoration: InputDecoration(
-                      hintText: 'كلمة المرور',
+                      hintText: l10n.password,
                       hintStyle: TextStyle(
                         color: Colors.grey[600],
                         fontSize: 16,
@@ -249,9 +289,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     onPressed: () {
                       // Handle forgot password
                     },
-                    child: const Text(
-                      'نسيت كلمة المرور!',
-                      style: TextStyle(
+                    child: Text(
+                      l10n.forgotPassword,
+                      style: const TextStyle(
                         color: Colors.blue,
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
@@ -295,9 +335,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                             ),
                           )
-                        : const Text(
-                            'تسجيل الدخول',
-                            style: TextStyle(
+                        : Text(
+                            l10n.login,
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -324,9 +364,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       );
                     },
-                    child: const Text(
-                      'تسجيل عضو جديد ؟',
-                      style: TextStyle(
+                    child: Text(
+                      l10n.dontHaveAccount,
+                      style: const TextStyle(
                         color: Colors.blue,
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
@@ -346,14 +386,16 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _handleLogin() async {
+    final l10n = AppLocalizations.of(context)!;
+    
     if (_phoneController.text.isEmpty || _passwordController.text.isEmpty) {
-      _showErrorSnackBar('يرجى ملء جميع الحقول');
+      _showErrorSnackBar(l10n.pleaseFillAllFields);
       return;
     }
 
-    // Validate phone number format
+    // Validate phone number format (accept any international phone number)
     if (!_isValidPhoneNumber(_phoneController.text)) {
-      _showErrorSnackBar('يرجى إدخال رقم هاتف صحيح');
+      _showErrorSnackBar(l10n.pleaseEnterValidPhone);
       return;
     }
 
@@ -392,7 +434,8 @@ class _LoginScreenState extends State<LoginScreen> {
           await prefs.setString('login_timestamp', DateTime.now().toIso8601String());
           
           // Show success message
-          _showSuccessSnackBar('تم تسجيل الدخول بنجاح');
+          final l10n = AppLocalizations.of(context)!;
+          _showSuccessSnackBar(l10n.loginSuccess);
           
           // Navigate to location screen
           if (mounted) {
@@ -403,19 +446,22 @@ class _LoginScreenState extends State<LoginScreen> {
             );
           }
         } else {
-          _showErrorSnackBar(responseData['message'] ?? 'رقم الهاتف أو كلمة المرور غير صحيحة');
+          final l10n = AppLocalizations.of(context)!;
+          _showErrorSnackBar(responseData['message'] ?? l10n.invalidPhoneOrPassword);
         }
       } else {
-        _showErrorSnackBar('خطأ في الاتصال بالخادم');
+        final l10n = AppLocalizations.of(context)!;
+        _showErrorSnackBar(l10n.serverConnectionError);
       }
     } catch (e) {
       print('Login error: $e');
+      final l10n = AppLocalizations.of(context)!;
       if (e.toString().contains('TimeoutException')) {
-        _showErrorSnackBar('انتهت مهلة الاتصال. يرجى المحاولة مرة أخرى');
+        _showErrorSnackBar(l10n.connectionTimeout);
       } else if (e.toString().contains('SocketException')) {
-        _showErrorSnackBar('خطأ في الاتصال بالخادم. يرجى التحقق من الإنترنت');
+        _showErrorSnackBar(l10n.checkInternetConnection);
       } else {
-        _showErrorSnackBar('خطأ في الاتصال. يرجى المحاولة مرة أخرى');
+        _showErrorSnackBar(l10n.connectionErrorRetry);
       }
     } finally {
       if (mounted) {
@@ -427,9 +473,80 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   bool _isValidPhoneNumber(String phone) {
-    // Egyptian phone number validation
-    final phoneRegex = RegExp(r'^01[0-9]{9}$');
-    return phoneRegex.hasMatch(phone);
+    // Accept any phone number:
+    // - International: starts with + followed by country code (1-9) and 6-14 digits
+    // - Local: starts with 0 followed by 7-14 digits (e.g., 01000690805)
+    // - International without +: starts with country code (1-9) and 6-14 digits
+    final cleanedPhone = phone.replaceAll(RegExp(r'[\s\-\(\)]'), '');
+    
+    // Pattern 1: International with + (e.g., +201000690805)
+    if (RegExp(r'^\+[1-9]\d{6,14}$').hasMatch(cleanedPhone)) {
+      return true;
+    }
+    
+    // Pattern 2: Local number starting with 0 (e.g., 01000690805)
+    if (RegExp(r'^0\d{7,14}$').hasMatch(cleanedPhone)) {
+      return true;
+    }
+    
+    // Pattern 3: International without + (e.g., 201000690805)
+    if (RegExp(r'^[1-9]\d{6,14}$').hasMatch(cleanedPhone)) {
+      return true;
+    }
+    
+    return false;
+  }
+
+  void _showLanguageBottomSheet() {
+    final l10n = AppLocalizations.of(context)!;
+    final isRtl = _currentLocale.languageCode == 'ar';
+    
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return Directionality(
+          textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  l10n.selectLanguage,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ListTile(
+                  leading: const Icon(Icons.language),
+                  title: Text(l10n.arabic),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.changeAppLocale(const Locale('ar'));
+                    setState(() {
+                      _currentLocale = const Locale('ar');
+                    });
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.language),
+                  title: Text(l10n.french),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.changeAppLocale(const Locale('fr'));
+                    setState(() {
+                      _currentLocale = const Locale('fr');
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<String> _getDeviceId() async {

@@ -41,6 +41,9 @@
 -keep class com.google.android.gms.location.** { *; }
 -keep class com.google.android.gms.common.** { *; }
 
+# Keep MainActivity (prevent R8 from stripping it)
+-keep class com.wedoo2.www.MainActivity { *; }
+
 # Disable Google Play Core functionality for SDK 34 compatibility
 -dontwarn com.google.android.play.core.**
 -dontwarn com.google.android.play.core.splitcompat.**

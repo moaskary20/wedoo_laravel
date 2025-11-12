@@ -9,17 +9,21 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../config/api_config.dart';
+import '../services/language_service.dart';
+import 'package:handyman_app/l10n/app_localizations.dart';
 
 class ServiceRequestForm extends StatefulWidget {
   final String categoryName;
   final String categoryIcon;
   final Color categoryColor;
+  final int? categoryId; // Optional: if provided, use it directly instead of converting from name
 
   const ServiceRequestForm({
     super.key,
     required this.categoryName,
     required this.categoryIcon,
     required this.categoryColor,
+    this.categoryId,
   });
 
   @override
@@ -48,16 +52,29 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
   Offset _markerPosition = const Offset(150, 100); // Initial marker position
 
   // Step 1: Task Type
-  String? _selectedTaskType;
+  int? _selectedTaskTypeId; // Store task type ID instead of name
   List<Map<String, dynamic>> _taskTypes = [];
   bool _isLoadingTaskTypes = false;
+  
+  // Helper function to get task type name based on current locale
+  String _getTaskTypeName(Map<String, dynamic> taskType) {
+    final isRtl = _currentLocale.languageCode == 'ar';
+    
+    if (isRtl) {
+      // Return Arabic name if available, otherwise fallback to name
+      return taskType['name_ar'] ?? taskType['name_arabic'] ?? taskType['name'] ?? '';
+    } else {
+      // Return French name if available, otherwise fallback to name
+      return taskType['name_fr'] ?? taskType['name_french'] ?? taskType['name'] ?? '';
+    }
+  }
 
   // Step 2: Task Specifications
   final TextEditingController _taskDescriptionController = TextEditingController();
   final TextEditingController _urgencyController = TextEditingController();
   final TextEditingController _budgetController = TextEditingController();
-  String _selectedUrgency = 'عادي';
-  final List<String> _urgencyLevels = ['عاجل', 'عادي', 'غير عاجل'];
+  String? _selectedUrgency;
+  Locale _currentLocale = LanguageService.defaultLocale;
 
   // Step 3: Location
   Map<String, dynamic>? _savedLocation;
@@ -68,6 +85,40 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
     super.initState();
     _loadSavedLocation();
     _fetchTaskTypes();
+    _loadCurrentLocale();
+  }
+
+  Future<void> _loadCurrentLocale() async {
+    final locale = await LanguageService.getSavedLocale();
+    if (mounted) {
+      final l10n = AppLocalizations.of(context);
+      setState(() {
+        _currentLocale = locale;
+        // Set default urgency to the translated text
+        if (l10n != null) {
+          _selectedUrgency = l10n.normal;
+        } else {
+          _selectedUrgency = 'عادي';
+        }
+        // Reset selected task type when locale changes to refresh display names
+        // The ID remains the same, but display names will update
+      });
+    }
+  }
+
+  List<String> _getUrgencyLevels() {
+    final l10n = AppLocalizations.of(context);
+    if (l10n == null) return ['عاجل', 'عادي', 'غير عاجل'];
+    return [l10n.urgent, l10n.normal, l10n.notUrgent];
+  }
+
+  String _getUrgencyValue(String displayText) {
+    final l10n = AppLocalizations.of(context);
+    if (l10n == null) return displayText;
+    if (displayText == l10n.urgent) return 'urgent';
+    if (displayText == l10n.normal) return 'normal';
+    if (displayText == l10n.notUrgent) return 'not_urgent';
+    return displayText;
   }
 
   Future<void> _loadSavedLocation() async {
@@ -98,12 +149,13 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
         _isLoadingTaskTypes = true;
       });
 
-      // Get category ID based on category name
-      int categoryId = _getCategoryId(widget.categoryName);
+      // Get category ID - use provided ID if available, otherwise convert from name
+      int categoryId = widget.categoryId ?? _getCategoryId(widget.categoryName);
       
       // Debug logging
       print('Category Name: ${widget.categoryName}');
-      print('Category ID: $categoryId');
+      print('Category ID (from backend): ${widget.categoryId}');
+      print('Category ID (used): $categoryId');
 
       // Fetch from HTTPS server
       final response = await http.get(
@@ -120,8 +172,35 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
           // Extract task types directly from data array
           List<dynamic> allTaskTypes = responseData['data'] ?? [];
           
+          // Filter task types by category_id to ensure only relevant types are shown
+          List<Map<String, dynamic>> filteredTaskTypes = [];
+          for (var taskType in allTaskTypes) {
+            final taskTypeMap = taskType as Map<String, dynamic>;
+            final taskCategoryId = taskTypeMap['category_id'] ?? 
+                                  taskTypeMap['categoryId'] ?? 
+                                  taskTypeMap['category']?['id'];
+            
+            // Convert to int for comparison
+            int? taskCategoryIdInt;
+            if (taskCategoryId != null) {
+              if (taskCategoryId is int) {
+                taskCategoryIdInt = taskCategoryId;
+              } else if (taskCategoryId is String) {
+                taskCategoryIdInt = int.tryParse(taskCategoryId);
+              }
+            }
+            
+            // Only include task types that match the current category
+            if (taskCategoryIdInt == categoryId) {
+              filteredTaskTypes.add(taskTypeMap);
+            }
+          }
+          
+          print('Total task types from API: ${allTaskTypes.length}');
+          print('Filtered task types for category $categoryId: ${filteredTaskTypes.length}');
+          
           setState(() {
-            _taskTypes = allTaskTypes.cast<Map<String, dynamic>>();
+            _taskTypes = filteredTaskTypes;
             _isLoadingTaskTypes = false;
           });
         } else {
@@ -138,14 +217,15 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
         _taskTypes = [];
       });
       
+      final l10n = AppLocalizations.of(context);
       // Show specific error messages
-      String errorMessage = 'خطأ في تحميل أنواع المهام';
+      String errorMessage = l10n?.errorLoadingTaskTypes ?? 'خطأ في تحميل أنواع المهام';
       if (e.toString().contains('ClientException')) {
-        errorMessage = 'خطأ في الاتصال بالخادم. تحقق من اتصال الإنترنت';
+        errorMessage = l10n?.serverConnectionErrorCheckInternet ?? 'خطأ في الاتصال بالخادم. تحقق من اتصال الإنترنت';
       } else if (e.toString().contains('TimeoutException')) {
-        errorMessage = 'انتهت مهلة الاتصال. حاول مرة أخرى';
+        errorMessage = l10n?.connectionTimeoutTryAgain ?? 'انتهت مهلة الاتصال. حاول مرة أخرى';
       } else if (e.toString().contains('SocketException')) {
-        errorMessage = 'لا يمكن الوصول إلى الخادم. تحقق من اتصال الإنترنت';
+        errorMessage = l10n?.cannotReachServer ?? 'لا يمكن الوصول إلى الخادم. تحقق من اتصال الإنترنت';
       }
       
       ScaffoldMessenger.of(context).showSnackBar(
@@ -168,14 +248,17 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isRtl = _currentLocale.languageCode == 'ar';
+    
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
       backgroundColor: const Color(0xFFfec901),
       appBar: AppBar(
-        title: const Text(
-          'إنشاء طلب خدمة',
-          style: TextStyle(
+        title: Text(
+          l10n.createServiceRequest,
+          style: const TextStyle(
             fontWeight: FontWeight.bold,
             color: Colors.white,
             fontSize: 18,
@@ -263,16 +346,18 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
   }
 
   Widget _buildFormContent() {
+    final l10n = AppLocalizations.of(context)!;
+    
     if (_isLoading) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 20),
+            const CircularProgressIndicator(),
+            const SizedBox(height: 20),
             Text(
-              'جاري إرسال الطلب...',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
+              l10n.loading,
+              style: const TextStyle(fontSize: 16, color: Colors.grey),
             ),
           ],
         ),
@@ -280,6 +365,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
     }
 
     if (_errorMessage != null) {
+      final l10n = AppLocalizations.of(context)!;
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(20),
@@ -289,7 +375,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
               const Icon(Icons.error_outline, size: 60, color: Colors.red),
               const SizedBox(height: 20),
               Text(
-                'خطأ في إرسال الطلب',
+                l10n.errorSendingRequest,
                 style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.red),
               ),
               const SizedBox(height: 10),
@@ -307,7 +393,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                   });
                 },
                 icon: const Icon(Icons.refresh),
-                label: const Text('حاول مرة أخرى'),
+                label: Text(l10n.tryAgain),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue,
                   foregroundColor: Colors.white,
@@ -332,6 +418,9 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
   }
 
   Widget _buildStep1() {
+    final l10n = AppLocalizations.of(context)!;
+    final isRtl = _currentLocale.languageCode == 'ar';
+    
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Center(
@@ -352,9 +441,9 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-          const Text(
-            'نوع المهمة',
-            style: TextStyle(
+          Text(
+            l10n.taskType,
+            style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
                   color: Colors.black87,
@@ -377,9 +466,9 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                     padding: const EdgeInsets.all(20.0),
                     child: Column(
                       children: [
-                        const Text(
-                          'لا توجد مهام متاحة لهذه الفئة',
-                          style: TextStyle(
+                        Text(
+                          l10n.noTasksAvailable,
+                          style: const TextStyle(
                             fontSize: 16,
                             color: Colors.grey,
                           ),
@@ -389,7 +478,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                           onPressed: () {
                             _fetchTaskTypes();
                           },
-                          child: const Text('إعادة المحاولة'),
+                          child: Text(l10n.retry),
                         ),
                       ],
                     ),
@@ -399,13 +488,15 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                 ..._taskTypes.asMap().entries.map((entry) {
                   int index = entry.key;
                   Map<String, dynamic> taskType = entry.value;
-                  bool isSelected = _selectedTaskType == taskType['name'];
+                  int taskTypeId = taskType['id'] ?? taskType['task_type_id'] ?? index;
+                  bool isSelected = _selectedTaskTypeId == taskTypeId;
+                  String displayName = _getTaskTypeName(taskType);
                   
                   return Column(
                     children: [
-                      RadioListTile<String>(
+                      RadioListTile<int>(
                         title: Text(
-                          taskType['name'] ?? '',
+                          displayName,
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w500,
@@ -427,7 +518,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                               ),
                             if (taskType['price_range'] != null)
                               Text(
-                                'السعر: ${taskType['price_range']}',
+                                '${l10n.price}: ${taskType['price_range']}',
                                 style: const TextStyle(
                                   fontSize: 11,
                                   color: Colors.green,
@@ -437,7 +528,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                               ),
                             if (taskType['duration'] != null)
                               Text(
-                                'المدة: ${taskType['duration']}',
+                                '${l10n.duration}: ${taskType['duration']}',
                                 style: const TextStyle(
                                   fontSize: 11,
                                   color: Colors.blue,
@@ -447,11 +538,11 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                               ),
                           ],
                         ),
-                        value: taskType['name'] ?? '',
-                        groupValue: _selectedTaskType,
-                        onChanged: (String? value) {
+                        value: taskTypeId,
+                        groupValue: _selectedTaskTypeId,
+                        onChanged: (int? value) {
                           setState(() {
-                            _selectedTaskType = value;
+                            _selectedTaskTypeId = value;
                           });
                         },
                         activeColor: Colors.blue,
@@ -470,14 +561,16 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
   }
 
   Widget _buildStep2() {
+    final l10n = AppLocalizations.of(context)!;
+    
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'مواصفات المهمة',
-            style: TextStyle(
+          Text(
+            l10n.taskSpecifications,
+            style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.blue,
@@ -487,9 +580,9 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
           const SizedBox(height: 20),
           
           // Task Description
-          const Text(
-            'وصف المهمة',
-            style: TextStyle(
+          Text(
+            l10n.taskDescriptionLabel,
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
               color: Colors.black87,
@@ -501,7 +594,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
             controller: _taskDescriptionController,
             maxLines: 4,
             decoration: InputDecoration(
-              hintText: 'اكتب وصفاً مفصلاً للمهمة المطلوبة...',
+              hintText: l10n.writeDetailedDescription,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
@@ -513,9 +606,9 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
           const SizedBox(height: 20),
           
           // Urgency Level
-          const Text(
-            'مستوى الأولوية',
-            style: TextStyle(
+          Text(
+            l10n.priorityLevel,
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
               color: Colors.black87,
@@ -532,9 +625,9 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
-                value: _selectedUrgency,
+                value: _selectedUrgency ?? _getUrgencyLevels()[1], // Default to 'normal' translated
                 isExpanded: true,
-                items: _urgencyLevels.map((String urgency) {
+                items: _getUrgencyLevels().map((String urgency) {
                   return DropdownMenuItem<String>(
                     value: urgency,
                     child: Text(urgency),
@@ -542,7 +635,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                 }).toList(),
                 onChanged: (String? newValue) {
                   setState(() {
-                    _selectedUrgency = newValue!;
+                    _selectedUrgency = newValue;
                   });
                 },
               ),
@@ -552,9 +645,9 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
           const SizedBox(height: 20),
           
           // Budget
-          const Text(
-            'الميزانية المتوقعة (اختياري)',
-            style: TextStyle(
+          Text(
+            l10n.expectedBudget,
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
               color: Colors.black87,
@@ -566,7 +659,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
             controller: _budgetController,
             keyboardType: TextInputType.number,
             decoration: InputDecoration(
-              hintText: 'مثال: 500 دينار تونسي',
+              hintText: l10n.budgetExample,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
@@ -604,6 +697,8 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
   }
 
   Widget _buildLocationSection() {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -615,9 +710,9 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
             color: const Color(0xFFffe480),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: const Text(
-            'مكان المهمة',
-            style: TextStyle(
+          child: Text(
+            l10n.taskLocation,
+            style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
               color: Colors.black87,
@@ -648,6 +743,8 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
   }
 
   Widget _buildMapSection() {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -661,9 +758,9 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
               borderRadius: BorderRadius.circular(6),
               border: Border.all(color: Colors.orange[300]!),
             ),
-            child: const Text(
-              'تعديل المكان',
-              style: TextStyle(
+            child: Text(
+              l10n.editLocation,
+              style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
                 color: Colors.black87,
@@ -692,6 +789,8 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
   }
 
   Widget _buildImageUploadSection() {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -702,8 +801,8 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
             color: const Color(0xFFffe480),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: const Text(
-            'أضف صور (اختياري)',
+          child: Text(
+            l10n.addPhotos,
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -743,19 +842,22 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
   }
 
   void _showImagePicker(int index) {
+    final l10n = AppLocalizations.of(context)!;
+    final isRtl = _currentLocale.languageCode == 'ar';
+    
     showModalBottomSheet(
       context: context,
       builder: (BuildContext context) {
         return Directionality(
-          textDirection: TextDirection.rtl,
+          textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
           child: Container(
             padding: const EdgeInsets.all(20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                  'اختر مصدر الصورة',
-                  style: TextStyle(
+                Text(
+                  l10n.selectImageSource,
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
             ),
@@ -765,12 +867,12 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     _buildImageSourceOption(
-                      'الكاميرا',
+                      l10n.camera,
                       Icons.camera_alt,
                       () => _pickImage(ImageSource.camera, index),
                     ),
                     _buildImageSourceOption(
-                      'المعرض',
+                      l10n.gallery,
                       Icons.photo_library,
                       () => _pickImage(ImageSource.gallery, index),
                     ),
@@ -846,9 +948,10 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
         
         Navigator.of(context).pop(); // Close bottom sheet
         
+        final l10n = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('تم إضافة الصورة بنجاح'),
+          SnackBar(
+            content: Text(l10n.imageAddedSuccessfully),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 2),
           ),
@@ -857,10 +960,11 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
         Navigator.of(context).pop(); // Close bottom sheet even if no image selected
       }
     } catch (e) {
+      final l10n = AppLocalizations.of(context)!;
       Navigator.of(context).pop(); // Close bottom sheet on error
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('خطأ في إضافة الصورة: ${e.toString()}'),
+          content: Text('${l10n.errorAddingImage}: ${e.toString()}'),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 3),
         ),
@@ -893,6 +997,8 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
   }
 
   Widget _buildInteractiveMapPlaceholder() {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Container(
       width: double.infinity,
       height: double.infinity,
@@ -982,9 +1088,9 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                 color: Colors.black.withOpacity(0.7),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Text(
-                'اضغط على الخريطة لتحريك العلامة أو اسحب العلامة الحمراء',
-                style: TextStyle(
+              child: Text(
+                l10n.clickMapToMoveMarker,
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
@@ -1048,34 +1154,39 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
           color: Colors.grey[100],
                 borderRadius: BorderRadius.circular(10),
               ),
-        child: const Center(
+        child: Builder(
+          builder: (context) {
+            final l10n = AppLocalizations.of(context)!;
+            return Center(
               child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-              Icon(
-                Icons.map,
-                size: 50,
-                color: Colors.grey,
-              ),
-              SizedBox(height: 8),
+                  Icon(
+                    Icons.map,
+                    size: 50,
+                    color: Colors.grey,
+                  ),
+                  SizedBox(height: 8),
                   Text(
-                'خريطة الموقع',
+                    l10n.mapLocation,
                     style: TextStyle(
                       fontSize: 16,
-                  color: Colors.grey,
+                      color: Colors.grey,
                     ),
                   ),
-              SizedBox(height: 4),
+                  SizedBox(height: 4),
                   Text(
-                'اضغط لاختيار الموقع',
+                    l10n.clickToSelectLocation,
                     style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey,
+                      fontSize: 12,
+                      color: Colors.grey,
                     ),
                   ),
                 ],
               ),
-            ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -1167,13 +1278,16 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
   }
 
   void _showLocationPicker() {
+    final isRtl = _currentLocale.languageCode == 'ar';
+    
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (BuildContext context) {
+        final l10n = AppLocalizations.of(context)!;
         return Directionality(
-          textDirection: TextDirection.rtl,
+          textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
           child: Container(
             height: MediaQuery.of(context).size.height * 0.7,
             decoration: const BoxDecoration(
@@ -1201,9 +1315,9 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                   padding: const EdgeInsets.all(20),
       child: Row(
         children: [
-                      const Text(
-                        'اختيار الموقع',
-                        style: TextStyle(
+                      Text(
+                        l10n.selectLocation,
+                        style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                           color: Colors.black87,
@@ -1256,9 +1370,9 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                child: const Text(
-                        'تأكيد الموقع',
-                  style: TextStyle(
+                child: Text(
+                        l10n.confirmLocation,
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                           color: Colors.white,
@@ -1276,6 +1390,8 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
   }
 
   Widget _buildLocationOption(String arabicName, String englishName) {
+    final l10n = AppLocalizations.of(context)!;
+    
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -1284,7 +1400,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('تم اختيار الموقع: $arabicName'),
+            content: Text('${l10n.locationSelected}: $arabicName'),
             backgroundColor: Colors.green,
           ),
         );
@@ -1341,6 +1457,8 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
 
 
   Widget _buildNavigationButtons() {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Container(
       padding: const EdgeInsets.all(20),
       child: SizedBox(
@@ -1356,7 +1474,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                 ),
               ),
               child: Text(
-            _currentStep == 2 ? 'نشر' : 'التالي',
+            _currentStep == 2 ? l10n.submit : l10n.next,
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -1382,26 +1500,28 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
   }
 
   bool _validateCurrentStep() {
+    final l10n = AppLocalizations.of(context)!;
+    
     switch (_currentStep) {
       case 0:
-        if (_selectedTaskType == null) {
-          _showErrorSnackBar('يرجى اختيار نوع المهمة');
+        if (_selectedTaskTypeId == null) {
+          _showErrorSnackBar(l10n.selectTaskType);
           return false;
         }
         return true;
       case 1:
         if (_taskDescriptionController.text.trim().isEmpty) {
-          _showErrorSnackBar('يرجى كتابة وصف المهمة');
+          _showErrorSnackBar(l10n.pleaseWriteTaskDescription);
           return false;
         }
         if (_taskDescriptionController.text.trim().length < 10) {
-          _showErrorSnackBar('يرجى كتابة وصف أكثر تفصيلاً (10 أحرف على الأقل)');
+          _showErrorSnackBar(l10n.pleaseWriteMoreDetailed);
           return false;
         }
         return true;
       case 2:
         if (!_useSavedLocation && _savedLocation == null) {
-          _showErrorSnackBar('يرجى اختيار موقع للمهمة');
+          _showErrorSnackBar(l10n.pleaseSelectLocation);
           return false;
         }
         return true;
@@ -1423,24 +1543,26 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
   Future<void> _submitRequest() async {
     if (!_validateCurrentStep()) return;
 
+    final l10n = AppLocalizations.of(context)!;
+    
     // Additional validation before submission
-    if (_selectedTaskType == null) {
-      _showErrorSnackBar('يرجى اختيار نوع المهمة');
+    if (_selectedTaskTypeId == null) {
+      _showErrorSnackBar(l10n.pleaseSelectTaskType);
       return;
     }
 
     if (_taskDescriptionController.text.trim().isEmpty) {
-      _showErrorSnackBar('يرجى كتابة وصف المهمة');
+      _showErrorSnackBar(l10n.pleaseWriteTaskDescription);
       return;
     }
 
     if (_taskDescriptionController.text.trim().length < 10) {
-      _showErrorSnackBar('يرجى كتابة وصف أكثر تفصيلاً (10 أحرف على الأقل)');
+      _showErrorSnackBar(l10n.pleaseWriteMoreDetailed);
       return;
     }
 
     if (!_useSavedLocation && _savedLocation == null) {
-      _showErrorSnackBar('يرجى اختيار موقع للمهمة');
+      _showErrorSnackBar(l10n.pleaseSelectLocation);
       return;
     }
 
@@ -1453,7 +1575,8 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
       // Find selected task type details
       Map<String, dynamic>? selectedTaskTypeDetails;
       for (var taskType in _taskTypes) {
-        if (taskType['name'] == _selectedTaskType) {
+        int taskTypeId = taskType['id'] ?? taskType['task_type_id'] ?? 0;
+        if (taskTypeId == _selectedTaskTypeId) {
           selectedTaskTypeDetails = taskType;
           break;
         }
@@ -1461,12 +1584,12 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
 
       // Prepare request data
       Map<String, dynamic> requestData = {
-        'task_type': _selectedTaskType,
-        'task_type_id': selectedTaskTypeDetails?['id'],
+        'task_type_id': _selectedTaskTypeId,
+        'task_type': _getTaskTypeName(selectedTaskTypeDetails ?? {}), // Send display name for reference
         'task_type_details': selectedTaskTypeDetails,
         'category': widget.categoryName,
         'description': _taskDescriptionController.text.trim(),
-        'urgency': _selectedUrgency,
+        'urgency': _getUrgencyValue(_selectedUrgency ?? _getUrgencyLevels()[1]),
         'budget': _budgetController.text.trim().isNotEmpty 
             ? _budgetController.text.trim() 
             : null,
@@ -1523,13 +1646,14 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
       
     } catch (e) {
       print('Error submitting request: $e');
+      final l10n = AppLocalizations.of(context)!;
       setState(() {
-        _errorMessage = 'خطأ في إرسال الطلب: $e';
+        _errorMessage = '${l10n.errorSendingRequest}: $e';
         _isLoading = false;
       });
       
       // Show error message to user
-      _showErrorSnackBar('خطأ في إرسال الطلب. يرجى المحاولة مرة أخرى');
+      _showErrorSnackBar(l10n.errorSendingRequestRetry);
     }
   }
 
@@ -1537,9 +1661,10 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
     // Simulate finding nearest craftsman
     await Future.delayed(const Duration(seconds: 1));
     
+    final l10n = AppLocalizations.of(context)!;
     // Calculate real distance (simulate GPS calculation)
     double realDistance = _calculateRealDistance();
-    String distanceText = '${realDistance.toStringAsFixed(1)} كم';
+    String distanceText = '${realDistance.toStringAsFixed(1)} ${l10n.kilometers}';
     
     // Simulate craftsman data
     Map<String, dynamic> nearestCraftsman = {

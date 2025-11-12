@@ -4,6 +4,9 @@ import 'settings_screen.dart';
 import 'my_orders_screen.dart';
 import 'app_explanation_screen.dart';
 import 'shops_exhibitions_screen.dart';
+import 'conversations_screen.dart';
+import '../services/language_service.dart';
+import 'package:handyman_app/l10n/app_localizations.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -14,24 +17,45 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
+  Locale _currentLocale = LanguageService.defaultLocale;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrentLocale();
+  }
+
+  Future<void> _loadCurrentLocale() async {
+    final locale = await LanguageService.getSavedLocale();
+    if (mounted) {
+      setState(() {
+        _currentLocale = locale;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFfec901), // خلفية صفراء زاهية مثل الصورة
-      appBar: AppBar(
-        title: const Text(
-          'الرئيسية',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-            fontSize: 20,
+    final l10n = AppLocalizations.of(context)!;
+    final isRtl = _currentLocale.languageCode == 'ar';
+    
+    return Directionality(
+      textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFfec901), // خلفية صفراء زاهية مثل الصورة
+        appBar: AppBar(
+          title: Text(
+            l10n.home,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              fontSize: 20,
+            ),
           ),
+          backgroundColor: const Color(0xFF1976D2), // أزرق داكن مثل الصورة
+          elevation: 0,
+          centerTitle: true,
         ),
-        backgroundColor: const Color(0xFF1976D2), // أزرق داكن مثل الصورة
-        elevation: 0,
-        centerTitle: true,
-      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20.0),
@@ -63,43 +87,68 @@ class _MainScreenState extends State<MainScreen> {
                 ),
               ),
               
+              // Text below logo
+              const SizedBox(height: 20),
+              Text(
+                l10n.yourServicesOnUs,
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  letterSpacing: 1.2,
+                  shadows: [
+                    Shadow(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      offset: const Offset(0, 2),
+                      blurRadius: 4,
+                    ),
+                  ],
+                ),
+                textAlign: TextAlign.center,
+              ),
+              
               const SizedBox(height: 30),
               
               // Help Button - زر المساعدة مثل الصورة
               Align(
                 alignment: Alignment.centerLeft,
-                child: Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: Colors.lightBlue[300],
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        blurRadius: 10,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.message,
-                        color: Colors.white,
-                        size: 24,
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'مساعدة',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: Colors.white,
-                          fontWeight: FontWeight.w500,
+                child: GestureDetector(
+                  onTap: () {
+                    openSupportChat(context);
+                  },
+                  child: Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: Colors.lightBlue[300],
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.message,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          l10n.help,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -151,9 +200,9 @@ class _MainScreenState extends State<MainScreen> {
                                 ),
                               ),
                             ),
-                            child: const Text(
-                              'صنايعي وي دو',
-                              style: TextStyle(
+                            child: Text(
+                              l10n.handymanWedoo,
+                              style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
                                 color: Color(0xFF1976D2),
@@ -228,9 +277,9 @@ class _MainScreenState extends State<MainScreen> {
                                 ),
                               ),
                             ),
-                            child: const Text(
-                              'محلات و معارض',
-                              style: TextStyle(
+                            child: Text(
+                              l10n.shopsExhibitions,
+                              style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
                                 color: Color(0xFF1976D2),
@@ -268,11 +317,15 @@ class _MainScreenState extends State<MainScreen> {
         ),
       ),
       // Bottom Navigation Bar - شريط التنقل السفلي مثل الصورة
-      bottomNavigationBar: _buildBottomNavigationBar(),
+      bottomNavigationBar: _buildBottomNavigationBar(context),
+      ),
     );
   }
 
-  Widget _buildBottomNavigationBar() {
+  Widget _buildBottomNavigationBar(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isRtl = _currentLocale.languageCode == 'ar';
+    
     return Container(
       decoration: const BoxDecoration(
         color: Colors.blue,
@@ -287,21 +340,33 @@ class _MainScreenState extends State<MainScreen> {
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildNavItem(Icons.settings, 'الإعدادات', 3),
-              _buildNavItem(Icons.receipt_long, 'طلباتي', 2),
-              _buildNavItem(Icons.description, 'شرح التطبيق', 1),
-              _buildNavItem(Icons.home, 'الرئيسية', 0),
-            ],
+          child: Directionality(
+            textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: isRtl
+                  ? [
+                      // RTL: من اليمين إلى اليسار
+                      _buildNavItem(context, Icons.home, l10n.home, 0),
+                      _buildNavItem(context, Icons.description, l10n.appExplanation, 1),
+                      _buildNavItem(context, Icons.receipt_long, l10n.myOrders, 2),
+                      _buildNavItem(context, Icons.settings, l10n.settings, 3),
+                    ]
+                  : [
+                      // LTR: من اليسار إلى اليمين
+                      _buildNavItem(context, Icons.settings, l10n.settings, 3),
+                      _buildNavItem(context, Icons.receipt_long, l10n.myOrders, 2),
+                      _buildNavItem(context, Icons.description, l10n.appExplanation, 1),
+                      _buildNavItem(context, Icons.home, l10n.home, 0),
+                    ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildNavItem(IconData icon, String label, int index) {
+  Widget _buildNavItem(BuildContext context, IconData icon, String label, int index) {
     bool isActive = _currentIndex == index;
     return GestureDetector(
       onTap: () {

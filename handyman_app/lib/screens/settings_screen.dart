@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:io';
+import 'package:url_launcher/url_launcher.dart';
 import 'edit_profile_screen.dart';
 import 'notifications_screen.dart';
 import 'promo_code_screen.dart';
@@ -10,6 +11,9 @@ import 'conversations_screen.dart';
 import 'terms_of_use_screen.dart';
 import 'contact_us_screen.dart';
 import 'login_screen.dart';
+import '../services/language_service.dart';
+import '../main.dart';
+import 'package:handyman_app/l10n/app_localizations.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -23,6 +27,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _membershipCode = '000000';
   bool _isLoading = true;
   String? _userProfileImage;
+  Locale _currentLocale = LanguageService.defaultLocale;
   
   // Backend configuration
   static const String _baseUrl = 'https:///api/api';
@@ -39,6 +44,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.initState();
     _loadUserData();
     _loadAppSettings();
+    _loadCurrentLocale();
+  }
+
+  Future<void> _loadCurrentLocale() async {
+    final locale = await LanguageService.getSavedLocale();
+    if (mounted) {
+      setState(() {
+        _currentLocale = locale;
+      });
+    }
   }
 
   @override
@@ -197,14 +212,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isRtl = _currentLocale.languageCode == 'ar';
+    
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
         backgroundColor: const Color(0xFFfec901),
         appBar: AppBar(
-          title: const Text(
-            'الإعدادات',
-            style: TextStyle(
+          title: Text(
+            l10n.settings,
+            style: const TextStyle(
               fontWeight: FontWeight.bold,
               color: Colors.white,
               fontSize: 20,
@@ -215,7 +233,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           centerTitle: true,
           actions: [
             Container(
-              margin: const EdgeInsets.only(right: 16),
+              margin: EdgeInsets.only(right: isRtl ? 16 : 0, left: isRtl ? 0 : 16),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.2),
@@ -226,9 +244,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   const Icon(Icons.language, color: Colors.white, size: 16),
                   const SizedBox(width: 4),
-                  const Text(
-                    'عربي',
-                    style: TextStyle(
+                  Text(
+                    _currentLocale.languageCode == 'ar' ? 'عربي' : 'FR',
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
@@ -272,6 +290,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildProfileSection() {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Container(
       width: double.infinity,
       height: 120,
@@ -295,7 +315,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    _isLoading ? 'جاري التحميل...' : _userName,
+                    _isLoading ? l10n.loading : _userName,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 24,
@@ -304,7 +324,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(height: 5),
                   Text(
-                    _isLoading ? 'جاري التحميل...' : 'كود العضوية : $_membershipCode',
+                    _isLoading ? l10n.loading : '${l10n.membershipCode} : $_membershipCode',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 14,
@@ -333,14 +353,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildSettingsList() {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Settings Section
-          _buildSectionTitle('الإعدادات'),
-          _buildSettingsItem('تعديل بياناتي', Icons.settings, () async {
+          _buildSectionTitle(l10n.settings),
+          _buildSettingsItem(l10n.editProfile, Icons.settings, () async {
             final result = await Navigator.of(context).push(
               MaterialPageRoute(builder: (context) => const EditProfileScreen()),
             );
@@ -350,17 +372,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _loadUserData();
             }
           }),
-          _buildSettingsItem('الاشعارات', Icons.notifications, () {
+          _buildSettingsItem(l10n.notifications, Icons.notifications, () {
             Navigator.of(context).push(
               MaterialPageRoute(builder: (context) => const NotificationsScreen()),
             );
           }),
-          _buildSettingsItem('المحادثات', Icons.chat, () {
+          _buildSettingsItem(l10n.conversations, Icons.chat, () {
             Navigator.of(context).push(
               MaterialPageRoute(builder: (context) => const ConversationsScreen()),
             );
           }),
-          _buildSettingsItem('البرومو كود', Icons.card_giftcard, () {
+          _buildSettingsItem(l10n.promoCode, Icons.card_giftcard, () {
             Navigator.of(context).push(
               MaterialPageRoute(builder: (context) => const PromoCodeScreen()),
             );
@@ -369,23 +391,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 30),
           
           // Application Section
-          _buildSectionTitle('التطبيق'),
-          _buildSettingsItem('سياسة الإستخدام', Icons.description, () {
+          _buildSectionTitle(l10n.appTitle),
+          _buildSettingsItem(l10n.termsOfUse, Icons.description, () {
             Navigator.of(context).push(
               MaterialPageRoute(builder: (context) => const TermsOfUseScreen()),
             );
           }),
-          _buildSettingsItem('مشاركة التطبيق', Icons.share, () {}),
-          _buildSettingsItem('اتصل بنا', Icons.phone, () {
+          _buildSettingsItem(l10n.shareApp, Icons.share, () {
+            _showShareOptions();
+          }),
+          _buildSettingsItem(l10n.contactUs, Icons.phone, () {
             Navigator.of(context).push(
               MaterialPageRoute(builder: (context) => const ContactUsScreen()),
             );
           }),
-          _buildSettingsItem('تغيير اللغة', Icons.language, () {
+          _buildSettingsItem(l10n.changeLanguage, Icons.language, () {
             _showLanguageBottomSheet(context);
           }),
-          _buildSettingsItem('حذف الحساب', Icons.delete, () {}),
-          _buildSettingsItem('تسجيل الخروج', Icons.logout, () {
+          _buildSettingsItem(l10n.deleteAccount, Icons.delete, () {}),
+          _buildSettingsItem(l10n.logout, Icons.logout, () {
             _handleLogout();
           }),
         ],
@@ -452,9 +476,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'تابعنا على',
-            style: TextStyle(
+          Text(
+            AppLocalizations.of(context)!.followUs,
+            style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
               color: Colors.black87,
@@ -541,12 +565,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showLanguageBottomSheet(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isRtl = _currentLocale.languageCode == 'ar';
+    
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (BuildContext context) {
         return Directionality(
-          textDirection: TextDirection.rtl,
+          textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
           child: Container(
             decoration: const BoxDecoration(
               color: Colors.white,
@@ -572,9 +599,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(height: 20),
                 
                 // Title
-                const Text(
-                  'اختر اللغة',
-                  style: TextStyle(
+                Text(
+                  l10n.selectLanguage,
+                  style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: Colors.black87,
@@ -586,18 +613,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // Language options
                 _buildLanguageOption(
                   context,
-                  'العربية',
+                  LanguageService.arabicLocale,
+                  l10n.arabic,
                   'Arabic',
                   Icons.language,
-                  true, // Currently selected
+                  _currentLocale.languageCode == 'ar',
                 ),
                 
                 _buildLanguageOption(
                   context,
-                  'English',
-                  'English',
+                  LanguageService.frenchLocale,
+                  l10n.french,
+                  'Français',
                   Icons.language,
-                  false,
+                  _currentLocale.languageCode == 'fr',
                 ),
                 
                 const SizedBox(height: 20),
@@ -609,13 +638,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildLanguageOption(BuildContext context, String title, String subtitle, IconData icon, bool isSelected) {
+  Widget _buildLanguageOption(BuildContext context, Locale locale, String title, String subtitle, IconData icon, bool isSelected) {
+    final l10n = AppLocalizations.of(context)!;
+    
     return GestureDetector(
       onTap: () {
         Navigator.of(context).pop();
+        context.changeAppLocale(locale);
+        setState(() {
+          _currentLocale = locale;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('تم تغيير اللغة إلى $title'),
+            content: Text(l10n.languageChanged(title)),
             backgroundColor: Colors.green,
           ),
         );
@@ -688,7 +723,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildFloatingHelpButton() {
     return GestureDetector(
       onTap: () {
-        // Handle help button press
+        openSupportChat(context);
       },
       child: Container(
         width: 60,
@@ -713,9 +748,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               size: 20,
             ),
             const SizedBox(height: 2),
-            const Text(
-              'مساعدة',
-              style: TextStyle(
+            Text(
+              AppLocalizations.of(context)!.help,
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 10,
                 fontWeight: FontWeight.bold,
@@ -729,21 +764,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _handleLogout() async {
+    final l10n = AppLocalizations.of(context)!;
+    
     // Show confirmation dialog
     final bool? shouldLogout = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('تسجيل الخروج'),
-          content: const Text('هل أنت متأكد من أنك تريد تسجيل الخروج؟'),
+          title: Text(l10n.logout),
+          content: Text(l10n.logoutConfirm),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('إلغاء'),
+              child: Text(l10n.cancel),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('تسجيل الخروج'),
+              child: Text(l10n.logout),
             ),
           ],
         );
@@ -759,10 +796,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         // Show success message
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('تم تسجيل الخروج بنجاح'),
+            SnackBar(
+              content: Text(l10n.logoutSuccess),
               backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
+              duration: const Duration(seconds: 2),
             ),
           );
           
@@ -775,14 +812,202 @@ class _SettingsScreenState extends State<SettingsScreen> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('حدث خطأ أثناء تسجيل الخروج'),
+            SnackBar(
+              content: Text(l10n.logoutError),
               backgroundColor: Colors.red,
             ),
           );
         }
       }
     }
+  }
+
+  void _showShareOptions() {
+    final l10n = AppLocalizations.of(context)!;
+    final isRtl = _currentLocale.languageCode == 'ar';
+    
+    // App share text
+    final shareText = l10n.shareAppMessage;
+    
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext context) {
+        return Directionality(
+          textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Handle bar
+                Container(
+                  margin: const EdgeInsets.only(top: 12),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                
+                const SizedBox(height: 20),
+                
+                // Title
+                Text(
+                  l10n.shareApp,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                
+                const SizedBox(height: 20),
+                
+                // Share options
+                _buildShareOption(
+                  context,
+                  'Facebook',
+                  Icons.facebook,
+                  const Color(0xFF1877F2),
+                  () => _shareOnFacebook(shareText),
+                ),
+                
+                _buildShareOption(
+                  context,
+                  'WhatsApp',
+                  Icons.phone,
+                  const Color(0xFF25D366),
+                  () => _shareOnWhatsApp(shareText),
+                ),
+                
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildShareOption(BuildContext context, String platform, IconData icon, Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).pop();
+        onTap();
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: color,
+            width: 2,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(25),
+              ),
+              child: Icon(
+                icon,
+                color: Colors.white,
+                size: 24,
+              ),
+            ),
+            
+            const SizedBox(width: 16),
+            
+            Expanded(
+              child: Text(
+                platform,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+            
+            Icon(
+              Icons.arrow_forward_ios,
+              size: 16,
+              color: Colors.grey[600],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _shareOnFacebook(String text) async {
+    try {
+      // Facebook share URL
+      final encodedText = Uri.encodeComponent(text);
+      final url = 'https://www.facebook.com/sharer/sharer.php?u=https://free-styel.store&quote=$encodedText';
+      
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(
+          uri,
+          mode: LaunchMode.externalApplication,
+        );
+      } else {
+        final l10n = AppLocalizations.of(context)!;
+        _showShareError(l10n.cannotOpenFacebook);
+      }
+    } catch (e) {
+      final l10n = AppLocalizations.of(context)!;
+      _showShareError(l10n.errorSharingOnFacebook);
+      print('Facebook share error: $e');
+    }
+  }
+
+  Future<void> _shareOnWhatsApp(String text) async {
+    try {
+      // WhatsApp share URL
+      final encodedText = Uri.encodeComponent(text);
+      final url = 'https://wa.me/?text=$encodedText';
+      
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(
+          uri,
+          mode: LaunchMode.externalApplication,
+        );
+      } else {
+        final l10n = AppLocalizations.of(context)!;
+        _showShareError(l10n.cannotOpenWhatsApp);
+      }
+    } catch (e) {
+      final l10n = AppLocalizations.of(context)!;
+      _showShareError(l10n.errorSharingOnWhatsApp);
+      print('WhatsApp share error: $e');
+    }
+  }
+
+  void _showShareError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
 }

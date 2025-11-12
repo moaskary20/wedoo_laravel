@@ -3,6 +3,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'craftsman_registration_screen.dart';
+import '../services/language_service.dart';
+import 'package:handyman_app/l10n/app_localizations.dart';
 
 class CraftsmanCategoryScreen extends StatefulWidget {
   const CraftsmanCategoryScreen({super.key});
@@ -14,15 +16,34 @@ class CraftsmanCategoryScreen extends StatefulWidget {
 class _CraftsmanCategoryScreenState extends State<CraftsmanCategoryScreen> {
   String? _selectedType;
   bool _isLoading = false;
+  Locale _currentLocale = LanguageService.defaultLocale;
   
   // Backend configuration - Using localhost
   static const String _baseUrl = 'https://free-styel.store/api';
   static const String _saveCraftsmanTypeEndpoint = '/auth/save-craftsman-type';
 
   @override
+  void initState() {
+    super.initState();
+    _loadCurrentLocale();
+  }
+
+  Future<void> _loadCurrentLocale() async {
+    final locale = await LanguageService.getSavedLocale();
+    if (mounted) {
+      setState(() {
+        _currentLocale = locale;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isRtl = _currentLocale.languageCode == 'ar';
+    
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
         backgroundColor: const Color(0xFFfec901),
         appBar: AppBar(
@@ -66,9 +87,9 @@ class _CraftsmanCategoryScreenState extends State<CraftsmanCategoryScreen> {
                 const SizedBox(height: 40),
                 
                 // Instruction Text
-                const Text(
-                  'اختر نوع الخدمة',
-                  style: TextStyle(
+                Text(
+                  l10n.selectServiceType,
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Colors.black87,
@@ -116,10 +137,10 @@ class _CraftsmanCategoryScreenState extends State<CraftsmanCategoryScreen> {
                           ),
                         ),
                         const SizedBox(width: 20),
-                        const Expanded(
+                        Expanded(
                           child: Text(
-                            'صنايعي',
-                            style: TextStyle(
+                            l10n.craftsman,
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: Colors.black87,
@@ -173,10 +194,10 @@ class _CraftsmanCategoryScreenState extends State<CraftsmanCategoryScreen> {
                           ),
                         ),
                         const SizedBox(width: 20),
-                        const Expanded(
+                        Expanded(
                           child: Text(
-                            'محلات ومعارض',
-                            style: TextStyle(
+                            l10n.shopsExhibitions,
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: Colors.black87,

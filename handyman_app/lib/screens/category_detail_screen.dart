@@ -5,7 +5,10 @@ import 'service_request_form.dart';
 import 'tips_screen.dart';
 import 'service_screen.dart';
 import 'craft_secrets_screen.dart';
+import 'conversations_screen.dart';
 import '../config/api_config.dart';
+import '../services/language_service.dart';
+import 'package:handyman_app/l10n/app_localizations.dart';
 
 class CategoryDetailScreen extends StatefulWidget {
   final String categoryName;
@@ -29,11 +32,22 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
   int _craftsmanCount = 0;
   bool _isLoading = true;
   String _errorMessage = '';
+  Locale _currentLocale = LanguageService.defaultLocale;
 
   @override
   void initState() {
     super.initState();
     _loadCraftsmanCount();
+    _loadCurrentLocale();
+  }
+
+  Future<void> _loadCurrentLocale() async {
+    final locale = await LanguageService.getSavedLocale();
+    if (mounted) {
+      setState(() {
+        _currentLocale = locale;
+      });
+    }
   }
 
   Future<void> _loadCraftsmanCount() async {
@@ -97,41 +111,46 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFfec901),
-      appBar: AppBar(
-        title: Text(
-          widget.categoryName,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-            fontSize: 18,
+    final l10n = AppLocalizations.of(context)!;
+    final isRtl = _currentLocale.languageCode == 'ar';
+    
+    return Directionality(
+      textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFfec901),
+        appBar: AppBar(
+          title: Text(
+            widget.categoryName,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              fontSize: 18,
+            ),
           ),
+          backgroundColor: Colors.blue,
+          elevation: 0,
+          centerTitle: true,
         ),
-        backgroundColor: Colors.blue,
-        elevation: 0,
-        centerTitle: true,
-      ),
-      body: Stack(
-        children: [
-          // Main content
-          Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const SizedBox(height: 20),
-                
-                // Craftsman count text
-                const Text(
-                  'عدد الصنايعية في هذه المهنة',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+        body: Stack(
+          children: [
+            // Main content
+            Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 20),
+                  
+                  // Craftsman count text
+                  Text(
+                    l10n.craftsmanCount,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-                  textAlign: TextAlign.center,
-                ),
                 
                 const SizedBox(height: 10),
                 
@@ -191,7 +210,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                   children: [
               _buildActionButton(
                 context,
-                'انشاء طلب',
+                l10n.createServiceRequestButton,
                 Icons.arrow_back,
                 () {
                   Navigator.of(context).push(
@@ -200,6 +219,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                         categoryName: widget.categoryName,
                         categoryIcon: widget.categoryIcon,
                         categoryColor: widget.categoryColor,
+                        categoryId: widget.categoryId, // Pass category ID directly from backend
                       ),
                     ),
                   );
@@ -210,7 +230,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                     
                     _buildActionButton(
                       context,
-                      'اعرف سر الصنعة',
+                      l10n.craftSecrets,
                       Icons.arrow_back,
                       () {
                         Navigator.of(context).push(
@@ -232,26 +252,20 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
             top: 100,
             child: FloatingActionButton(
               onPressed: () {
-                // Handle help button press
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('مساعدة'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
+                openSupportChat(context);
               },
               backgroundColor: Colors.green.withValues(alpha: 0.8),
-              child: const Column(
+              child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.message,
                     color: Colors.white,
                     size: 20,
                   ),
                   Text(
-                    'مساعدة',
-                    style: TextStyle(
+                    l10n.help,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
@@ -262,6 +276,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

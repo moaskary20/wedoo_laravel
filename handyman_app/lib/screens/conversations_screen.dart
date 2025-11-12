@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/language_service.dart';
+import '../config/api_config.dart';
+import 'package:handyman_app/l10n/app_localizations.dart';
 
 class ConversationsScreen extends StatefulWidget {
   const ConversationsScreen({super.key});
@@ -14,6 +17,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _isLoading = false;
+  Locale _currentLocale = LanguageService.defaultLocale;
   
   // Backend configuration
   static const String _baseUrl = 'https://free-styel.store/api';
@@ -25,6 +29,16 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
   void initState() {
     super.initState();
     _loadConversations();
+    _loadCurrentLocale();
+  }
+
+  Future<void> _loadCurrentLocale() async {
+    final locale = await LanguageService.getSavedLocale();
+    if (mounted) {
+      setState(() {
+        _currentLocale = locale;
+      });
+    }
   }
   
   final List<Map<String, dynamic>> _conversations = [
@@ -117,13 +131,16 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isRtl = _currentLocale.languageCode == 'ar';
+    
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
         backgroundColor: const Color(0xFFfec901),
         appBar: AppBar(
-          title: const Text(
-            'المحادثات',
+          title: Text(
+            l10n.conversations,
             style: TextStyle(
               fontWeight: FontWeight.bold,
               color: Colors.white,
@@ -597,6 +614,35 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
   }
 }
 
+// Helper function to open support chat from any screen
+Future<void> openSupportChat(BuildContext context) async {
+  final l10n = AppLocalizations.of(context);
+  final locale = await LanguageService.getSavedLocale();
+  final isRtl = locale.languageCode == 'ar';
+  
+  // Create support conversation
+  final supportConversation = {
+    'id': 'support',
+    'name': isRtl ? 'دعم فني' : 'Support Technique',
+    'service': isRtl ? 'مساعدة' : 'Aide',
+    'lastMessage': isRtl ? 'مرحباً، كيف يمكنني مساعدتك؟' : 'Bonjour, comment puis-je vous aider?',
+    'time': DateTime.now().toString(),
+    'unreadCount': 0,
+    'isOnline': true,
+    'avatar': null,
+    'isSupport': true, // Flag to identify support chat
+  };
+  
+  // Navigate to chat screen
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (context) => _ChatScreen(
+        conversation: supportConversation,
+      ),
+    ),
+  );
+}
+
 class _ChatScreen extends StatefulWidget {
   final Map<String, dynamic> conversation;
 
@@ -614,7 +660,7 @@ class _ChatScreenState extends State<_ChatScreen> {
   @override
   void initState() {
     super.initState();
-    _loadMessages();
+    _loadMessages(); // This will call _loadSupportMessages or _loadRegularMessages
   }
 
   @override
@@ -761,28 +807,88 @@ class _ChatScreenState extends State<_ChatScreen> {
     );
   }
 
-  void _sendMessage() {
+  Future<void> _sendMessage() async {
     if (_messageController.text.trim().isEmpty) return;
 
+    final messageText = _messageController.text.trim();
+    _messageController.clear();
+
+    // Add user message immediately
     setState(() {
       _messages.add({
         'id': _messages.length + 1,
-        'text': _messageController.text.trim(),
+        'text': messageText,
         'isMe': true,
         'time': _getCurrentTime(),
         'type': 'text',
       });
     });
-
-    _messageController.clear();
     _scrollToBottom();
 
-    // Simulate craftsman response
+    // Send to backend
+    if (widget.conversation['isSupport'] == true) {
+      await _sendSupportMessage(messageText);
+    } else {
+      await _sendRegularMessage(messageText);
+    }
+  }
+
+  Future<void> _sendSupportMessage(String message) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('user_id') ?? '1';
+      
+      print('Sending support message to backend: $message');
+      print('User ID: $userId');
+      print('Conversation ID: ${widget.conversation['id']}');
+      print('API Endpoint: ${ApiConfig.chatSend}');
+      
+      // Send message to backend
+      final response = await http.post(
+        Uri.parse(ApiConfig.chatSend),
+        headers: ApiConfig.headers,
+        body: jsonEncode({
+          'user_id': userId,
+          'message': message,
+          'type': 'support',
+          'conversation_id': widget.conversation['id'],
+        }),
+      ).timeout(const Duration(seconds: 30));
+
+      print('Response Status: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true) {
+          print('Message sent successfully to backend');
+          // Reload messages to get the latest from backend
+          await _loadSupportMessages();
+          // Also wait for support response
+          _waitForSupportResponse();
+        } else {
+          print('Backend returned success=false: ${data['message']}');
+          _showFallbackResponse();
+        }
+      } else {
+        print('Backend returned error status: ${response.statusCode}');
+        _showFallbackResponse();
+      }
+    } catch (e) {
+      print('Error sending support message: $e');
+      // Show fallback response
+      _showFallbackResponse();
+    }
+  }
+
+  Future<void> _sendRegularMessage(String message) async {
+    // Simulate craftsman response for regular conversations
     Future.delayed(const Duration(seconds: 1), () {
+      final l10n = AppLocalizations.of(context);
       setState(() {
         _messages.add({
           'id': _messages.length + 1,
-          'text': 'شكراً لك! سأقوم بالرد عليك قريباً.',
+          'text': l10n?.thankYouWillReplySoon ?? 'شكراً لك! سأقوم بالرد عليك قريباً.',
           'isMe': false,
           'time': _getCurrentTime(),
           'type': 'text',
@@ -792,8 +898,111 @@ class _ChatScreenState extends State<_ChatScreen> {
     });
   }
 
-  void _loadMessages() {
-    // Add some initial messages
+  void _waitForSupportResponse() {
+    // Wait for support team response (polling or websocket)
+    Future.delayed(const Duration(seconds: 2), () {
+      final l10n = AppLocalizations.of(context);
+      final isRtl = Localizations.localeOf(context).languageCode == 'ar';
+      
+      setState(() {
+        _messages.add({
+          'id': _messages.length + 1,
+          'text': isRtl 
+              ? 'شكراً لتواصلك معنا. سنقوم بالرد عليك في أقرب وقت ممكن.'
+              : 'Merci de nous avoir contactés. Nous vous répondrons dans les plus brefs délais.',
+          'isMe': false,
+          'time': _getCurrentTime(),
+          'type': 'text',
+        });
+      });
+      _scrollToBottom();
+    });
+  }
+
+  void _showFallbackResponse() {
+    final l10n = AppLocalizations.of(context);
+    final isRtl = Localizations.localeOf(context).languageCode == 'ar';
+    
+    Future.delayed(const Duration(seconds: 1), () {
+      setState(() {
+        _messages.add({
+          'id': _messages.length + 1,
+          'text': isRtl 
+              ? 'تم استلام رسالتك. سنقوم بالرد عليك قريباً.'
+              : 'Votre message a été reçu. Nous vous répondrons bientôt.',
+          'isMe': false,
+          'time': _getCurrentTime(),
+          'type': 'text',
+        });
+      });
+      _scrollToBottom();
+    });
+  }
+
+  Future<void> _loadMessages() async {
+    // Check if this is a support chat
+    if (widget.conversation['isSupport'] == true) {
+      // Load support messages from backend
+      await _loadSupportMessages();
+    } else {
+      // Load regular conversation messages
+      _loadRegularMessages();
+    }
+  }
+
+  Future<void> _loadSupportMessages() async {
+    try {
+      // Try to load messages from backend
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('user_id') ?? '1';
+      
+      // API call to get support messages
+      final response = await http.get(
+        Uri.parse('${ApiConfig.chatList}?user_id=$userId&type=support&conversation_id=${widget.conversation['id']}'),
+        headers: ApiConfig.headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true && data['data'] != null) {
+          setState(() {
+            _messages.clear();
+            _messages.addAll((data['data'] as List).map((msg) => {
+              'id': msg['id'],
+              'text': msg['message'] ?? msg['text'],
+              'isMe': msg['sender_id'] == userId || msg['sender_type'] == 'user',
+              'time': msg['created_at'] ?? DateTime.now().toString(),
+              'type': 'text',
+            }).toList());
+          });
+          _scrollToBottom();
+          return;
+        }
+      }
+    } catch (e) {
+      print('Error loading support messages: $e');
+    }
+    
+    // Fallback: Add default support messages
+    final l10n = AppLocalizations.of(context);
+    final isRtl = Localizations.localeOf(context).languageCode == 'ar';
+    
+    setState(() {
+      _messages.clear();
+      _messages.addAll([
+        {
+          'id': 1,
+          'text': isRtl ? 'مرحباً، كيف يمكنني مساعدتك؟' : 'Bonjour, comment puis-je vous aider?',
+          'isMe': false,
+          'time': DateTime.now().toString(),
+          'type': 'text',
+        },
+      ]);
+    });
+  }
+
+  void _loadRegularMessages() {
+    // Add some initial messages for regular conversations
     setState(() {
       _messages.addAll([
         {

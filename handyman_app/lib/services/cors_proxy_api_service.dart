@@ -4,59 +4,62 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../config/api_config.dart';
 
-class UltimateWebApiService {
+class CorsProxyApiService {
+  // استخدام CORS Proxy للتعامل مع مشاكل CORS
+  static const String corsProxyUrl = 'https://api.allorigins.win/raw?url=';
+  
   static Future<Map<String, dynamic>> post(String path, {Map<String, dynamic>? data}) async {
     if (!kIsWeb) {
-      throw Exception('UltimateWebApiService is only for web platform');
+      throw Exception('CorsProxyApiService is only for web platform');
     }
     
     try {
-      final url = '${ApiConfig.baseUrl}$path';
+      final targetUrl = '${ApiConfig.baseUrl}$path';
+      final url = '$corsProxyUrl${Uri.encodeComponent(targetUrl)}';
       
-      print('🔍 Ultimate Web API Request: POST $url');
-      print('🔍 Ultimate Web API Data: $data');
-      print('🔍 Ultimate Web API Headers: Content-Type: application/json, Accept: application/json, User-Agent: WedooApp/1.0 (Flutter Web), Origin: https://free-styel.store, Access-Control-Request-Method: POST, Access-Control-Request-Headers: Content-Type');
+      print('🔍 CORS Proxy API Request: POST $url');
+      print('🔍 CORS Proxy API Data: $data');
+      print('🔍 CORS Proxy API Headers: Content-Type: application/json, Accept: application/json, User-Agent: WedooApp/1.0 (Flutter Web), Origin: https://free-styel.store, X-Requested-With: XMLHttpRequest');
       
-      // استخدام XMLHttpRequest مع إعدادات CORS مختلفة
+      // استخدام XMLHttpRequest مع CORS Proxy
       final xhr = html.HttpRequest();
-      xhr.open('POST', url, async: true); // async: true بدلاً من false
+      xhr.open('POST', url, async: true);
       
-      // إضافة headers مختلفة
+      // إضافة headers
       xhr.setRequestHeader('Content-Type', 'application/json');
       xhr.setRequestHeader('Accept', 'application/json');
       xhr.setRequestHeader('User-Agent', 'WedooApp/1.0 (Flutter Web)');
       xhr.setRequestHeader('Origin', 'https://free-styel.store');
-      xhr.setRequestHeader('Access-Control-Request-Method', 'POST');
-      xhr.setRequestHeader('Access-Control-Request-Headers', 'Content-Type');
+      xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
       
       // إعداد event listeners
       final completer = Completer<Map<String, dynamic>>();
       
       xhr.onLoad.listen((event) {
-        print('✅ Ultimate Web API Response Status: ${xhr.status}');
-        print('✅ Ultimate Web API Response Text: ${xhr.responseText}');
-        print('✅ Ultimate Web API Response Headers: ${xhr.getAllResponseHeaders()}');
+        print('✅ CORS Proxy API Response Status: ${xhr.status}');
+        print('✅ CORS Proxy API Response Text: ${xhr.responseText}');
+        print('✅ CORS Proxy API Response Headers: ${xhr.getAllResponseHeaders()}');
         
         if (xhr.status == 200) {
           final responseText = xhr.responseText ?? '';
           try {
             final result = jsonDecode(responseText);
-            print('✅ Ultimate Web API Response Data: $result');
+            print('✅ CORS Proxy API Response Data: $result');
             completer.complete(result);
           } catch (e) {
-            print('❌ Ultimate Web API JSON Error: $e');
+            print('❌ CORS Proxy API JSON Error: $e');
             completer.completeError(Exception('JSON Parse Error: $e'));
           }
         } else {
-          print('❌ Ultimate Web API HTTP Error: ${xhr.status} - ${xhr.responseText ?? 'No response'}');
+          print('❌ CORS Proxy API HTTP Error: ${xhr.status} - ${xhr.responseText ?? 'No response'}');
           completer.completeError(Exception('HTTP ${xhr.status}: ${xhr.responseText ?? 'No response'}'));
         }
       });
       
       xhr.onError.listen((event) {
-        print('❌ Ultimate Web API Error: $event');
-        print('❌ Ultimate Web API Error Type: ${event.type}');
-        print('❌ Ultimate Web API Error Target: ${event.target}');
+        print('❌ CORS Proxy API Error: $event');
+        print('❌ CORS Proxy API Error Type: ${event.type}');
+        print('❌ CORS Proxy API Error Target: ${event.target}');
         completer.completeError(Exception('XMLHttpRequest Error: $event'));
       });
       
@@ -67,61 +70,61 @@ class UltimateWebApiService {
       return await completer.future;
       
     } catch (e) {
-      print('Ultimate Web API Error: $e');
+      print('CORS Proxy API Error: $e');
       rethrow;
     }
   }
   
   static Future<Map<String, dynamic>> get(String path, {Map<String, dynamic>? queryParameters}) async {
     if (!kIsWeb) {
-      throw Exception('UltimateWebApiService is only for web platform');
+      throw Exception('CorsProxyApiService is only for web platform');
     }
     
     try {
-      final url = '${ApiConfig.baseUrl}$path';
+      final targetUrl = '${ApiConfig.baseUrl}$path';
+      final url = '$corsProxyUrl${Uri.encodeComponent(targetUrl)}';
       
-      print('Ultimate Web API Request: GET $url');
+      print('CORS Proxy API Request: GET $url');
       
-      // استخدام XMLHttpRequest مع إعدادات CORS مختلفة
+      // استخدام XMLHttpRequest مع CORS Proxy
       final xhr = html.HttpRequest();
-      xhr.open('GET', url, async: true); // async: true بدلاً من false
+      xhr.open('GET', url, async: true);
       
-      // إضافة headers مختلفة
+      // إضافة headers
       xhr.setRequestHeader('Content-Type', 'application/json');
       xhr.setRequestHeader('Accept', 'application/json');
       xhr.setRequestHeader('User-Agent', 'WedooApp/1.0 (Flutter Web)');
       xhr.setRequestHeader('Origin', 'https://free-styel.store');
-      xhr.setRequestHeader('Access-Control-Request-Method', 'GET');
-      xhr.setRequestHeader('Access-Control-Request-Headers', 'Content-Type');
+      xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
       
       // إعداد event listeners
       final completer = Completer<Map<String, dynamic>>();
       
       xhr.onLoad.listen((event) {
-        print('✅ Ultimate Web API Response Status: ${xhr.status}');
-        print('✅ Ultimate Web API Response Text: ${xhr.responseText}');
-        print('✅ Ultimate Web API Response Headers: ${xhr.getAllResponseHeaders()}');
+        print('✅ CORS Proxy API Response Status: ${xhr.status}');
+        print('✅ CORS Proxy API Response Text: ${xhr.responseText}');
+        print('✅ CORS Proxy API Response Headers: ${xhr.getAllResponseHeaders()}');
         
         if (xhr.status == 200) {
           final responseText = xhr.responseText ?? '';
           try {
             final result = jsonDecode(responseText);
-            print('✅ Ultimate Web API Response Data: $result');
+            print('✅ CORS Proxy API Response Data: $result');
             completer.complete(result);
           } catch (e) {
-            print('❌ Ultimate Web API JSON Error: $e');
+            print('❌ CORS Proxy API JSON Error: $e');
             completer.completeError(Exception('JSON Parse Error: $e'));
           }
         } else {
-          print('❌ Ultimate Web API HTTP Error: ${xhr.status} - ${xhr.responseText ?? 'No response'}');
+          print('❌ CORS Proxy API HTTP Error: ${xhr.status} - ${xhr.responseText ?? 'No response'}');
           completer.completeError(Exception('HTTP ${xhr.status}: ${xhr.responseText ?? 'No response'}'));
         }
       });
       
       xhr.onError.listen((event) {
-        print('❌ Ultimate Web API Error: $event');
-        print('❌ Ultimate Web API Error Type: ${event.type}');
-        print('❌ Ultimate Web API Error Target: ${event.target}');
+        print('❌ CORS Proxy API Error: $event');
+        print('❌ CORS Proxy API Error Type: ${event.type}');
+        print('❌ CORS Proxy API Error Target: ${event.target}');
         completer.completeError(Exception('XMLHttpRequest Error: $event'));
       });
       
@@ -132,7 +135,7 @@ class UltimateWebApiService {
       return await completer.future;
       
     } catch (e) {
-      print('Ultimate Web API Error: $e');
+      print('CORS Proxy API Error: $e');
       rethrow;
     }
   }

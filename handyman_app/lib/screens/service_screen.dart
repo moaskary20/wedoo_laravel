@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'service_request_form.dart';
 import 'tips_screen.dart';
+import 'package:handyman_app/l10n/app_localizations.dart';
 
 class ServiceScreen extends StatelessWidget {
   final String categoryName;
@@ -50,9 +51,9 @@ class ServiceScreen extends StatelessWidget {
                   const SizedBox(height: 20),
                   
                   // Craftsman count text
-                  const Text(
-                    'عدد الصنايعية في هذه المهنة',
-                    style: TextStyle(
+                  Text(
+                    AppLocalizations.of(context)?.craftsmenInThisTask ?? 'يتواجد في هذه المهمة',
+                    style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: Colors.black87,
@@ -113,6 +114,7 @@ class ServiceScreen extends StatelessWidget {
                                 categoryName: categoryName,
                                 categoryIcon: categoryIcon,
                                 categoryColor: categoryColor,
+                                categoryId: categoryId, // Pass category ID directly from backend
                               ),
                             ),
                           );

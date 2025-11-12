@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "544684543443",
+    "project_id": "wedoo2",
+    "storage_bucket": "wedoo2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:544684543443:android:aeaef2c6a747aa0728f326",
+        "android_client_info": {
+          "package_name": "com.wedoo2.www"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "544684543443-e9pl70vjg7urf7j14u99udi5bn7mtad9.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCEU0Z1dtkiw9RDaQQ3spMd3o2OP-e9dbY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "544684543443-e9pl70vjg7urf7j14u99udi5bn7mtad9.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

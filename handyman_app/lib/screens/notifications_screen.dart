@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/language_service.dart';
+import 'conversations_screen.dart';
+import 'package:handyman_app/l10n/app_localizations.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -111,14 +114,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isRtl = Localizations.localeOf(context).languageCode == 'ar';
+    
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
         backgroundColor: const Color(0xFFfec901),
         appBar: AppBar(
-          title: const Text(
-            'الاشعارات',
-            style: TextStyle(
+          title: Text(
+            l10n.notifications,
+            style: const TextStyle(
               fontWeight: FontWeight.bold,
               color: Colors.white,
               fontSize: 20,
@@ -347,12 +353,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget _buildFloatingHelpButton() {
     return GestureDetector(
       onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('مساعدة'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        openSupportChat(context);
       },
       child: Container(
         width: 60,

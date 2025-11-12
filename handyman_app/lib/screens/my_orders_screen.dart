@@ -3,6 +3,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
+import '../services/language_service.dart';
+import 'conversations_screen.dart';
+import 'package:handyman_app/l10n/app_localizations.dart';
 
 class MyOrdersScreen extends StatefulWidget {
   const MyOrdersScreen({super.key});
@@ -15,11 +18,22 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   final TextEditingController _searchController = TextEditingController();
   List<Map<String, dynamic>> _orders = [];
   bool _isLoading = true;
+  Locale _currentLocale = LanguageService.defaultLocale;
 
   @override
   void initState() {
     super.initState();
     _loadOrders();
+    _loadCurrentLocale();
+  }
+
+  Future<void> _loadCurrentLocale() async {
+    final locale = await LanguageService.getSavedLocale();
+    if (mounted) {
+      setState(() {
+        _currentLocale = locale;
+      });
+    }
   }
 
   Future<void> _loadOrders() async {
@@ -195,14 +209,17 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isRtl = _currentLocale.languageCode == 'ar';
+    
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
         backgroundColor: const Color(0xFFfec901),
         appBar: AppBar(
-          title: const Text(
-            'طلباتي',
-            style: TextStyle(
+          title: Text(
+            l10n.myOrders,
+            style: const TextStyle(
               fontWeight: FontWeight.bold,
               color: Colors.white,
               fontSize: 20,
@@ -257,6 +274,8 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   }
 
   Widget _buildSearchBar() {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Container(
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -272,12 +291,12 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
       ),
       child: TextField(
         controller: _searchController,
-        textAlign: TextAlign.right,
+        textAlign: _currentLocale.languageCode == 'ar' ? TextAlign.right : TextAlign.left,
         onChanged: (value) {
           setState(() {});
         },
         decoration: InputDecoration(
-          hintText: 'بحث في الطلبات',
+          hintText: l10n.searchInOrders,
           hintStyle: TextStyle(
             color: Colors.grey[600],
             fontSize: 16,
@@ -295,14 +314,15 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   }
 
   Widget _buildOrdersList() {
+    final l10n = AppLocalizations.of(context)!;
     final filteredOrders = _filteredOrders;
     
     if (filteredOrders.isEmpty) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(40),
+          padding: const EdgeInsets.all(40),
           child: Text(
-            'لا توجد طلبات',
+            l10n.noOrders,
             style: TextStyle(
               fontSize: 18,
               color: Colors.black54,
@@ -323,6 +343,8 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   }
 
   Widget _buildOrderCard(Map<String, dynamic> order) {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
@@ -479,9 +501,9 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              child: const Text(
-                'تفاصيل الطلب',
-                style: TextStyle(
+              child: Text(
+                l10n.orderDetails,
+                style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
@@ -494,29 +516,32 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   }
 
   void _showOrderDetails(Map<String, dynamic> order) {
+    final l10n = AppLocalizations.of(context)!;
+    final isRtl = _currentLocale.languageCode == 'ar';
+    
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return Directionality(
-          textDirection: TextDirection.rtl,
+          textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
           child: AlertDialog(
-            title: Text('تفاصيل الطلب ${order['id']}'),
+            title: Text('${l10n.orderDetails} ${order['id']}'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildDetailRow('الخدمة:', order['service']),
-                _buildDetailRow('الوصف:', order['description']),
-                _buildDetailRow('الموقع:', order['location']),
-                _buildDetailRow('الوقت:', order['time']),
-                _buildDetailRow('التقدم:', order['progress']),
-                _buildDetailRow('الحالة:', order['status']),
+                _buildDetailRow('${l10n.service}:', order['service']),
+                _buildDetailRow('${l10n.description}:', order['description']),
+                _buildDetailRow('${l10n.location}:', order['location']),
+                _buildDetailRow('${l10n.time}:', order['time']),
+                _buildDetailRow('${l10n.progress}:', order['progress']),
+                _buildDetailRow('${l10n.status}:', order['status']),
               ],
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('إغلاق'),
+                child: Text(l10n.close),
               ),
             ],
           ),
@@ -557,12 +582,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   Widget _buildFloatingHelpButton() {
     return GestureDetector(
       onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('مساعدة'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        openSupportChat(context);
       },
       child: Container(
         width: 60,

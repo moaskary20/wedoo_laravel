@@ -414,29 +414,48 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
         'district': _selectedDistrict!,
       };
 
+      // Debug: Print registration data
+      print('Registration Data: $registrationData');
+      print('API Endpoint: ${ApiConfig.authRegister}');
+      
       // Send registration data to backend
       final response = await http.post(
         Uri.parse(ApiConfig.authRegister),
         headers: ApiConfig.headers,
         body: jsonEncode(registrationData),
-      );
+      ).timeout(const Duration(seconds: 30));
 
-      if (response.statusCode == 200) {
+      print('Response Status: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
         final responseData = jsonDecode(response.body);
         
         if (responseData['success'] == true) {
           // Save user data to SharedPreferences
-          final userData = responseData['data'];
-          await prefs.setString('user_id', userData['id'].toString());
-          await prefs.setString('user_name', userData['name']);
-          await prefs.setString('user_phone', userData['phone']);
-          await prefs.setString('user_email', userData['email']);
-          await prefs.setString('user_governorate', userData['governorate']);
-          await prefs.setString('user_city', userData['city']);
-          await prefs.setString('user_area', userData['district']);
-          await prefs.setString('user_membership_code', userData['membership_code']);
-          await prefs.setString('access_token', userData['access_token']);
-          await prefs.setString('refresh_token', userData['refresh_token']);
+          final userData = responseData['data'] ?? responseData;
+          
+          // Handle different response structures
+          await prefs.setString('user_id', (userData['id'] ?? userData['user_id'] ?? '').toString());
+          await prefs.setString('user_name', userData['name'] ?? registrationData['name']);
+          await prefs.setString('user_phone', userData['phone'] ?? registrationData['phone']);
+          await prefs.setString('user_email', userData['email'] ?? registrationData['email']);
+          await prefs.setString('user_governorate', userData['governorate'] ?? registrationData['governorate']);
+          await prefs.setString('user_city', userData['city'] ?? registrationData['city']);
+          await prefs.setString('user_area', userData['district'] ?? userData['area'] ?? registrationData['district']);
+          await prefs.setString('user_membership_code', userData['membership_code'] ?? userData['code'] ?? '000000');
+          
+          // Save tokens if available
+          if (userData['access_token'] != null) {
+            await prefs.setString('access_token', userData['access_token']);
+          }
+          if (userData['refresh_token'] != null) {
+            await prefs.setString('refresh_token', userData['refresh_token']);
+          }
+          if (userData['token'] != null) {
+            await prefs.setString('access_token', userData['token']);
+          }
+          
           await prefs.setBool('is_logged_in', true);
           await prefs.setString('login_timestamp', DateTime.now().toIso8601String());
           
@@ -462,21 +481,52 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
             );
           }
         } else {
-          throw Exception(responseData['message'] ?? 'Registration failed');
+          // Handle error message from backend
+          final errorMessage = responseData['message'] ?? responseData['error'] ?? 'فشل التسجيل';
+          throw Exception(errorMessage);
         }
       } else {
-        throw Exception('Registration failed: ${response.statusCode}');
+        // Try to parse error message from response
+        try {
+          final errorData = jsonDecode(response.body);
+          final errorMessage = errorData['message'] ?? errorData['error'] ?? 'فشل التسجيل';
+          throw Exception(errorMessage);
+        } catch (e) {
+          throw Exception('فشل التسجيل: ${response.statusCode} - ${response.body}');
+        }
       }
     } catch (e) {
+      print('Registration error: $e');
+      
+      // Show user-friendly error message
+      String errorMessage = 'خطأ في التسجيل';
+      if (e.toString().contains('TimeoutException') || e.toString().contains('timeout')) {
+        errorMessage = 'انتهت مهلة الاتصال. يرجى المحاولة مرة أخرى';
+      } else if (e.toString().contains('SocketException') || e.toString().contains('Failed host lookup')) {
+        errorMessage = 'لا يمكن الاتصال بالخادم. تحقق من اتصال الإنترنت';
+      } else if (e.toString().contains('phone') || e.toString().contains('رقم الهاتف')) {
+        errorMessage = 'رقم الهاتف مستخدم بالفعل';
+      } else if (e.toString().contains('email') || e.toString().contains('البريد')) {
+        errorMessage = 'البريد الإلكتروني مستخدم بالفعل';
+      } else {
+        // Extract error message from exception
+        final errorStr = e.toString();
+        if (errorStr.contains('Exception: ')) {
+          errorMessage = errorStr.split('Exception: ')[1];
+        } else {
+          errorMessage = 'خطأ في التسجيل: ${e.toString()}';
+        }
+      }
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('خطأ في التسجيل: $e'),
+            content: Text(errorMessage),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
-      print('Registration error: $e');
     } finally {
       if (mounted) {
         setState(() {

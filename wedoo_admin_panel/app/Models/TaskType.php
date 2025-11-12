@@ -12,7 +12,8 @@ class TaskType extends Model
     protected $fillable = [
         'category_id',
         'name',
-        'name_en',
+        'name_ar',
+        'name_fr',
         'description',
         'icon',
         'color',

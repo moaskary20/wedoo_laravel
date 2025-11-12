@@ -6,6 +6,9 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
+import '../services/language_service.dart';
+import 'conversations_screen.dart';
+import 'package:handyman_app/l10n/app_localizations.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -92,14 +95,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    // Note: We'll use a simpler approach for RTL detection
+    final isRtl = Localizations.localeOf(context).languageCode == 'ar';
+    
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
         backgroundColor: const Color(0xFFfec901),
         appBar: AppBar(
-          title: const Text(
-            'تعديل بياناتي',
-            style: TextStyle(
+          title: Text(
+            l10n.editProfile,
+            style: const TextStyle(
               fontWeight: FontWeight.bold,
               color: Colors.white,
               fontSize: 20,
@@ -135,7 +142,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   
                   // Name Field
                   _buildInputField(
-                    'الاسم',
+                    l10n.name,
                     _nameController,
                     Icons.person,
                   ),
@@ -144,7 +151,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   
                   // Email Field
                   _buildInputField(
-                    'البريد الالكتروني',
+                    l10n.email,
                     _emailController,
                     Icons.email,
                   ),
@@ -159,9 +166,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: Colors.orange[200]!),
                     ),
-                    child: const Text(
-                      'اترك كلمتا المرور فارغتين إن لم ترد تغييرها',
-                      style: TextStyle(
+                    child: Text(
+                      l10n.leavePasswordEmpty,
+                      style: const TextStyle(
                         fontSize: 12,
                         color: Colors.orange,
                         fontWeight: FontWeight.w500,
@@ -173,7 +180,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   
                   // New Password Field
                   _buildInputField(
-                    'كلمة المرور الجديدة',
+                    l10n.newPassword,
                     _newPasswordController,
                     Icons.lock,
                     isPassword: true,
@@ -183,7 +190,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   
                   // Confirm Password Field
                   _buildInputField(
-                    'تأكيد كلمة المرور',
+                    l10n.confirmPassword,
                     _confirmPasswordController,
                     Icons.lock,
                     isPassword: true,
@@ -198,7 +205,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   
                   // Contact Information
                   _buildInputField(
-                    'بيانات الإتصال',
+                    l10n.contactInfo,
                     _phoneController,
                     Icons.phone,
                   ),
@@ -297,11 +304,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   void _showImagePickerOptions() {
+    final l10n = AppLocalizations.of(context)!;
+    final isRtl = Localizations.localeOf(context).languageCode == 'ar';
+    
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (BuildContext context) {
-        return Container(
+        return Directionality(
+          textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
+          child: Container(
           decoration: const BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.only(
@@ -313,9 +325,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const SizedBox(height: 20),
-              const Text(
-                'اختر صورة جديدة',
-                style: TextStyle(
+              Text(
+                l10n.selectNewImage,
+                style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
@@ -323,7 +335,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               const SizedBox(height: 20),
               ListTile(
                 leading: const Icon(Icons.camera_alt, color: Colors.blue),
-                title: const Text('التقاط صورة'),
+                title: Text(l10n.takePhoto),
                 onTap: () {
                   Navigator.pop(context);
                   _pickImage(ImageSource.camera);
@@ -331,7 +343,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ),
               ListTile(
                 leading: const Icon(Icons.photo_library, color: Colors.blue),
-                title: const Text('اختيار من المعرض'),
+                title: Text(l10n.chooseFromGallery),
                 onTap: () {
                   Navigator.pop(context);
                   _pickImage(ImageSource.gallery);
@@ -340,7 +352,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               if (_selectedImage != null)
                 ListTile(
                   leading: const Icon(Icons.delete, color: Colors.red),
-                  title: const Text('حذف الصورة'),
+                  title: Text(l10n.deleteImage),
                   onTap: () {
                     Navigator.pop(context);
                     _removeImage();
@@ -349,6 +361,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               const SizedBox(height: 20),
             ],
           ),
+        ),
         );
       },
     );
@@ -370,10 +383,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           });
         }
         
-        _showSuccessSnackBar('تم اختيار الصورة بنجاح');
+        final l10n = AppLocalizations.of(context)!;
+        _showSuccessSnackBar(l10n.imageSelectedSuccessfully);
       }
     } catch (e) {
-      _showErrorSnackBar('خطأ في اختيار الصورة');
+      final l10n = AppLocalizations.of(context)!;
+      _showErrorSnackBar(l10n.errorSelectingImage);
       print('Image picker error: $e');
     }
   }
@@ -383,7 +398,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _selectedImage = null;
       _imageBytes = null;
     });
-    _showSuccessSnackBar('تم حذف الصورة');
+    final l10n = AppLocalizations.of(context)!;
+    _showSuccessSnackBar(l10n.imageDeleted);
   }
 
   Widget _buildInputField(String label, TextEditingController controller, IconData icon, {bool isPassword = false}) {
@@ -430,12 +446,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Widget _buildLocationSection() {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'منطقة سكنك',
-          style: TextStyle(
+        Text(
+          l10n.residentialArea,
+          style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
             color: Colors.black87,
@@ -445,7 +463,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         
         // Governorate Dropdown
         _buildDropdown(
-          'المحافظة',
+          l10n.governorate,
           _selectedGovernorate,
           [
             'تونس',
@@ -485,7 +503,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         
         // City Dropdown
         _buildDropdown(
-          'المدينة',
+          l10n.city,
           _selectedCity,
           _getCitiesForGovernorate(_selectedGovernorate),
           (value) {
@@ -500,7 +518,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         
         // Area Dropdown
         _buildDropdown(
-          'المنطقة',
+          l10n.area,
           _selectedArea,
           _getAreasForCity(_selectedCity),
           (value) {
@@ -550,6 +568,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Widget _buildSaveButton() {
+    final l10n = AppLocalizations.of(context)!;
+    
     return SizedBox(
       width: double.infinity,
       height: 50,
@@ -571,9 +591,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               )
-            : const Text(
-                'حفظ',
-                style: TextStyle(
+            : Text(
+                l10n.save,
+                style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
@@ -583,14 +603,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Widget _buildFloatingHelpButton() {
+    final l10n = AppLocalizations.of(context)!;
+    
     return GestureDetector(
       onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('مساعدة'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        openSupportChat(context);
       },
       child: Container(
         width: 60,
@@ -615,9 +632,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               size: 20,
             ),
             const SizedBox(height: 2),
-            const Text(
-              'مساعدة',
-              style: TextStyle(
+            Text(
+              l10n.help,
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 10,
                 fontWeight: FontWeight.bold,
@@ -809,20 +826,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _saveProfile() async {
+    final l10n = AppLocalizations.of(context)!;
+    
     // Validate inputs
     if (_nameController.text.trim().isEmpty) {
-      _showErrorSnackBar('يرجى إدخال الاسم');
+      _showErrorSnackBar(l10n.pleaseEnterName);
       return;
     }
 
     if (_emailController.text.trim().isEmpty) {
-      _showErrorSnackBar('يرجى إدخال البريد الإلكتروني');
+      _showErrorSnackBar(l10n.pleaseEnterEmail);
       return;
     }
 
     if (_newPasswordController.text.isNotEmpty && 
         _newPasswordController.text != _confirmPasswordController.text) {
-      _showErrorSnackBar('كلمة المرور الجديدة غير متطابقة');
+      _showErrorSnackBar(l10n.passwordsDoNotMatch);
       return;
     }
 
@@ -911,7 +930,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
       */
 
-      _showSuccessSnackBar('تم حفظ البيانات بنجاح في الـ admin panel');
+      _showSuccessSnackBar(l10n.dataSavedToAdmin);
       
       // Navigate back with success result
       if (mounted) {
@@ -919,7 +938,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
       
     } catch (e) {
-      _showErrorSnackBar('خطأ في الاتصال. يرجى التحقق من الإنترنت');
+      _showErrorSnackBar(l10n.connectionErrorCheckInternet);
       print('Profile save error: $e');
     } finally {
       setState(() {
