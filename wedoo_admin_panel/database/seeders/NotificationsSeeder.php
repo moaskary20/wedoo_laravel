@@ -16,7 +16,7 @@ class NotificationsSeeder extends Seeder
             [
                 'user_id' => $users->random()->id,
                 'title' => 'طلب جديد',
-                'message' => 'تم استلام طلب جديد من عميل',
+                'message' => 'تم استلام طلب جديد من حريف',
                 'type' => 'order',
                 'data' => json_encode(['order_id' => 1]),
                 'is_read' => false,
@@ -34,7 +34,7 @@ class NotificationsSeeder extends Seeder
             [
                 'user_id' => $users->random()->id,
                 'title' => 'تقييم جديد',
-                'message' => 'تم تقييم خدمتك من قبل العميل',
+                'message' => 'تم تقييم خدمتك من قبل الحريف',
                 'type' => 'review',
                 'data' => json_encode(['review_id' => 1]),
                 'is_read' => false,

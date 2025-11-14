@@ -13,6 +13,7 @@ class CraftsmanRegistrationScreen extends StatefulWidget {
 
 class _CraftsmanRegistrationScreenState extends State<CraftsmanRegistrationScreen> {
   final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   String? _selectedAgeRange;
   bool _isPasswordVisible = false;
@@ -27,6 +28,7 @@ class _CraftsmanRegistrationScreenState extends State<CraftsmanRegistrationScree
   @override
   void dispose() {
     _nameController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -82,6 +84,16 @@ class _CraftsmanRegistrationScreenState extends State<CraftsmanRegistrationScree
                   controller: _nameController,
                   hintText: 'الاسم',
                   icon: Icons.person,
+                ),
+                
+                const SizedBox(height: 20),
+                
+                // Email Field
+                _buildInputField(
+                  controller: _emailController,
+                  hintText: 'البريد الإلكتروني',
+                  icon: Icons.email,
+                  keyboardType: TextInputType.emailAddress,
                 ),
                 
                 const SizedBox(height: 20),
@@ -253,9 +265,17 @@ class _CraftsmanRegistrationScreenState extends State<CraftsmanRegistrationScree
 
   void _handleNext() async {
     if (_nameController.text.isEmpty ||
+        _emailController.text.isEmpty ||
         _passwordController.text.isEmpty ||
         _selectedAgeRange == null) {
       _showErrorSnackBar('يرجى ملء جميع الحقول');
+      return;
+    }
+
+    // Validate email format
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(_emailController.text.trim())) {
+      _showErrorSnackBar('يرجى إدخال بريد إلكتروني صحيح');
       return;
     }
 
@@ -272,6 +292,7 @@ class _CraftsmanRegistrationScreenState extends State<CraftsmanRegistrationScree
       
       // Save user data temporarily
       await prefs.setString('temp_user_name', _nameController.text);
+      await prefs.setString('temp_user_email', _emailController.text.trim());
       await prefs.setString('temp_user_password', _passwordController.text);
       await prefs.setString('temp_user_age_range', _selectedAgeRange!);
       await prefs.setString('temp_user_type', 'craftsman');

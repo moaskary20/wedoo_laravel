@@ -60,7 +60,7 @@ class ShopResource extends Resource
                     ->required()
                     ->maxLength(255),
                 Forms\Components\TextInput::make('governorate')
-                    ->label('المحافظة')
+                    ->label('الولاية')
                     ->required()
                     ->maxLength(255),
                 Forms\Components\TextInput::make('city')
@@ -136,7 +136,7 @@ class ShopResource extends Resource
                     ->label('رقم الهاتف')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('governorate')
-                    ->label('المحافظة')
+                    ->label('الولاية')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('city')
                     ->label('المدينة')
@@ -178,7 +178,7 @@ class ShopResource extends Resource
                 Tables\Filters\Filter::make('governorate')
                     ->form([
                         Forms\Components\TextInput::make('governorate')
-                            ->label('المحافظة'),
+                            ->label('الولاية'),
                     ])
                     ->query(function (Builder $query, array $data): Builder {
                         return $query

@@ -20,6 +20,7 @@ class Order extends Model
         'preferred_date',
         'status',
         'notes',
+        'craftsman_status',
     ];
 
     protected $casts = [

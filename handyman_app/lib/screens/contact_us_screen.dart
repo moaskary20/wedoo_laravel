@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -191,21 +190,6 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
     }
   }
 
-  void _launchWhatsApp(String phoneNumber) async {
-    final l10n = AppLocalizations.of(context)!;
-    final url = 'https://wa.me/$phoneNumber';
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url));
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l10n.cannotOpenWhatsApp),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -250,11 +234,6 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
                         
                         // Contact form
                         _buildContactForm(),
-                        
-                        const SizedBox(height: 30),
-                        
-                        // Customer service section
-                        _buildCustomerServiceSection(),
                         
                         const SizedBox(height: 100), // Space for floating button
                       ],
@@ -453,95 +432,6 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-      ),
-    );
-  }
-
-  Widget _buildCustomerServiceSection() {
-    final l10n = AppLocalizations.of(context)!;
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Center(
-          child: Text(
-            l10n.customerService,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-        ),
-        
-        const SizedBox(height: 20),
-        
-        // WhatsApp buttons
-        Row(
-          children: [
-            Expanded(
-              child: _buildWhatsAppButton('01015815000'),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildWhatsAppButton('01015825000'),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildWhatsAppButton(String phoneNumber) {
-    final l10n = AppLocalizations.of(context)!;
-    
-    return GestureDetector(
-      onTap: () => _launchWhatsApp(phoneNumber),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.green,
-          borderRadius: BorderRadius.circular(10),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 5,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'whatsapp $phoneNumber',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    l10n.clickHere,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(
-              Icons.message,
-              color: Colors.white,
-              size: 24,
-            ),
-          ],
-        ),
       ),
     );
   }

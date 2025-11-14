@@ -34,7 +34,7 @@ class CraftsmenRelationManager extends RelationManager
                     ->tel()
                     ->maxLength(255),
                 Forms\Components\TextInput::make('governorate')
-                    ->label('المحافظة')
+                    ->label('الولاية')
                     ->maxLength(255),
                 Forms\Components\TextInput::make('city')
                     ->label('المدينة')
@@ -74,7 +74,7 @@ class CraftsmenRelationManager extends RelationManager
                     ->label('رقم الهاتف')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('governorate')
-                    ->label('المحافظة')
+                    ->label('الولاية')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('city')
                     ->label('المدينة')

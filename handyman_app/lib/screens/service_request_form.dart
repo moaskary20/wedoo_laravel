@@ -2,15 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:async';
 import 'location_selection_screen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-import '../config/api_config.dart';
-import '../services/language_service.dart';
-import 'package:handyman_app/l10n/app_localizations.dart';
+import 'my_orders_screen.dart';
+import 'conversations_screen.dart';
 
 class ServiceRequestForm extends StatefulWidget {
   final String categoryName;
@@ -34,6 +33,12 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
   int _currentStep = 0;
   bool _isLoading = false;
   String? _errorMessage;
+  bool _isSearchingCraftsman = false;
+  Map<String, dynamic>? _nearestCraftsman;
+  final ValueNotifier<int> _craftsmanDialogVersion = ValueNotifier<int>(0);
+  Timer? _orderStatusTimer;
+  String? _currentOrderId;
+  String _currentCraftsmanStatus = 'awaiting_assignment';
 
   // Image picker
   final ImagePicker _picker = ImagePicker();
@@ -119,6 +124,12 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
     if (displayText == l10n.normal) return 'normal';
     if (displayText == l10n.notUrgent) return 'not_urgent';
     return displayText;
+  }
+
+  bool get _isCurrentLocaleArabic => _currentLocale.languageCode == 'ar';
+
+  String _localizedText(String arabicText, String frenchText) {
+    return _isCurrentLocaleArabic ? arabicText : frenchText;
   }
 
   Future<void> _loadSavedLocation() async {
@@ -243,6 +254,8 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
     _taskDescriptionController.dispose();
     _urgencyController.dispose();
     _budgetController.dispose();
+    _craftsmanDialogVersion.dispose();
+    _orderStatusTimer?.cancel();
     super.dispose();
   }
 
@@ -1582,54 +1595,73 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
         }
       }
 
-      // Prepare request data
+      final String taskTypeName = _getTaskTypeName(selectedTaskTypeDetails ?? {});
+      final String orderTitle = _buildOrderTitle(taskTypeName);
+      final Map<String, dynamic> locationDetails = await _buildLocationDetails();
+      final String userId = await _getUserId();
+
+      // Prepare request data (matches backend validation)
       Map<String, dynamic> requestData = {
+        'customer_id': userId,
         'task_type_id': _selectedTaskTypeId,
-        'task_type': _getTaskTypeName(selectedTaskTypeDetails ?? {}), // Send display name for reference
+        'title': orderTitle,
+        'description': _taskDescriptionController.text.trim(),
+        'location': locationDetails['formatted'],
+        'governorate': locationDetails['governorate'],
+        'city': locationDetails['city'],
+        'district': locationDetails['district'],
+        'budget': _getBudgetValue(),
+        'notes': null,
+
+        // Additional metadata for app usage
+        'task_type': taskTypeName,
         'task_type_details': selectedTaskTypeDetails,
         'category': widget.categoryName,
-        'description': _taskDescriptionController.text.trim(),
         'urgency': _getUrgencyValue(_selectedUrgency ?? _getUrgencyLevels()[1]),
-        'budget': _budgetController.text.trim().isNotEmpty 
-            ? _budgetController.text.trim() 
-            : null,
+        'location_details': locationDetails,
         'use_saved_location': _useSavedLocation,
-        'location': _useSavedLocation && _savedLocation != null
-            ? {
-                'address': _savedLocation!['address'],
-                'city': _savedLocation!['city'],
-                'country': _savedLocation!['country'],
-                'latitude': _savedLocation!['latitude'],
-                'longitude': _savedLocation!['longitude'],
-              }
-            : null,
         'images': _selectedImages.map((image) => image.path).toList(),
         'created_at': DateTime.now().toIso8601String(),
         'status': 'pending',
-        'user_id': await _getUserId(),
+        'user_id': userId,
       };
+
+      // Prepare headers with authentication token
+      final headers = await _buildAuthHeaders();
+      if (headers == null) {
+        throw Exception('User is not authenticated. Please log in again.');
+      }
 
       // Send to admin panel
       final uri = Uri.parse(ApiConfig.ordersCreate);
       final httpResponse = await http
           .post(
             uri,
-            headers: ApiConfig.headers,
+            headers: headers,
             body: jsonEncode(requestData),
           )
           .timeout(const Duration(seconds: 30));
 
+      Map<String, dynamic>? backendOrder;
       if (httpResponse.statusCode == 200) {
         final resp = jsonDecode(httpResponse.body);
         if (resp['success'] != true) {
           throw Exception(resp['message'] ?? 'Unknown server error');
         }
+        backendOrder = resp['data'] as Map<String, dynamic>?;
       } else {
         throw Exception('HTTP ${httpResponse.statusCode}: ${httpResponse.body}');
       }
       
-      // Simulate finding nearest craftsman
-      await _findNearestCraftsman(requestData);
+      final String? backendOrderId = backendOrder?['id']?.toString();
+      requestData['backend_order_id'] = backendOrderId;
+      requestData['backend_order'] = backendOrder;
+
+      // Verify order exists in backend before proceeding
+      await _verifyOrderStoredInBackend(userId, backendOrderId);
+
+      // Start searching for nearby craftsman (async, updates dialog when done)
+      _startCraftsmanSearch(requestData);
       
       // Simulate saving to user orders
       await _saveToUserOrders(requestData);
@@ -1657,74 +1689,540 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
     }
   }
 
-  Future<void> _findNearestCraftsman(Map<String, dynamic> requestData) async {
-    // Simulate finding nearest craftsman
-    await Future.delayed(const Duration(seconds: 1));
-    
-    final l10n = AppLocalizations.of(context)!;
-    // Calculate real distance (simulate GPS calculation)
-    double realDistance = _calculateRealDistance();
-    String distanceText = '${realDistance.toStringAsFixed(1)} ${l10n.kilometers}';
-    
-    // Simulate craftsman data
-    Map<String, dynamic> nearestCraftsman = {
-      'id': 123,
-      'name': 'أحمد محمد',
-      'rating': 4.8,
-      'distance': distanceText,
-      'real_distance_km': realDistance,
-      'specialization': widget.categoryName,
-      'phone': '+216123456789',
-      'is_available': true,
-      'location': {
-        'lat': 36.8065,
-        'lng': 10.1815,
-      },
-    };
-    
-    print('Nearest craftsman found: $nearestCraftsman');
-    
-    // Save craftsman info for chat
+  Future<String> _getUserToken() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('selected_craftsman', jsonEncode(nearestCraftsman));
-    
-    // Send chat notification to craftsman
-    await _sendChatNotificationToCraftsman(nearestCraftsman);
+    return prefs.getString('access_token') ?? '';
   }
 
-  double _calculateRealDistance() {
-    // Simulate real distance calculation based on GPS coordinates
-    // In real app, this would use actual GPS coordinates
-    double baseDistance = 1.5 + (DateTime.now().millisecond % 100) / 100.0;
-    return baseDistance;
-  }
-
-  Future<void> _sendChatNotificationToCraftsman(Map<String, dynamic> craftsman) async {
-    try {
-      // Simulate sending notification to craftsman
-      await Future.delayed(const Duration(milliseconds: 500));
-      
-      // Save chat session to admin panel
-      final chatData = {
-        'customer_id': await _getUserId(),
-        'craftsman_id': craftsman['id'],
-        'service_type': widget.categoryName,
-        'distance_km': craftsman['real_distance_km'],
-        'status': 'new_chat',
-        'timestamp': DateTime.now().toIso8601String(),
-        'message': 'طلب خدمة جديد من العميل',
-      };
-      
-      // Save to SharedPreferences (simulate admin panel)
-      final prefs = await SharedPreferences.getInstance();
-      List<String> chatSessions = prefs.getStringList('admin_chat_sessions') ?? [];
-      chatSessions.add(jsonEncode(chatData));
-      await prefs.setStringList('admin_chat_sessions', chatSessions);
-      
-      print('Chat notification sent to craftsman: $chatData');
-    } catch (e) {
-      print('Error sending chat notification: $e');
+  Future<Map<String, String>?> _buildAuthHeaders() async {
+    final token = await _getUserToken();
+    if (token.isEmpty) {
+      return null;
     }
+    final headers = Map<String, String>.from(ApiConfig.headers);
+    headers['Authorization'] = 'Bearer $token';
+    return headers;
+  }
+
+  String _buildOrderTitle(String taskTypeName) {
+    if (taskTypeName.trim().isNotEmpty) {
+      return taskTypeName;
+    }
+    if (widget.categoryName.trim().isNotEmpty) {
+      return widget.categoryName;
+    }
+    final l10n = AppLocalizations.of(context);
+    return l10n?.createServiceRequest ?? 'Service Request';
+  }
+
+  Future<Map<String, dynamic>> _buildLocationDetails() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String savedGovernorate = prefs.getString('user_governorate') ?? '';
+    final String savedCity = prefs.getString('user_city') ?? '';
+    final String savedDistrict = prefs.getString('user_area') ?? '';
+    
+    final Map<String, dynamic>? baseLocation = _savedLocation;
+    final List<String> parts = [];
+
+    final String address = (baseLocation?['address'] as String?) ?? '';
+    final String city = (baseLocation?['city'] as String?) ?? savedCity;
+    final String country = (baseLocation?['country'] as String?) ?? '';
+
+    void addPart(String value) {
+      if (value.trim().isNotEmpty) {
+        parts.add(value.trim());
+      }
+    }
+
+    addPart(address);
+    addPart(city);
+    addPart(country);
+
+    if (parts.isEmpty && _selectedLocationText.trim().isNotEmpty) {
+      parts.add(_selectedLocationText.trim());
+    }
+
+    if (parts.isEmpty) {
+      parts.add('${_selectedLocation.latitude.toStringAsFixed(5)}, ${_selectedLocation.longitude.toStringAsFixed(5)}');
+    }
+
+    return {
+      'formatted': parts.join(', '),
+      'address': address.isNotEmpty ? address : _selectedLocationText,
+      'city': city,
+      'country': country,
+      'latitude': baseLocation?['latitude'] ?? _selectedLocation.latitude,
+      'longitude': baseLocation?['longitude'] ?? _selectedLocation.longitude,
+      'governorate': savedGovernorate,
+      'district': savedDistrict,
+    };
+  }
+
+  String? _getBudgetValue() {
+    final text = _budgetController.text.trim();
+    if (text.isEmpty) return null;
+    final sanitized = text.replaceAll(RegExp(r'[^0-9.]'), '');
+    if (sanitized.isEmpty) return null;
+    return sanitized;
+  }
+
+  String _getRequestSuccessMessage() {
+    final isRtl = _currentLocale.languageCode == 'ar';
+    return isRtl
+        ? 'تم إرسال طلبك بنجاح، وسيتم التواصل معك قريباً لمتابعة التفاصيل.'
+        : 'Votre demande a été envoyée avec succès. Nous vous contacterons bientôt.';
+  }
+
+  Future<void> _inviteCraftsmanToOrder(
+    Map<String, dynamic> craftsman,
+    String orderId,
+  ) async {
+    final headers = await _buildAuthHeaders();
+    final craftsmanId = craftsman['id'];
+    final parsedOrderId = int.tryParse(orderId);
+
+    if (headers == null || craftsmanId == null || parsedOrderId == null) {
+      return;
+    }
+
+    try {
+      final response = await http
+          .post(
+            Uri.parse(ApiConfig.orderInvite(parsedOrderId)),
+            headers: headers,
+            body: jsonEncode({'craftsman_id': craftsmanId}),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        setState(() {
+          _currentOrderId = orderId;
+          _currentCraftsmanStatus = 'waiting_response';
+          _nearestCraftsman?['craftsman_status'] = 'waiting_response';
+        });
+        _craftsmanDialogVersion.value++;
+        _startOrderStatusPolling(orderId);
+      } else {
+        print('Error inviting craftsman: ${response.body}');
+      }
+    } catch (e) {
+      print('Error inviting craftsman: $e');
+    }
+  }
+
+  void _startOrderStatusPolling(String orderId) {
+    _orderStatusTimer?.cancel();
+    _orderStatusTimer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => _refreshOrderStatus(orderId),
+    );
+  }
+
+  Future<void> _refreshOrderStatus(String orderId) async {
+    final headers = await _buildAuthHeaders();
+    if (headers == null) return;
+
+    try {
+      final userId = await _getUserId();
+      final uri = Uri.parse('${ApiConfig.ordersList}?user_id=$userId');
+      final response = await http
+          .get(uri, headers: headers)
+          .timeout(const Duration(seconds: 20));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true) {
+          final List<dynamic> orders = data['data'] ?? [];
+          final order = orders.firstWhere(
+            (element) => element['id']?.toString() == orderId,
+            orElse: () => null,
+          );
+
+          if (order != null) {
+            final status =
+                order['craftsman_status'] ?? order['status'] ?? 'pending';
+            setState(() {
+              _currentCraftsmanStatus = status;
+              _nearestCraftsman?['craftsman_status'] = status;
+            });
+            _craftsmanDialogVersion.value++;
+            if (status == 'accepted') {
+              _orderStatusTimer?.cancel();
+            }
+          }
+        }
+      }
+    } catch (e) {
+      print('Error refreshing order status: $e');
+    }
+  }
+
+  void _startCraftsmanSearch(Map<String, dynamic> requestData) {
+    setState(() {
+      _isSearchingCraftsman = true;
+      _nearestCraftsman = null;
+    });
+    _craftsmanDialogVersion.value++;
+
+    _findNearestCraftsman(requestData).then((craftsman) async {
+      if (!mounted) return;
+      setState(() {
+        _isSearchingCraftsman = false;
+        _nearestCraftsman = craftsman;
+      });
+      _craftsmanDialogVersion.value++;
+      final backendOrderId = requestData['backend_order_id']?.toString();
+      if (craftsman != null && backendOrderId != null) {
+        await _inviteCraftsmanToOrder(craftsman, backendOrderId);
+      }
+    }).catchError((error) {
+      print('Error finding craftsman: $error');
+      if (!mounted) return;
+      setState(() {
+        _isSearchingCraftsman = false;
+        _nearestCraftsman = null;
+      });
+      _craftsmanDialogVersion.value++;
+    });
+  }
+
+  Widget _buildCraftsmanStatusSection(BuildContext dialogContext) {
+    return ValueListenableBuilder<int>(
+      valueListenable: _craftsmanDialogVersion,
+      builder: (_, __, ___) {
+        if (_isSearchingCraftsman) {
+          return _buildCraftsmanSearchingView();
+        }
+
+        if (_nearestCraftsman != null) {
+          return _buildCraftsmanCard(dialogContext, _nearestCraftsman!);
+        }
+
+        return Text(
+          _localizedText(
+            'لم نتمكن من العثور على صنايعي في الوقت الحالي، سنرسل لك إشعاراً بمجرد توفر أحدهم.',
+            'Impossible de trouver un artisan pour le moment. Nous vous informerons dès qu’un artisan sera disponible.',
+          ),
+          style: const TextStyle(
+            fontSize: 14,
+            color: Colors.black54,
+            height: 1.5,
+          ),
+          textAlign: TextAlign.center,
+        );
+      },
+    );
+  }
+
+  Widget _buildCraftsmanSearchingView() {
+    return Column(
+      children: [
+        const SizedBox(height: 4),
+        const CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          _localizedText(
+            'جارٍ البحث عن صنايعي قريب...',
+            'Recherche d’un artisan à proximité...',
+          ),
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCraftsmanCard(
+    BuildContext dialogContext,
+    Map<String, dynamic> craftsman,
+  ) {
+    final rating = (craftsman['rating'] as num?)?.toDouble() ?? 0.0;
+    final distance = (craftsman['distance_label'] ?? craftsman['distance'])?.toString() ?? '';
+    final name = craftsman['name']?.toString() ??
+        _localizedText('صنايعي قريب', 'Artisan à proximité');
+    final statusValue =
+        (craftsman['craftsman_status'] ?? _currentCraftsmanStatus).toString();
+    final isAccepted = statusValue == 'accepted';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.green.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _localizedText('تم العثور على صنايعي قريب', 'Artisan trouvé à proximité'),
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.green,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: Colors.blue.withValues(alpha: 0.1),
+                child: Text(
+                  name.isNotEmpty ? name.substring(0, 1) : '?',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(Icons.star, color: Colors.orange, size: 18),
+                        const SizedBox(width: 4),
+                        Text(
+                          rating.toStringAsFixed(1),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Icon(Icons.place, color: Colors.redAccent, size: 18),
+                        const SizedBox(width: 4),
+                        Text(
+                          distance,
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: isAccepted
+                            ? Colors.green.withValues(alpha: 0.15)
+                            : Colors.orange.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        _getCraftsmanStatusLabel(statusValue),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isAccepted ? Colors.green : Colors.orange,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed:
+                  isAccepted ? () => _handleTalkNow(dialogContext, craftsman) : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isAccepted ? Colors.green : Colors.grey,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: Text(
+                _localizedText('تحدث الآن', 'Parlez maintenant'),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+          if (!isAccepted && _currentOrderId != null) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () {
+                  if (_currentOrderId != null) {
+                    _refreshOrderStatus(_currentOrderId!);
+                  }
+                },
+                child: Text(
+                  _localizedText('تحديث الحالة', 'Actualiser l’état'),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _getCraftsmanStatusLabel(String status) {
+    switch (status) {
+      case 'waiting_response':
+        return _localizedText('بانتظار موافقة الصنايعي', 'En attente de confirmation');
+      case 'accepted':
+        return _localizedText('تمت الموافقة ويمكن التحدث الآن', 'Accepté, vous pouvez discuter');
+      case 'rejected':
+        return _localizedText('تم رفض الطلب، نبحث عن صنايعي آخر', 'Rejeté, recherche d’un autre artisan');
+      case 'awaiting_assignment':
+      default:
+        return _localizedText('جارٍ تحديد الصنايعي المناسب', 'Recherche d’un artisan disponible');
+    }
+  }
+
+  void _handleTalkNow(
+    BuildContext dialogContext,
+    Map<String, dynamic> craftsman,
+  ) {
+    Navigator.of(dialogContext).pop();
+    _resetForm();
+    openCraftsmanChat(context, craftsman);
+  }
+
+  Future<void> _verifyOrderStoredInBackend(String userId, String? orderId) async {
+    if (orderId == null || orderId.isEmpty) {
+      print('Backend verification skipped: missing order ID');
+      return;
+    }
+
+    try {
+      final headers = await _buildAuthHeaders();
+      if (headers == null) {
+        print('Skipping order verification: missing auth token');
+        return;
+      }
+
+      final uri = Uri.parse('${ApiConfig.ordersList}?user_id=$userId');
+      final response = await http.get(uri, headers: headers).timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true) {
+          final List<dynamic> orders = data['data'] ?? [];
+          final bool exists = orders.any((order) {
+            final dynamic id = order['id'];
+            return id != null && id.toString() == orderId;
+          });
+          print(exists
+              ? 'Order verification success: order #$orderId found in backend.'
+              : 'Order verification warning: order #$orderId not found in backend list.');
+        } else {
+          print('Order verification failed: backend returned success=false (${data['message']})');
+        }
+      } else {
+        print('Order verification failed with HTTP ${response.statusCode}: ${response.body}');
+      }
+    } catch (e) {
+      print('Order verification error: $e');
+    }
+  }
+
+  void _resetForm() {
+    _orderStatusTimer?.cancel();
+    setState(() {
+      _currentStep = 0;
+      _selectedTaskTypeId = null;
+      _taskDescriptionController.clear();
+      _budgetController.clear();
+      _selectedUrgency = AppLocalizations.of(context)?.normal ?? 'Normal';
+      _selectedImages.clear();
+      _imageBytes.clear();
+      _isLoading = false;
+      _errorMessage = null;
+      _useSavedLocation = true;
+      _isSearchingCraftsman = false;
+      _nearestCraftsman = null;
+      _currentOrderId = null;
+      _currentCraftsmanStatus = 'awaiting_assignment';
+    });
+    _loadSavedLocation();
+    _craftsmanDialogVersion.value++;
+  }
+
+  Future<Map<String, dynamic>?> _findNearestCraftsman(Map<String, dynamic> requestData) async {
+    try {
+      final headers = await _buildAuthHeaders();
+      if (headers == null) {
+        print('Cannot load craftsmen: missing auth token');
+        return null;
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      final locationDetails = requestData['location_details'] as Map<String, dynamic>? ?? {};
+
+      final queryParams = <String, String>{
+        if (widget.categoryId != null) 'category_id': widget.categoryId.toString(),
+        if ((locationDetails['governorate'] ?? '').toString().isNotEmpty)
+          'governorate': locationDetails['governorate'].toString(),
+        if ((locationDetails['city'] ?? '').toString().isNotEmpty)
+          'city': locationDetails['city'].toString(),
+        if ((locationDetails['district'] ?? '').toString().isNotEmpty)
+          'district': locationDetails['district'].toString(),
+        if ((prefs.getString('user_governorate') ?? '').isNotEmpty && (locationDetails['governorate'] ?? '').toString().isEmpty)
+          'governorate': prefs.getString('user_governorate') ?? '',
+        if ((prefs.getString('user_city') ?? '').isNotEmpty && (locationDetails['city'] ?? '').toString().isEmpty)
+          'city': prefs.getString('user_city') ?? '',
+        if ((prefs.getString('user_area') ?? '').isNotEmpty && (locationDetails['district'] ?? '').toString().isEmpty)
+          'district': prefs.getString('user_area') ?? '',
+        'limit': '5',
+      };
+
+      queryParams.removeWhere((key, value) => value.isEmpty);
+
+      final uri = Uri.parse(ApiConfig.craftsmanNearby).replace(queryParameters: queryParams);
+      final response = await http.get(uri, headers: headers).timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true) {
+          final List<dynamic> list = data['data'] ?? [];
+          if (list.isNotEmpty) {
+            final nearestCraftsman = Map<String, dynamic>.from(list.first as Map);
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('selected_craftsman', jsonEncode(nearestCraftsman));
+            print('Nearest craftsman loaded: $nearestCraftsman');
+            return nearestCraftsman;
+          }
+        } else {
+          throw Exception(data['message'] ?? 'Failed to load craftsmen');
+        }
+      } else {
+        throw Exception('HTTP ${response.statusCode}: ${response.body}');
+      }
+    } catch (e) {
+      print('Error loading nearby craftsmen: $e');
+    }
+    return null;
   }
 
   Future<void> _saveToUserOrders(Map<String, dynamic> requestData) async {
@@ -1732,21 +2230,29 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
       // Simulate saving to user orders
       await Future.delayed(const Duration(milliseconds: 500));
       
-      // Generate order ID
-      String orderId = 'ORD-${DateTime.now().millisecondsSinceEpoch}';
+      final backendOrder = requestData['backend_order'] as Map<String, dynamic>?;
+      final String orderId = backendOrder?['id']?.toString() ?? 'ORD-${DateTime.now().millisecondsSinceEpoch}';
       
+      final locationDetails = requestData['location_details'] as Map<String, dynamic>?;
+      final dynamic locationValue = locationDetails != null
+          ? (locationDetails['formatted'] ?? locationDetails['address'])
+          : requestData['location'];
+
       // Prepare order data
       Map<String, dynamic> orderData = {
         'id': orderId,
-        'service': widget.categoryName,
-        'description': requestData['description'] ?? 'طلب خدمة جديد',
-        'location': requestData['location']?['address'] ?? 'الموقع المحفوظ',
+        'service': backendOrder?['title'] ?? widget.categoryName,
+        'description': backendOrder?['description'] ?? requestData['description'] ?? 'طلب خدمة جديد',
+        'location': backendOrder?['location'] ??
+            ((locationValue?.toString().isNotEmpty == true)
+                ? locationValue.toString()
+                : 'الموقع المحفوظ'),
         'time': 'اليوم',
         'progress': 'قدم 1',
-        'status': 'قيد الانتظار',
+        'status': backendOrder?['status'] ?? 'قيد الانتظار',
         'iconName': _getServiceIconName(widget.categoryName),
         'serviceType': _getServiceType(widget.categoryName),
-        'created_at': DateTime.now().toIso8601String(),
+        'created_at': backendOrder?['created_at'] ?? DateTime.now().toIso8601String(),
         'user_id': await _getUserId(),
       };
       
@@ -1919,7 +2425,108 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
 
 
   void _showSuccessDialogWithChat() {
-    // Implementation placeholder
+    if (!mounted) return;
+    final l10n = AppLocalizations.of(context)!;
+    final isRtl = _currentLocale.languageCode == 'ar';
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return Directionality(
+          textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.check_circle,
+                    color: Colors.green,
+                    size: 48,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  l10n.createServiceRequest,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _getRequestSuccessMessage(),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Colors.black54,
+                    height: 1.4,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                _buildCraftsmanStatusSection(dialogContext),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(dialogContext).pop();
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const MyOrdersScreen(),
+                        ),
+                      );
+                      _resetForm();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: Text(
+                      l10n.myOrders,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop();
+                    _resetForm();
+                  },
+                  child: Text(
+                    l10n.close,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 }
 

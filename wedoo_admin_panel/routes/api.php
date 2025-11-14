@@ -48,13 +48,19 @@ Route::middleware('auth:sanctum')->group(function () {
     // Orders
     Route::post('/orders/create', [OrderController::class, 'create']);
     Route::get('/orders/list', [OrderController::class, 'list']);
+    Route::get('/orders/assigned', [OrderController::class, 'assigned']);
+    Route::post('/orders/{order}/invite', [OrderController::class, 'invite']);
+    Route::post('/orders/{order}/accept', [OrderController::class, 'accept']);
+    Route::post('/orders/{order}/reject', [OrderController::class, 'reject']);
     
     // Notifications
     Route::get('/notifications/list', [NotificationController::class, 'list']);
     Route::post('/notifications/send', [NotificationController::class, 'send']);
     
     // Chat
+    Route::get('/craftsman/nearby', [CraftsmanController::class, 'nearby']);
     Route::get('/chat/list', [ChatController::class, 'list']);
+    Route::get('/chat/messages', [ChatController::class, 'messages']);
     Route::post('/chat/send', [ChatController::class, 'send']);
     
     // Promo codes

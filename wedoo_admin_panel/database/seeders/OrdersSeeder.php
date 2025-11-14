@@ -87,7 +87,7 @@ class OrdersSeeder extends Seeder
                 'budget' => 200.00,
                 'preferred_date' => now()->addDays(5),
                 'status' => 'cancelled',
-                'notes' => 'تم إلغاء الطلب من قبل العميل',
+                'notes' => 'تم إلغاء الطلب من قبل الحريف',
             ],
             [
                 'customer_id' => $customers->random()->id,

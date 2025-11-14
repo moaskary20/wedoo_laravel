@@ -428,6 +428,7 @@ class _LoginScreenState extends State<LoginScreen> {
           await prefs.setString('user_city', userData['city'] ?? '');
           await prefs.setString('user_area', userData['district'] ?? '');
           await prefs.setString('user_membership_code', userData['membership_code'] ?? '');
+          await prefs.setString('user_type', userData['user_type'] ?? 'customer');
           await prefs.setString('access_token', userData['access_token'] ?? '');
           await prefs.setString('refresh_token', userData['refresh_token'] ?? '');
           await prefs.setBool('is_logged_in', true);

@@ -263,7 +263,7 @@ abstract class AppLocalizations {
   /// No description provided for @shopsExhibitions.
   ///
   /// In ar, this message translates to:
-  /// **'محلات و بوتيكان'**
+  /// **'محلات و بوتيكات'**
   String get shopsExhibitions;
 
   /// No description provided for @phoneNumber.
@@ -479,7 +479,7 @@ abstract class AppLocalizations {
   /// No description provided for @governorate.
   ///
   /// In ar, this message translates to:
-  /// **'المحافظة'**
+  /// **'الولاية'**
   String get governorate;
 
   /// No description provided for @city.
@@ -779,7 +779,7 @@ abstract class AppLocalizations {
   /// No description provided for @craftSecrets.
   ///
   /// In ar, this message translates to:
-  /// **'أسرار الحرفيين'**
+  /// **'أسرار الصنايعية'**
   String get craftSecrets;
 
   /// No description provided for @message.
@@ -893,7 +893,7 @@ abstract class AppLocalizations {
   /// No description provided for @serviceDescriptionContent.
   ///
   /// In ar, this message translates to:
-  /// **'تطبيق \"الصنايع\" هو منصة رقمية تربط بين العملاء والحرفيين المهرة لتقديم خدمات الصيانة والإصلاح. نهدف إلى تسهيل عملية العثور على الحرفيين المناسبين وتقديم خدمات عالية الجودة.'**
+  /// **'تطبيق \"الصنايع\" هو منصة رقمية تربط بين العملاء والصنايعية المهرة لتقديم خدمات الصيانة والإصلاح. نهدف إلى تسهيل عملية العثور على الصنايعية المناسبين وتقديم خدمات عالية الجودة.'**
   String get serviceDescriptionContent;
 
   /// No description provided for @registrationAccount.
@@ -953,7 +953,7 @@ abstract class AppLocalizations {
   /// No description provided for @userResponsibilityContent.
   ///
   /// In ar, this message translates to:
-  /// **'• أنت مسؤول عن دقة المعلومات المقدمة\n• يجب التعامل مع الحرفيين باحترام ومهنية\n• لا يجوز إساءة استخدام النظام أو التلاعب به\n• يجب الإبلاغ عن أي مشاكل أو انتهاكات'**
+  /// **'• أنت مسؤول عن دقة المعلومات المقدمة\n• يجب التعامل مع الصنايعية باحترام ومهنية\n• لا يجوز إساءة استخدام النظام أو التلاعب به\n• يجب الإبلاغ عن أي مشاكل أو انتهاكات'**
   String get userResponsibilityContent;
 
   /// No description provided for @appResponsibility.
@@ -1055,13 +1055,13 @@ abstract class AppLocalizations {
   /// No description provided for @step6WaitResponse.
   ///
   /// In ar, this message translates to:
-  /// **'انتظر رد الحرفيين على طلبك'**
+  /// **'انتظر رد الصنايعية على طلبك'**
   String get step6WaitResponse;
 
   /// No description provided for @step1ReviewRatings.
   ///
   /// In ar, this message translates to:
-  /// **'راجع تقييمات الحرفيين السابقة'**
+  /// **'راجع تقييمات الصنايعية السابقة'**
   String get step1ReviewRatings;
 
   /// No description provided for @step2ComparePrices.
@@ -1763,7 +1763,7 @@ abstract class AppLocalizations {
   /// No description provided for @shareAppMessage.
   ///
   /// In ar, this message translates to:
-  /// **'قم بتنزيل تطبيق Wedoo للحصول على أفضل خدمات الصنايعي والحرفيين!'**
+  /// **'قم بتنزيل تطبيق Wedoo للحصول على أفضل خدمات الصنايعي والصنايعية!'**
   String get shareAppMessage;
 }
 

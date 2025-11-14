@@ -33,7 +33,7 @@ class ChatResource extends Resource
         return $form
             ->schema([
                 Forms\Components\Select::make('customer_id')
-                    ->label('العميل')
+                    ->label('الحريف')
                     ->relationship('customer', 'name')
                     ->searchable()
                     ->preload()
@@ -57,7 +57,7 @@ class ChatResource extends Resource
                     ->label('وقت آخر رسالة')
                     ->nullable(),
                 Forms\Components\Toggle::make('customer_read')
-                    ->label('قرأها العميل')
+                    ->label('قرأها الحريف')
                     ->default(false),
                 Forms\Components\Toggle::make('craftsman_read')
                     ->label('قرأها الصانعي')
@@ -82,7 +82,7 @@ class ChatResource extends Resource
                     ->label('ID')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('customer.name')
-                    ->label('العميل')
+                    ->label('الحريف')
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('craftsman.name')
@@ -108,7 +108,7 @@ class ChatResource extends Resource
                     ->dateTime('Y-m-d H:i')
                     ->sortable(),
                 Tables\Columns\IconColumn::make('customer_read')
-                    ->label('قرأها العميل')
+                    ->label('قرأها الحريف')
                     ->boolean(),
                 Tables\Columns\IconColumn::make('craftsman_read')
                     ->label('قرأها الصانعي')
@@ -140,7 +140,7 @@ class ChatResource extends Resource
                         'blocked' => 'محظور',
                     ]),
                 Tables\Filters\SelectFilter::make('customer_id')
-                    ->label('العميل')
+                    ->label('الحريف')
                     ->relationship('customer', 'name')
                     ->searchable()
                     ->preload(),

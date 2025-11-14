@@ -5,8 +5,10 @@ import 'my_orders_screen.dart';
 import 'app_explanation_screen.dart';
 import 'shops_exhibitions_screen.dart';
 import 'conversations_screen.dart';
+import 'craftsman_orders_screen.dart';
 import '../services/language_service.dart';
 import 'package:handyman_app/l10n/app_localizations.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -18,11 +20,13 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
   Locale _currentLocale = LanguageService.defaultLocale;
+  String _userType = 'customer';
 
   @override
   void initState() {
     super.initState();
     _loadCurrentLocale();
+    _loadUserType();
   }
 
   Future<void> _loadCurrentLocale() async {
@@ -30,6 +34,15 @@ class _MainScreenState extends State<MainScreen> {
     if (mounted) {
       setState(() {
         _currentLocale = locale;
+      });
+    }
+  }
+
+  Future<void> _loadUserType() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _userType = prefs.getString('user_type') ?? 'customer';
       });
     }
   }
@@ -412,7 +425,9 @@ class _MainScreenState extends State<MainScreen> {
       case 2:
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (context) => const MyOrdersScreen(),
+            builder: (context) => _userType == 'craftsman'
+                ? const CraftsmanOrdersScreen()
+                : const MyOrdersScreen(),
           ),
         );
         break;

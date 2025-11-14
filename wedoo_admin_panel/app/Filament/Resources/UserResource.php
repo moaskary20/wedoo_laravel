@@ -47,7 +47,7 @@ class UserResource extends Resource
                 Forms\Components\Select::make('user_type')
                     ->label('نوع المستخدم')
                     ->options([
-                        'customer' => 'عميل',
+                        'customer' => 'حريف',
                         'craftsman' => 'صنايعي',
                         'admin' => 'مدير',
                     ])
@@ -60,7 +60,7 @@ class UserResource extends Resource
                     ->preload()
                     ->visible(fn (Forms\Get $get): bool => $get('user_type') === 'craftsman'),
                 Forms\Components\TextInput::make('governorate')
-                    ->label('المحافظة')
+                    ->label('الولاية')
                     ->maxLength(255),
                 Forms\Components\TextInput::make('city')
                     ->label('المدينة')
@@ -106,7 +106,7 @@ class UserResource extends Resource
                         'danger' => 'admin',
                     ])
                     ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'customer' => 'عميل',
+                        'customer' => 'حريف',
                         'craftsman' => 'صنايعي',
                         'admin' => 'مدير',
                     }),
@@ -116,7 +116,7 @@ class UserResource extends Resource
                     ->sortable()
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('governorate')
-                    ->label('المحافظة')
+                    ->label('الولاية')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('city')
                     ->label('المدينة')
@@ -143,7 +143,7 @@ class UserResource extends Resource
                 Tables\Filters\SelectFilter::make('user_type')
                     ->label('نوع المستخدم')
                     ->options([
-                        'customer' => 'عميل',
+                        'customer' => 'حريف',
                         'craftsman' => 'صنايعي',
                         'admin' => 'مدير',
                     ]),

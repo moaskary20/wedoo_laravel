@@ -297,7 +297,7 @@ class _CustomerRegistrationScreenState extends State<CustomerRegistrationScreen>
       await prefs.setString('temp_user_type', 'customer');
       
       // Show success message
-      _showSuccessSnackBar('تم حفظ بيانات العميل بنجاح');
+      _showSuccessSnackBar('تم حفظ بيانات الحريف بنجاح');
       
       // Navigate to location selection screen
       if (mounted) {

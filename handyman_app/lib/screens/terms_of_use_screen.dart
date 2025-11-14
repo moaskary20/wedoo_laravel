@@ -196,12 +196,6 @@ class _TermsOfUseScreenState extends State<TermsOfUseScreen> {
             l10n.applicableLawContent,
           ),
           
-          // Section 12
-          _buildSection(
-            l10n.contactUsSection,
-            l10n.contactUsSectionContent,
-          ),
-          
           const SizedBox(height: 30),
           
           // Agreement checkbox

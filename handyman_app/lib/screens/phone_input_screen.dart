@@ -210,9 +210,26 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
   }
 
   bool _isValidPhoneNumber(String phone) {
-    // Egyptian phone number validation
-    final phoneRegex = RegExp(r'^01[0-9]{9}$');
-    return phoneRegex.hasMatch(phone);
+    // Accept any international phone number format
+    // Remove spaces, dashes, parentheses for validation
+    final cleanedPhone = phone.replaceAll(RegExp(r'[\s\-\(\)]'), '');
+    
+    // Accept international format: +[country code][number] (7-15 digits after +)
+    if (RegExp(r'^\+[1-9]\d{6,14}$').hasMatch(cleanedPhone)) {
+      return true;
+    }
+    
+    // Accept local format starting with 0: 0[number] (8-15 digits total)
+    if (RegExp(r'^0\d{7,14}$').hasMatch(cleanedPhone)) {
+      return true;
+    }
+    
+    // Accept numbers without country code: [number] (7-15 digits)
+    if (RegExp(r'^[1-9]\d{6,14}$').hasMatch(cleanedPhone)) {
+      return true;
+    }
+    
+    return false;
   }
 
   Future<String> _getDeviceId() async {

@@ -119,7 +119,7 @@ class _MembershipTypeScreenState extends State<MembershipTypeScreen> {
                         const SizedBox(width: 20),
                         const Expanded(
                           child: Text(
-                            '( عميل )',
+                            '( حريف )',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,

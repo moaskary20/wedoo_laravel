@@ -265,7 +265,7 @@ class _LocationScreenState extends State<LocationScreen> {
               const SizedBox(height: 10),
               
               const Text(
-                'تطبيق الصنايع',
+                'تطبيق الصنايعية',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w600,

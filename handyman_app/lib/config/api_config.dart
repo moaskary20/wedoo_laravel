@@ -6,7 +6,9 @@ class ApiConfig {
   static const String taskTypes = '$baseUrl/api/task-types/index';
   static const String ordersCreate = '$baseUrl/api/orders/create';
   static const String ordersList = '$baseUrl/api/orders/list';
+  static const String ordersAssigned = '$baseUrl/api/orders/assigned';
   static const String craftsmanCount = '$baseUrl/api/craftsman/count';
+  static const String craftsmanNearby = '$baseUrl/api/craftsman/nearby';
   static const String authLogin = '$baseUrl/api/auth/login';
   static const String authRegister = '$baseUrl/api/auth/register';
   static const String userProfile = '$baseUrl/api/users/profile';
@@ -14,6 +16,7 @@ class ApiConfig {
   static const String notificationsList = '$baseUrl/api/notifications/list';
   static const String notificationsSend = '$baseUrl/api/notifications/send';
   static const String chatList = '$baseUrl/api/chat/list';
+  static const String chatMessages = '$baseUrl/api/chat/messages';
   static const String chatSend = '$baseUrl/api/chat/send';
   static const String promoVerify = '$baseUrl/api/promo/verify';
   static const String shopsList = '$baseUrl/api/shops/list';
@@ -42,4 +45,8 @@ class ApiConfig {
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept, Origin, X-Requested-With',
   };
+
+  static String orderInvite(int orderId) => '$baseUrl/api/orders/$orderId/invite';
+  static String orderAccept(int orderId) => '$baseUrl/api/orders/$orderId/accept';
+  static String orderReject(int orderId) => '$baseUrl/api/orders/$orderId/reject';
 }

@@ -90,7 +90,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get handymanWedoo => 'صنايعي وي دو';
 
   @override
-  String get shopsExhibitions => 'محلات و بوتيكان';
+  String get shopsExhibitions => 'محلات و بوتيكات';
 
   @override
   String get phoneNumber => 'رقم الهاتف';
@@ -200,7 +200,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get phone => 'الهاتف';
 
   @override
-  String get governorate => 'المحافظة';
+  String get governorate => 'الولاية';
 
   @override
   String get city => 'المدينة';
@@ -351,7 +351,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get tips => 'نصائح';
 
   @override
-  String get craftSecrets => 'أسرار الحرفيين';
+  String get craftSecrets => 'أسرار الصنايعية';
 
   @override
   String get message => 'الرسالة';
@@ -411,7 +411,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get serviceDescriptionContent =>
-      'تطبيق \"الصنايع\" هو منصة رقمية تربط بين العملاء والحرفيين المهرة لتقديم خدمات الصيانة والإصلاح. نهدف إلى تسهيل عملية العثور على الحرفيين المناسبين وتقديم خدمات عالية الجودة.';
+      'تطبيق \"الصنايع\" هو منصة رقمية تربط بين العملاء والصنايعية المهرة لتقديم خدمات الصيانة والإصلاح. نهدف إلى تسهيل عملية العثور على الصنايعية المناسبين وتقديم خدمات عالية الجودة.';
 
   @override
   String get registrationAccount => '3. التسجيل والحساب';
@@ -446,7 +446,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get userResponsibilityContent =>
-      '• أنت مسؤول عن دقة المعلومات المقدمة\n• يجب التعامل مع الحرفيين باحترام ومهنية\n• لا يجوز إساءة استخدام النظام أو التلاعب به\n• يجب الإبلاغ عن أي مشاكل أو انتهاكات';
+      '• أنت مسؤول عن دقة المعلومات المقدمة\n• يجب التعامل مع الصنايعية باحترام ومهنية\n• لا يجوز إساءة استخدام النظام أو التلاعب به\n• يجب الإبلاغ عن أي مشاكل أو انتهاكات';
 
   @override
   String get appResponsibility => '8. مسؤولية التطبيق';
@@ -503,10 +503,10 @@ class AppLocalizationsAr extends AppLocalizations {
   String get step5SendRequest => 'اضغط على \"إرسال الطلب\"';
 
   @override
-  String get step6WaitResponse => 'انتظر رد الحرفيين على طلبك';
+  String get step6WaitResponse => 'انتظر رد الصنايعية على طلبك';
 
   @override
-  String get step1ReviewRatings => 'راجع تقييمات الحرفيين السابقة';
+  String get step1ReviewRatings => 'راجع تقييمات الصنايعية السابقة';
 
   @override
   String get step2ComparePrices => 'قارن الأسعار المقدمة';
@@ -868,5 +868,5 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get shareAppMessage =>
-      'قم بتنزيل تطبيق Wedoo للحصول على أفضل خدمات الصنايعي والحرفيين!';
+      'قم بتنزيل تطبيق Wedoo للحصول على أفضل خدمات الصنايعي والصنايعية!';
 }

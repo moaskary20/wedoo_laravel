@@ -56,7 +56,7 @@ class CraftsmanResource extends Resource
                     ->preload()
                     ->required(),
                 Forms\Components\TextInput::make('governorate')
-                    ->label('المحافظة')
+                    ->label('الولاية')
                     ->maxLength(255),
                 Forms\Components\TextInput::make('city')
                     ->label('المدينة')
@@ -99,7 +99,7 @@ class CraftsmanResource extends Resource
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('governorate')
-                    ->label('المحافظة')
+                    ->label('الولاية')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('city')
                     ->label('المدينة')

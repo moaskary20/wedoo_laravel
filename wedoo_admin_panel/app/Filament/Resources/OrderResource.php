@@ -34,7 +34,7 @@ class OrderResource extends Resource
         return $form
             ->schema([
                 Forms\Components\Select::make('customer_id')
-                    ->label('العميل')
+                    ->label('الحريف')
                     ->relationship('customer', 'name')
                     ->required()
                     ->searchable()
@@ -64,7 +64,7 @@ class OrderResource extends Resource
                     ->required()
                     ->maxLength(255),
                 Forms\Components\TextInput::make('governorate')
-                    ->label('المحافظة')
+                    ->label('الولاية')
                     ->maxLength(255),
                 Forms\Components\TextInput::make('city')
                     ->label('المدينة')
@@ -106,7 +106,7 @@ class OrderResource extends Resource
                     ->label('رقم الطلب')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('customer.name')
-                    ->label('العميل')
+                    ->label('الحريف')
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('craftsman.name')
@@ -166,7 +166,7 @@ class OrderResource extends Resource
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('customer')
-                    ->label('العميل')
+                    ->label('الحريف')
                     ->relationship('customer', 'name')
                     ->searchable()
                     ->preload(),

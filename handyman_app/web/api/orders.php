@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     $order = [
         'id' => rand(1000, 9999),
-        'customer_name' => $input['customer_name'] ?? 'عميل',
+        'customer_name' => $input['customer_name'] ?? 'حريف',
         'service_type' => $input['service_type'] ?? 'خدمة عامة',
         'description' => $input['description'] ?? '',
         'location' => $input['location'] ?? 'تونس',

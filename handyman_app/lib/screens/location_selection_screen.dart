@@ -195,7 +195,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
                 // Governorate Dropdown
                 _buildDropdown(
                   value: _selectedGovernorate,
-                  hint: 'المحافظة',
+                  hint: 'الولاية',
                   items: _governorates,
                   onChanged: (String? value) {
                     setState(() {
@@ -377,7 +377,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
         _selectedDistrict == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('يرجى اختيار المحافظة والمدينة والحي'),
+          content: Text('يرجى اختيار الولاية والمدينة والحي'),
           backgroundColor: Colors.red,
         ),
       );
@@ -444,6 +444,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
           await prefs.setString('user_city', userData['city'] ?? registrationData['city']);
           await prefs.setString('user_area', userData['district'] ?? userData['area'] ?? registrationData['district']);
           await prefs.setString('user_membership_code', userData['membership_code'] ?? userData['code'] ?? '000000');
+          await prefs.setString('user_type', userData['user_type'] ?? registrationData['user_type']);
           
           // Save tokens if available
           if (userData['access_token'] != null) {

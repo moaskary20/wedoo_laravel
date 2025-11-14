@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Order;
 use App\Models\User;
-use App\Models\TaskType;
+use App\Models\Chat;
 
 class OrderController extends Controller
 {
@@ -26,6 +26,9 @@ class OrderController extends Controller
             'notes' => 'nullable|string'
         ]);
 
+        $validated['status'] = $validated['status'] ?? 'pending';
+        $validated['craftsman_status'] = 'awaiting_assignment';
+
         $order = Order::create($validated);
 
         return response()->json([
@@ -44,26 +47,7 @@ class OrderController extends Controller
             })
             ->get()
             ->map(function ($order) {
-                return [
-                    'id' => $order->id,
-                    'customer_id' => $order->customer_id,
-                    'customer_name' => $order->customer->name,
-                    'craftsman_id' => $order->craftsman_id,
-                    'craftsman_name' => $order->craftsman ? $order->craftsman->name : null,
-                    'task_type_id' => $order->task_type_id,
-                    'task_type_name' => $order->taskType->name,
-                    'title' => $order->title,
-                    'description' => $order->description,
-                    'location' => $order->location,
-                    'governorate' => $order->governorate,
-                    'city' => $order->city,
-                    'district' => $order->district,
-                    'budget' => $order->budget,
-                    'preferred_date' => $order->preferred_date,
-                    'status' => $order->status,
-                    'notes' => $order->notes,
-                    'created_at' => $order->created_at->format('Y-m-d H:i:s')
-                ];
+                return $this->transformOrder($order);
             });
 
         return response()->json([
@@ -71,5 +55,168 @@ class OrderController extends Controller
             'data' => $orders,
             'message' => 'Orders retrieved successfully'
         ]);
+    }
+
+    public function assigned(Request $request)
+    {
+        $user = $request->user();
+        if (!$user || $user->user_type !== 'craftsman') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only craftsmen can access assigned orders',
+            ], 403);
+        }
+
+        $orders = Order::with(['customer', 'taskType'])
+            ->where('craftsman_id', $user->id)
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(fn ($order) => $this->transformOrder($order));
+
+        return response()->json([
+            'success' => true,
+            'data' => $orders,
+            'message' => 'Assigned orders retrieved successfully',
+        ]);
+    }
+
+    public function invite(Request $request, Order $order)
+    {
+        $user = $request->user();
+        if (!$user || $user->id !== (int) $order->customer_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You are not authorized to invite craftsmen to this order',
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'craftsman_id' => 'required|exists:users,id',
+        ]);
+
+        if ($order->craftsman_status === 'waiting_response') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Craftsman already invited and awaiting response',
+            ], 422);
+        }
+
+        $craftsman = User::where('id', $validated['craftsman_id'])
+            ->where('user_type', 'craftsman')
+            ->where('status', 'active')
+            ->firstOrFail();
+
+        $order->craftsman_id = $craftsman->id;
+        $order->craftsman_status = 'waiting_response';
+        $order->status = 'pending';
+        $order->save();
+
+        $chat = Chat::firstOrCreate(
+            [
+                'customer_id' => $order->customer_id,
+                'craftsman_id' => $craftsman->id,
+            ],
+            [
+                'order_id' => $order->id,
+                'status' => 'active',
+            ]
+        );
+
+        $chat->update([
+            'order_id' => $order->id,
+            'last_message' => 'New order invitation',
+            'last_message_at' => now(),
+            'customer_read' => true,
+            'craftsman_read' => false,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->transformOrder($order),
+            'message' => 'Craftsman invited successfully',
+        ]);
+    }
+
+    public function accept(Request $request, Order $order)
+    {
+        $user = $request->user();
+        if (!$user || $user->user_type !== 'craftsman' || $order->craftsman_id !== $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You are not authorized to accept this order',
+            ], 403);
+        }
+
+        if ($order->craftsman_status !== 'waiting_response') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Order is not awaiting your approval',
+            ], 422);
+        }
+
+        $order->craftsman_status = 'accepted';
+        $order->status = 'in_progress';
+        $order->save();
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->transformOrder($order),
+            'message' => 'Order accepted successfully',
+        ]);
+    }
+
+    public function reject(Request $request, Order $order)
+    {
+        $user = $request->user();
+        if (!$user || $user->user_type !== 'craftsman' || $order->craftsman_id !== $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You are not authorized to reject this order',
+            ], 403);
+        }
+
+        if ($order->craftsman_status !== 'waiting_response') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Order is not awaiting your approval',
+            ], 422);
+        }
+
+        $order->craftsman_status = 'rejected';
+        $order->craftsman_id = null;
+        $order->status = 'pending';
+        $order->save();
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->transformOrder($order),
+            'message' => 'Order rejected successfully',
+        ]);
+    }
+
+    protected function transformOrder(Order $order): array
+    {
+        return [
+            'id' => $order->id,
+            'customer_id' => $order->customer_id,
+            'customer_name' => optional($order->customer)->name,
+            'customer_phone' => optional($order->customer)->phone,
+            'craftsman_id' => $order->craftsman_id,
+            'craftsman_name' => optional($order->craftsman)->name,
+            'task_type_id' => $order->task_type_id,
+            'task_type_name' => optional($order->taskType)->name,
+            'title' => $order->title,
+            'description' => $order->description,
+            'location' => $order->location,
+            'governorate' => $order->governorate,
+            'city' => $order->city,
+            'district' => $order->district,
+            'budget' => $order->budget,
+            'preferred_date' => $order->preferred_date,
+            'status' => $order->status,
+            'craftsman_status' => $order->craftsman_status,
+            'notes' => $order->notes,
+            'created_at' => optional($order->created_at)?->format('Y-m-d H:i:s'),
+        ];
     }
 }

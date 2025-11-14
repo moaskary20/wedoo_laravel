@@ -36,7 +36,7 @@
        "name": "اسم المستخدم",
        "email": "email@example.com",
        "phone": "01xxxxxxxxx",
-       "governorate": "المحافظة",
+       "governorate": "الولاية",
        "city": "المدينة",
        "district": "المنطقة",
        "membership_code": "كود العضوية",
@@ -54,7 +54,7 @@
 - `password` - كلمة المرور (مشفرة)
 - `name` - اسم المستخدم
 - `email` - البريد الإلكتروني
-- `governorate` - المحافظة
+- `governorate` - الولاية
 - `city` - المدينة
 - `district` - المنطقة
 - `membership_code` - كود العضوية

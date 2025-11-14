@@ -413,7 +413,7 @@ class SampleDataSeeder extends Seeder
                 'budget' => 150,
                 'preferred_date' => now()->addDays(1),
                 'status' => 'accepted',
-                'notes' => 'العميل يفضل العمل في الصباح'
+                'notes' => 'الحريف يفضل العمل في الصباح'
             ],
             [
                 'customer_id' => User::where('email', 'sara@example.com')->first()->id,

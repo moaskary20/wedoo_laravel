@@ -80,4 +80,19 @@ class User extends Authenticatable
     {
         return $this->belongsTo(Category::class);
     }
+
+    public function craftsmanReviews()
+    {
+        return $this->hasMany(Review::class, 'craftsman_id');
+    }
+
+    public function chatsAsCustomer()
+    {
+        return $this->hasMany(Chat::class, 'customer_id');
+    }
+
+    public function chatsAsCraftsman()
+    {
+        return $this->hasMany(Chat::class, 'craftsman_id');
+    }
 }

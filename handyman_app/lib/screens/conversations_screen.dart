@@ -41,48 +41,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
     }
   }
   
-  final List<Map<String, dynamic>> _conversations = [
-    {
-      'id': 1,
-      'name': 'عز الدين فرج',
-      'service': 'صيانة كهربائية',
-      'lastMessage': 'سأكون متاحاً غداً في الساعة 10 صباحاً',
-      'time': '10:30 ص',
-      'unreadCount': 2,
-      'isOnline': true,
-      'avatar': 'assets/images/craftsman1.jpg',
-    },
-    {
-      'id': 2,
-      'name': 'محمد محمود',
-      'service': 'سباكة',
-      'lastMessage': 'تم إصلاح المشكلة بنجاح',
-      'time': '9:15 ص',
-      'unreadCount': 0,
-      'isOnline': false,
-      'avatar': 'assets/images/craftsman2.jpg',
-    },
-    {
-      'id': 3,
-      'name': 'محمود محمد مهدى',
-      'service': 'دهان',
-      'lastMessage': 'هل يمكن تأجيل الموعد لليوم التالي؟',
-      'time': 'أمس',
-      'unreadCount': 1,
-      'isOnline': true,
-      'avatar': 'assets/images/craftsman3.jpg',
-    },
-    {
-      'id': 4,
-      'name': 'محمد حسن محمد',
-      'service': 'نجارة',
-      'lastMessage': 'شكراً لك على الخدمة الممتازة',
-      'time': 'أمس',
-      'unreadCount': 0,
-      'isOnline': false,
-      'avatar': 'assets/images/craftsman4.jpg',
-    },
-  ];
+  final List<Map<String, dynamic>> _conversations = [];
 
   final List<Map<String, dynamic>> _messages = [
     {
@@ -128,6 +87,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
     final minute = now.minute.toString().padLeft(2, '0');
     return '${hour > 12 ? hour - 12 : hour}:$minute ${hour >= 12 ? 'م' : 'ص'}';
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -378,35 +338,51 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
     });
 
     try {
-      // For development - simulate API call
-      await Future.delayed(const Duration(seconds: 1));
-      
-      // Simulate loading conversations from admin panel
-      print('Loading conversations from admin panel...');
-      
-      // TODO: Uncomment when backend is ready
-      /*
-      // Real API call to get conversations
-      final response = await http.get(
-        Uri.parse('$_baseUrl$_conversationsEndpoint'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': 'Bearer ${await _getUserToken()}',
-        },
-      );
+      final headers = await _getAuthHeaders();
+      if (headers == null) {
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      final response = await http
+          .get(Uri.parse(ApiConfig.chatList), headers: headers)
+          .timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['success'] == true) {
+          final List<dynamic> chats = data['data'] ?? [];
           setState(() {
-            _conversations.clear();
-            _conversations.addAll(data['conversations'] ?? []);
+            _conversations
+              ..clear()
+              ..addAll(chats.map((chat) {
+                final craftsman = chat['craftsman'] ?? {};
+                final order = chat['order'] ?? {};
+                final name = craftsman['name'] ?? order['title'] ?? 'صنايعي';
+                return {
+                  'id': craftsman['id']?.toString() ?? chat['id'].toString(),
+                  'chat_id': chat['id'],
+                  'name': name,
+                  'service': order['title'] ?? craftsman['category_name'] ?? 'خدمة',
+                  'lastMessage': chat['last_message'] ?? '',
+                  'time': chat['last_message_at'] ?? '',
+                  'unreadCount': chat['unread_count'] ?? 0,
+                  'isOnline': true,
+                  'avatar': null,
+                  'isSupport': false,
+                  'craftsman': craftsman,
+                  'customer_id': chat['customer']?['id'],
+                };
+              }));
           });
+        } else {
+          print('Failed to load chats: ${data['message']}');
         }
+      } else {
+        print('Failed to load chats: ${response.statusCode}');
       }
-      */
-
     } catch (e) {
       print('Error loading conversations: $e');
     } finally {
@@ -643,6 +619,36 @@ Future<void> openSupportChat(BuildContext context) async {
   );
 }
 
+Future<void> openCraftsmanChat(
+  BuildContext context,
+  Map<String, dynamic> craftsman,
+) async {
+  final locale = await LanguageService.getSavedLocale();
+  final isRtl = locale.languageCode == 'ar';
+
+  final conversation = {
+    'id': craftsman['id']?.toString() ?? 'craftsman_${DateTime.now().millisecondsSinceEpoch}',
+    'name': craftsman['name'] ?? (isRtl ? 'صنايعي' : 'Artisan'),
+    'service': craftsman['specialization'] ?? (isRtl ? 'خدمة حرفية' : 'Service artisanale'),
+    'lastMessage': isRtl ? 'ابدأ المحادثة الآن' : 'Commencez la discussion maintenant',
+    'time': DateTime.now().toString(),
+    'unreadCount': 0,
+    'isOnline': true,
+    'avatar': craftsman['avatar'],
+    'isSupport': false,
+    'chat_id': craftsman['chat_id'],
+    'craftsman': craftsman,
+  };
+
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (context) => _ChatScreen(
+        conversation: conversation,
+      ),
+    ),
+  );
+}
+
 class _ChatScreen extends StatefulWidget {
   final Map<String, dynamic> conversation;
 
@@ -656,10 +662,13 @@ class _ChatScreenState extends State<_ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final List<Map<String, dynamic>> _messages = [];
+  int? _chatId;
+  bool _isLoadingMessages = false;
 
   @override
   void initState() {
     super.initState();
+    _chatId = widget.conversation['chat_id'] as int?;
     _loadMessages(); // This will call _loadSupportMessages or _loadRegularMessages
   }
 
@@ -837,6 +846,11 @@ class _ChatScreenState extends State<_ChatScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getString('user_id') ?? '1';
+      final headers = await _buildChatAuthHeaders();
+      if (headers == null) {
+        _showFallbackResponse();
+        return;
+      }
       
       print('Sending support message to backend: $message');
       print('User ID: $userId');
@@ -846,7 +860,7 @@ class _ChatScreenState extends State<_ChatScreen> {
       // Send message to backend
       final response = await http.post(
         Uri.parse(ApiConfig.chatSend),
-        headers: ApiConfig.headers,
+        headers: headers,
         body: jsonEncode({
           'user_id': userId,
           'message': message,
@@ -882,20 +896,74 @@ class _ChatScreenState extends State<_ChatScreen> {
   }
 
   Future<void> _sendRegularMessage(String message) async {
-    // Simulate craftsman response for regular conversations
-    Future.delayed(const Duration(seconds: 1), () {
-      final l10n = AppLocalizations.of(context);
-      setState(() {
-        _messages.add({
-          'id': _messages.length + 1,
-          'text': l10n?.thankYouWillReplySoon ?? 'شكراً لك! سأقوم بالرد عليك قريباً.',
-          'isMe': false,
-          'time': _getCurrentTime(),
-          'type': 'text',
-        });
-      });
-      _scrollToBottom();
+    final optimisticMessage = {
+      'id': DateTime.now().millisecondsSinceEpoch,
+      'text': message,
+      'isMe': true,
+      'time': _getCurrentTime(),
+      'type': 'text',
+    };
+
+    setState(() {
+      _messages.add(optimisticMessage);
     });
+    _scrollToBottom();
+
+    try {
+      final headers = await _buildChatAuthHeaders();
+      if (headers == null) {
+        _showErrorSnackBar('يرجى تسجيل الدخول لإرسال الرسائل');
+        return;
+      }
+
+      final body = {
+        'message': message,
+        if (_chatId != null) 'chat_id': _chatId,
+        if (_chatId == null)
+          'craftsman_id': (widget.conversation['craftsman']?['id'] ?? widget.conversation['id']).toString(),
+      };
+
+      final response = await http
+          .post(
+            Uri.parse(ApiConfig.chatSend),
+            headers: headers,
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true) {
+          final messageData = data['data']['message'] ?? {};
+          setState(() {
+            if (_messages.isNotEmpty) {
+              _messages.remove(optimisticMessage);
+            }
+            _chatId = data['data']['chat']?['id'] as int? ?? _chatId;
+            _messages.add({
+              'id': messageData['id'] ?? optimisticMessage['id'],
+              'text': messageData['text'] ?? message,
+              'isMe': true,
+              'time': messageData['created_at'] ?? _getCurrentTime(),
+              'type': messageData['message_type'] ?? 'text',
+            });
+          });
+          _scrollToBottom();
+          return;
+        }
+      }
+
+      _showErrorSnackBar('خطأ في إرسال الرسالة');
+      setState(() {
+        _messages.remove(optimisticMessage);
+      });
+    } catch (e) {
+      print('Error sending chat message: $e');
+      _showErrorSnackBar('خطأ في إرسال الرسالة');
+      setState(() {
+        _messages.remove(optimisticMessage);
+      });
+    }
   }
 
   void _waitForSupportResponse() {
@@ -940,13 +1008,21 @@ class _ChatScreenState extends State<_ChatScreen> {
   }
 
   Future<void> _loadMessages() async {
+    setState(() {
+      _isLoadingMessages = true;
+    });
     // Check if this is a support chat
     if (widget.conversation['isSupport'] == true) {
       // Load support messages from backend
       await _loadSupportMessages();
     } else {
       // Load regular conversation messages
-      _loadRegularMessages();
+      await _loadRegularMessages();
+    }
+    if (mounted) {
+      setState(() {
+        _isLoadingMessages = false;
+      });
     }
   }
 
@@ -955,11 +1031,12 @@ class _ChatScreenState extends State<_ChatScreen> {
       // Try to load messages from backend
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getString('user_id') ?? '1';
+      final headers = await _buildChatAuthHeaders() ?? ApiConfig.headers;
       
       // API call to get support messages
       final response = await http.get(
         Uri.parse('${ApiConfig.chatList}?user_id=$userId&type=support&conversation_id=${widget.conversation['id']}'),
-        headers: ApiConfig.headers,
+        headers: headers,
       );
 
       if (response.statusCode == 200) {
@@ -1001,40 +1078,54 @@ class _ChatScreenState extends State<_ChatScreen> {
     });
   }
 
-  void _loadRegularMessages() {
-    // Add some initial messages for regular conversations
-    setState(() {
-      _messages.addAll([
-        {
-          'id': 1,
-          'text': 'مرحباً، أريد ${widget.conversation['service']}',
-          'isMe': true,
-          'time': '10:00 ص',
-          'type': 'text',
-        },
-        {
-          'id': 2,
-          'text': 'مرحباً، سأكون متاحاً غداً في الساعة 10 صباحاً',
-          'isMe': false,
-          'time': '10:05 ص',
-          'type': 'text',
-        },
-        {
-          'id': 3,
-          'text': 'ممتاز، ما هو السعر المتوقع؟',
-          'isMe': true,
-          'time': '10:10 ص',
-          'type': 'text',
-        },
-        {
-          'id': 4,
-          'text': 'السعر يتراوح بين 50-100 دينار حسب المشكلة',
-          'isMe': false,
-          'time': '10:15 ص',
-          'type': 'text',
-        },
-      ]);
-    });
+  Future<void> _loadRegularMessages() async {
+    try {
+      final headers = await _buildChatAuthHeaders();
+      if (headers == null) {
+        return;
+      }
+
+      final params = <String, String>{};
+      if (_chatId != null) {
+        params['chat_id'] = _chatId.toString();
+      } else {
+        final craftsman = widget.conversation['craftsman'];
+        final craftsmanId = craftsman?['id'] ?? widget.conversation['id'];
+        if (craftsmanId != null) {
+          params['craftsman_id'] = craftsmanId.toString();
+        }
+      }
+
+      final uri = Uri.parse(ApiConfig.chatMessages).replace(queryParameters: params);
+      final response = await http.get(uri, headers: headers).timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true) {
+          final chatData = data['data'];
+          final List<dynamic> messages = chatData['messages'] ?? [];
+          setState(() {
+            _chatId = chatData['chat']?['id'] as int?;
+            _messages
+              ..clear()
+              ..addAll(messages.map((msg) => {
+                    'id': msg['id'],
+                    'text': msg['text'],
+                    'isMe': msg['is_me'] == true,
+                    'time': msg['created_at'] ?? DateTime.now().toString(),
+                    'type': msg['message_type'] ?? 'text',
+                  }));
+          });
+          _scrollToBottom();
+        } else {
+          print('Failed to load chat messages: ${data['message']}');
+        }
+      } else {
+        print('Failed to load chat messages: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error loading conversation messages: $e');
+    }
   }
 
   String _getCurrentTime() {
@@ -1053,4 +1144,30 @@ class _ChatScreenState extends State<_ChatScreen> {
       );
     }
   }
+
+  void _showErrorSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  Future<Map<String, String>?> _buildChatAuthHeaders() async {
+    return _getAuthHeaders();
+  }
+}
+
+Future<Map<String, String>?> _getAuthHeaders() async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('access_token');
+  if (token == null || token.isEmpty) {
+    return null;
+  }
+  final headers = Map<String, String>.from(ApiConfig.headers);
+  headers['Authorization'] = 'Bearer $token';
+  return headers;
 }

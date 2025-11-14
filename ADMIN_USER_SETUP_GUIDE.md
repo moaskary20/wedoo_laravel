@@ -183,7 +183,7 @@ User::create([
 php artisan tinker
 
 User::create([
-    'name' => 'محمد العميل',
+    'name' => 'محمد الحريف',
     'email' => 'customer@example.com',
     'password' => Hash::make('password'),
     'phone' => '01234567891',

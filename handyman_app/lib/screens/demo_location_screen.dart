@@ -199,7 +199,7 @@ class _DemoLocationScreenState extends State<DemoLocationScreen> {
               const SizedBox(height: 10),
               
               const Text(
-                'تطبيق الصنايع',
+                'تطبيق الصنايعية',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w600,
