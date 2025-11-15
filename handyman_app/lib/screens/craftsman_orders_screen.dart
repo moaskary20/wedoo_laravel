@@ -51,12 +51,25 @@ class _CraftsmanOrdersScreenState extends State<CraftsmanOrdersScreen> {
         return;
       }
 
-      final response = await http
-          .get(Uri.parse(ApiConfig.ordersAssigned), headers: headers)
-          .timeout(const Duration(seconds: 30));
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('user_id');
+      if (userId == null || userId.isEmpty) {
+        setState(() {
+          _errorMessage = 'تعذر تحديد حساب الصنايعي. يرجى تسجيل الدخول من جديد.';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      final uri = Uri.parse(ApiConfig.ordersList).replace(queryParameters: {
+        'craftsman_id': userId,
+      });
+
+      final response =
+          await http.get(uri, headers: headers).timeout(const Duration(seconds: 30));
+      final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
         if (data['success'] == true) {
           final List<dynamic> raw = data['data'] ?? [];
           setState(() {
@@ -72,7 +85,7 @@ class _CraftsmanOrdersScreenState extends State<CraftsmanOrdersScreen> {
         }
       } else {
         setState(() {
-          _errorMessage = 'فشل تحميل الطلبات (${response.statusCode})';
+          _errorMessage = data['message'] ?? 'فشل تحميل الطلبات (${response.statusCode})';
         });
       }
     } catch (e) {

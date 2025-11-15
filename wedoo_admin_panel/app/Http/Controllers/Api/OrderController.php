@@ -41,14 +41,26 @@ class OrderController extends Controller
     public function list(Request $request)
     {
         $userId = $request->get('user_id');
+        $craftsmanId = $request->get('craftsman_id');
+        $status = $request->get('status');
+        $craftsmanStatus = $request->get('craftsman_status');
+
         $orders = Order::with(['customer', 'craftsman', 'taskType'])
             ->when($userId, function ($query) use ($userId) {
                 return $query->where('customer_id', $userId);
             })
+            ->when($craftsmanId, function ($query) use ($craftsmanId) {
+                return $query->where('craftsman_id', $craftsmanId);
+            })
+            ->when($status, function ($query) use ($status) {
+                return $query->where('status', $status);
+            })
+            ->when($craftsmanStatus, function ($query) use ($craftsmanStatus) {
+                return $query->where('craftsman_status', $craftsmanStatus);
+            })
+            ->orderByDesc('created_at')
             ->get()
-            ->map(function ($order) {
-                return $this->transformOrder($order);
-            });
+            ->map(fn ($order) => $this->transformOrder($order));
 
         return response()->json([
             'success' => true,
