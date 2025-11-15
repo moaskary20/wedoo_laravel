@@ -8,6 +8,10 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import '../config/api_config.dart';
+import '../services/language_service.dart';
+import 'package:handyman_app/l10n/app_localizations.dart';
 import 'my_orders_screen.dart';
 import 'conversations_screen.dart';
 
@@ -1172,34 +1176,34 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
             final l10n = AppLocalizations.of(context)!;
             return Center(
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.map,
-                    size: 50,
-                    color: Colors.grey,
-                  ),
-                  SizedBox(height: 8),
+              Icon(
+                Icons.map,
+                size: 50,
+                color: Colors.grey,
+              ),
+              SizedBox(height: 8),
                   Text(
                     l10n.mapLocation,
                     style: TextStyle(
                       fontSize: 16,
-                      color: Colors.grey,
+                  color: Colors.grey,
                     ),
                   ),
-                  SizedBox(height: 4),
+              SizedBox(height: 4),
                   Text(
                     l10n.clickToSelectLocation,
                     style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey,
+                  fontSize: 12,
+                  color: Colors.grey,
                     ),
                   ),
                 ],
               ),
             );
           },
-        ),
+            ),
       ),
     );
   }
@@ -1557,7 +1561,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
     if (!_validateCurrentStep()) return;
 
     final l10n = AppLocalizations.of(context)!;
-    
+
     // Additional validation before submission
     if (_selectedTaskTypeId == null) {
       _showErrorSnackBar(l10n.pleaseSelectTaskType);
@@ -1598,11 +1602,12 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
       final String taskTypeName = _getTaskTypeName(selectedTaskTypeDetails ?? {});
       final String orderTitle = _buildOrderTitle(taskTypeName);
       final Map<String, dynamic> locationDetails = await _buildLocationDetails();
-      final String userId = await _getUserId();
+    final String userId = await _getUserId();
+    final int? customerIdInt = int.tryParse(userId);
 
       // Prepare request data (matches backend validation)
       Map<String, dynamic> requestData = {
-        'customer_id': userId,
+        'customer_id': customerIdInt ?? userId,
         'task_type_id': _selectedTaskTypeId,
         'title': orderTitle,
         'description': _taskDescriptionController.text.trim(),
@@ -2237,7 +2242,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
       final dynamic locationValue = locationDetails != null
           ? (locationDetails['formatted'] ?? locationDetails['address'])
           : requestData['location'];
-
+      
       // Prepare order data
       Map<String, dynamic> orderData = {
         'id': orderId,
@@ -2377,7 +2382,45 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
 
   Future<String> _getUserId() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('user_id') ?? '1';
+    final cachedId = prefs.getString('user_id');
+    if (cachedId != null && cachedId.isNotEmpty && cachedId != 'null') {
+      return cachedId;
+    }
+
+    final token = prefs.getString('access_token');
+    if (token == null || token.isEmpty) {
+      throw Exception('لم يتم العثور على بيانات تسجيل الدخول. يرجى تسجيل الدخول مرة أخرى.');
+    }
+
+    final headers = Map<String, String>.from(ApiConfig.headers);
+    headers['Authorization'] = 'Bearer $token';
+
+    try {
+      final response = await http
+          .get(Uri.parse(ApiConfig.userProfile), headers: headers)
+          .timeout(const Duration(seconds: 20));
+
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        final data = body['data'] ?? body['user'] ?? body;
+        final dynamic idValue = data is Map<String, dynamic> ? (data['id'] ?? data['user_id']) : null;
+
+        if (idValue != null) {
+          final resolvedId = idValue.toString();
+          await prefs.setString('user_id', resolvedId);
+          return resolvedId;
+        }
+      } else if (response.statusCode == 401) {
+        throw Exception('انتهت جلسة تسجيل الدخول. يرجى تسجيل الدخول مرة أخرى.');
+      }
+
+      throw Exception('تعذر الحصول على بيانات المستخدم من الخادم.');
+    } catch (error) {
+      if (error is TimeoutException) {
+        throw Exception('انتهت مهلة الاتصال أثناء جلب بيانات الحساب.');
+      }
+      rethrow;
+    }
   }
 
   int _getCategoryId(String categoryName) {

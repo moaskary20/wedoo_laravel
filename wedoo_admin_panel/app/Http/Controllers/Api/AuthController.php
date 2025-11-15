@@ -41,6 +41,7 @@ class AuthController extends Controller
                 'city' => $user->city,
                 'district' => $user->district,
                 'membership_code' => $user->membership_code ?? '',
+                'category_id' => $user->category_id,
                 'access_token' => $token,
                 'refresh_token' => $token, // Using same token for refresh
             ],
@@ -56,6 +57,10 @@ class AuthController extends Controller
             'password' => 'required|string|min:8',
             'phone' => 'nullable|string|max:255',
             'user_type' => 'required|in:customer,craftsman',
+            'category_id' => 'nullable|exists:categories,id',
+            'governorate' => 'nullable|string|max:255',
+            'city' => 'nullable|string|max:255',
+            'district' => 'nullable|string|max:255',
         ]);
 
         $user = User::create([
@@ -65,6 +70,10 @@ class AuthController extends Controller
             'phone' => $request->phone,
             'user_type' => $request->user_type,
             'status' => 'active',
+            'category_id' => $request->category_id,
+            'governorate' => $request->governorate,
+            'city' => $request->city,
+            'district' => $request->district,
         ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -79,6 +88,10 @@ class AuthController extends Controller
                     'phone' => $user->phone,
                     'user_type' => $user->user_type,
                     'status' => $user->status,
+                    'governorate' => $user->governorate,
+                    'city' => $user->city,
+                    'district' => $user->district,
+                    'category_id' => $user->category_id,
                 ],
                 'access_token' => $token,
                 'token_type' => 'Bearer'
