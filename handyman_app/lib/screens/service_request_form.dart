@@ -1224,37 +1224,53 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
     
     return ClipRRect(
       borderRadius: BorderRadius.circular(6),
-      child: kIsWeb && _imageBytes.length > index && _imageBytes[index].isNotEmpty
-          ? Image.memory(
-              _imageBytes[index],
-              width: double.infinity,
-              height: double.infinity,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return const Center(
+      child: kIsWeb
+          ? (_imageBytes.length > index && _imageBytes[index].isNotEmpty)
+              ? Image.memory(
+                  _imageBytes[index],
+                  width: double.infinity,
+                  height: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Center(
+                      child: Icon(
+                        Icons.error,
+                        color: Colors.red,
+                        size: 30,
+                      ),
+                    );
+                  },
+                )
+              : const Center(
                   child: Icon(
                     Icons.error,
                     color: Colors.red,
                     size: 30,
                   ),
-                );
-              },
-            )
-          : Image.file(
-              _selectedImages[index],
-              width: double.infinity,
-              height: double.infinity,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return const Center(
+                )
+          : (_selectedImages.length > index && _selectedImages[index].path.isNotEmpty)
+              ? Image.file(
+                  _selectedImages[index],
+                  width: double.infinity,
+                  height: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Center(
+                      child: Icon(
+                        Icons.error,
+                        color: Colors.red,
+                        size: 30,
+                      ),
+                    );
+                  },
+                )
+              : const Center(
                   child: Icon(
                     Icons.error,
                     color: Colors.red,
                     size: 30,
                   ),
-                );
-              },
-            ),
+                ),
     );
   }
 
@@ -1667,9 +1683,6 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
 
       // Start searching for nearby craftsman (async, updates dialog when done)
       _startCraftsmanSearch(requestData);
-      
-      // Simulate saving to user orders
-      await _saveToUserOrders(requestData);
       
       // Stop loading before showing success UI
       if (mounted) {
@@ -2228,99 +2241,6 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
       print('Error loading nearby craftsmen: $e');
     }
     return null;
-  }
-
-  Future<void> _saveToUserOrders(Map<String, dynamic> requestData) async {
-    try {
-      // Simulate saving to user orders
-      await Future.delayed(const Duration(milliseconds: 500));
-      
-      final backendOrder = requestData['backend_order'] as Map<String, dynamic>?;
-      final String orderId = backendOrder?['id']?.toString() ?? 'ORD-${DateTime.now().millisecondsSinceEpoch}';
-      
-      final locationDetails = requestData['location_details'] as Map<String, dynamic>?;
-      final dynamic locationValue = locationDetails != null
-          ? (locationDetails['formatted'] ?? locationDetails['address'])
-          : requestData['location'];
-      
-      // Prepare order data
-      Map<String, dynamic> orderData = {
-        'id': orderId,
-        'service': backendOrder?['title'] ?? widget.categoryName,
-        'description': backendOrder?['description'] ?? requestData['description'] ?? 'طلب خدمة جديد',
-        'location': backendOrder?['location'] ??
-            ((locationValue?.toString().isNotEmpty == true)
-                ? locationValue.toString()
-                : 'الموقع المحفوظ'),
-        'time': 'اليوم',
-        'progress': 'قدم 1',
-        'status': backendOrder?['status'] ?? 'قيد الانتظار',
-        'iconName': _getServiceIconName(widget.categoryName),
-        'serviceType': _getServiceType(widget.categoryName),
-        'created_at': backendOrder?['created_at'] ?? DateTime.now().toIso8601String(),
-        'user_id': await _getUserId(),
-      };
-      
-      // Save to SharedPreferences (simulate database)
-      final prefs = await SharedPreferences.getInstance();
-      List<String> orders = prefs.getStringList('user_orders') ?? [];
-      orders.add(jsonEncode(orderData));
-      await prefs.setStringList('user_orders', orders);
-      
-      print('Order saved to user orders: $orderData');
-      print('Total orders now: ${orders.length}');
-      
-      // Also save to admin panel
-      await _saveToAdminPanel(orderData);
-      
-    } catch (e) {
-      print('Error saving to user orders: $e');
-    }
-  }
-
-  Future<void> _saveToAdminPanel(Map<String, dynamic> orderData) async {
-    try {
-      final adminData = {
-        'order_id': orderData['id'],
-        'user_id': orderData['user_id'],
-        'service': orderData['service'],
-        'description': orderData['description'],
-        'location': orderData['location'],
-        'status': orderData['status'],
-        'created_at': orderData['created_at'],
-        'type': 'service_request',
-      };
-      
-      // Send to admin panel API
-      await _sendOrderToAdminPanel(adminData);
-      
-      // Also save locally for backup
-      final prefs = await SharedPreferences.getInstance();
-      List<String> adminOrders = prefs.getStringList('admin_orders') ?? [];
-      adminOrders.add(jsonEncode(adminData));
-      await prefs.setStringList('admin_orders', adminOrders);
-      
-      print('Order saved to admin panel: $adminData');
-    } catch (e) {
-      print('Error saving to admin panel: $e');
-    }
-  }
-
-  Future<void> _sendOrderToAdminPanel(Map<String, dynamic> orderData) async {
-    try {
-      // Simulate API call to admin panel
-      await Future.delayed(const Duration(seconds: 1));
-      
-      // In real app, this would be an actual HTTP request
-      print('Sending order to admin panel API: $orderData');
-      
-      // Simulate successful response
-      print('Order successfully registered in admin panel');
-      
-    } catch (e) {
-      print('Error sending order to admin panel: $e');
-      throw e;
-    }
   }
 
   IconData _getServiceIcon(String categoryName) {

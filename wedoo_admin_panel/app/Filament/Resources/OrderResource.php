@@ -82,14 +82,16 @@ class OrderResource extends Resource
                 Forms\Components\Select::make('status')
                     ->label('حالة الطلب')
                     ->options([
-                        'pending' => 'في الانتظار',
+                        'awaiting_assignment' => 'جاري قبول الطلب',
+                        'pending' => 'قيد المراجعة',
+                        'waiting_response' => 'بانتظار موافقة الصنايعي',
                         'accepted' => 'مقبول',
                         'in_progress' => 'قيد التنفيذ',
                         'completed' => 'مكتمل',
                         'cancelled' => 'ملغي',
                         'rejected' => 'مرفوض',
                     ])
-                    ->default('pending')
+                    ->default('awaiting_assignment')
                     ->required(),
                 Forms\Components\Textarea::make('notes')
                     ->label('ملاحظات')
@@ -144,7 +146,9 @@ class OrderResource extends Resource
                 Tables\Columns\BadgeColumn::make('status')
                     ->label('الحالة')
                     ->colors([
+                        'warning' => 'awaiting_assignment',
                         'warning' => 'pending',
+                        'info' => 'waiting_response',
                         'success' => 'accepted',
                         'info' => 'in_progress',
                         'success' => 'completed',
@@ -152,7 +156,9 @@ class OrderResource extends Resource
                         'danger' => 'rejected',
                     ])
                     ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'pending' => 'في الانتظار',
+                        'awaiting_assignment' => 'جاري قبول الطلب',
+                        'pending' => 'قيد المراجعة',
+                        'waiting_response' => 'بانتظار موافقة الصنايعي',
                         'accepted' => 'مقبول',
                         'in_progress' => 'قيد التنفيذ',
                         'completed' => 'مكتمل',
@@ -183,7 +189,9 @@ class OrderResource extends Resource
                 Tables\Filters\SelectFilter::make('status')
                     ->label('حالة الطلب')
                     ->options([
-                        'pending' => 'في الانتظار',
+                        'awaiting_assignment' => 'جاري قبول الطلب',
+                        'pending' => 'قيد المراجعة',
+                        'waiting_response' => 'بانتظار موافقة الصنايعي',
                         'accepted' => 'مقبول',
                         'in_progress' => 'قيد التنفيذ',
                         'completed' => 'مكتمل',

@@ -1,12 +1,15 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:handyman_app/l10n/app_localizations.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../config/api_config.dart';
 import 'conversations_screen.dart';
+import '../services/notification_service.dart';
 
 class CraftsmanOrdersScreen extends StatefulWidget {
   const CraftsmanOrdersScreen({super.key});
@@ -19,11 +22,141 @@ class _CraftsmanOrdersScreenState extends State<CraftsmanOrdersScreen> {
   bool _isLoading = false;
   String? _errorMessage;
   List<Map<String, dynamic>> _orders = [];
+  Set<int> _knownOrderIds = {};
+  Timer? _pollingTimer;
+  final NotificationService _notificationService = NotificationService();
 
   @override
   void initState() {
     super.initState();
+    _initializeNotifications();
     _fetchOrders();
+    _startPolling();
+  }
+
+  @override
+  void dispose() {
+    _pollingTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _initializeNotifications() async {
+    await _notificationService.initialize();
+    
+    // Handle notification actions
+    FlutterLocalNotificationsPlugin().initialize(
+      const InitializationSettings(
+        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        iOS: DarwinInitializationSettings(),
+      ),
+      onDidReceiveNotificationResponse: (NotificationResponse response) {
+        _handleNotificationAction(response);
+      },
+    );
+  }
+
+  void _handleNotificationAction(NotificationResponse response) {
+    if (response.payload == null) return;
+    
+    // Extract order ID from payload (format: "order_123")
+    final payload = response.payload!;
+    if (!payload.startsWith('order_')) return;
+    
+    final orderIdStr = payload.replaceFirst('order_', '');
+    final orderId = int.tryParse(orderIdStr);
+    if (orderId == null) return;
+
+    switch (response.actionId) {
+      case 'accept':
+        _respondToOrder(orderId, true);
+        break;
+      case 'reject':
+        _respondToOrder(orderId, false);
+        break;
+      case 'chat':
+        final order = _orders.firstWhere(
+          (o) => o['id'] == orderId,
+          orElse: () => {},
+        );
+        if (order.isNotEmpty) {
+          _openChatWithCustomer(order);
+        }
+        break;
+      default:
+        // If notification is tapped (not an action), refresh and show the order
+        _fetchOrders();
+        // Optionally, you can navigate to the order details
+        break;
+    }
+  }
+
+  void _startPolling() {
+    // Poll every 30 seconds for new orders
+    _pollingTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      if (mounted) {
+        _checkForNewOrders();
+      }
+    });
+  }
+
+  Future<void> _checkForNewOrders() async {
+    try {
+      final headers = await _buildAuthHeaders();
+      if (headers == null) return;
+
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('user_id');
+      if (userId == null || userId.isEmpty) return;
+
+      final uri = Uri.parse(ApiConfig.ordersList).replace(queryParameters: {
+        'craftsman_id': userId,
+      });
+
+      final response = await http.get(uri, headers: headers).timeout(
+        const Duration(seconds: 30),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true) {
+          final List<dynamic> raw = data['data'] ?? [];
+          final newOrders = raw
+              .map<Map<String, dynamic>>((item) => Map<String, dynamic>.from(item))
+              .toList();
+
+          // Check for new orders
+          for (var order in newOrders) {
+            final orderId = order['id'] as int?;
+            if (orderId == null) continue;
+
+            final status = (order['craftsman_status'] ?? order['status'] ?? '').toString();
+            
+            // Show notification for new waiting_response orders
+            if (!_knownOrderIds.contains(orderId) && 
+                (status == 'waiting_response' || status == 'awaiting_assignment')) {
+              _knownOrderIds.add(orderId);
+              
+              // Show notification
+              await _notificationService.showNewOrderNotification(
+                orderId: orderId,
+                title: order['title'] ?? 'طلب جديد',
+                customerName: order['customer_name'] ?? 'عميل',
+                description: order['description'] ?? '',
+              );
+            }
+          }
+
+          // Update orders list
+          if (mounted) {
+            setState(() {
+              _orders = newOrders;
+            });
+          }
+        }
+      }
+    } catch (e) {
+      print('Error checking for new orders: $e');
+    }
   }
 
   Future<Map<String, String>?> _buildAuthHeaders() async {
@@ -72,11 +205,19 @@ class _CraftsmanOrdersScreenState extends State<CraftsmanOrdersScreen> {
       if (response.statusCode == 200) {
         if (data['success'] == true) {
           final List<dynamic> raw = data['data'] ?? [];
+          final orders = raw
+              .map<Map<String, dynamic>>(
+                  (item) => Map<String, dynamic>.from(item))
+              .toList();
+          
+          // Update known order IDs
+          _knownOrderIds = orders
+              .where((o) => o['id'] != null)
+              .map((o) => o['id'] as int)
+              .toSet();
+          
           setState(() {
-            _orders = raw
-                .map<Map<String, dynamic>>(
-                    (item) => Map<String, dynamic>.from(item))
-                .toList();
+            _orders = orders;
           });
         } else {
           setState(() {
@@ -257,19 +398,15 @@ class _CraftsmanOrdersScreenState extends State<CraftsmanOrdersScreen> {
             const SizedBox(height: 12),
             if (waitingResponse) _buildActionButtons(order),
             if (accepted) ...[
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const ConversationsScreen(),
-                    ),
-                  );
-                },
+              ElevatedButton.icon(
+                onPressed: () => _openChatWithCustomer(order),
+                icon: const Icon(Icons.chat, size: 20),
+                label: Text(_localizedText('التحدث مع العميل', 'Parler au client')),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
                   foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),
-                child: Text(_localizedText('افتح المحادثة', 'Ouvrir la discussion')),
               ),
             ],
           ],
@@ -322,6 +459,43 @@ class _CraftsmanOrdersScreenState extends State<CraftsmanOrdersScreen> {
   String _localizedText(String ar, String fr) {
     final locale = Localizations.localeOf(context);
     return locale.languageCode == 'ar' ? ar : fr;
+  }
+
+  void _openChatWithCustomer(Map<String, dynamic> order) {
+    final customerId = order['customer_id'];
+    final customerName = order['customer_name'] ?? _localizedText('العميل', 'Client');
+    final orderId = order['id'];
+    
+    if (customerId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_localizedText('لا يمكن فتح المحادثة: معلومات العميل غير متوفرة', 'Impossible d\'ouvrir la conversation: informations client non disponibles')),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Create conversation data for the customer
+    final conversation = {
+      'id': customerId.toString(),
+      'name': customerName,
+      'service': order['title'] ?? _localizedText('خدمة', 'Service'),
+      'lastMessage': _localizedText('ابدأ المحادثة الآن', 'Commencez la discussion maintenant'),
+      'time': DateTime.now().toString(),
+      'unreadCount': 0,
+      'isOnline': false,
+      'avatar': null,
+      'isSupport': false,
+      'chat_id': order['chat_id'],
+      'craftsman': {
+        'id': customerId,
+        'name': customerName,
+      },
+      'order_id': orderId,
+    };
+
+    openCraftsmanChat(context, conversation);
   }
 }
 
