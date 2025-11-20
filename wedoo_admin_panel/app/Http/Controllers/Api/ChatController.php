@@ -37,25 +37,50 @@ class ChatController extends Controller
 
     public function messages(Request $request)
     {
+        \Log::info('=== Chat messages endpoint called ===', [
+            'url' => $request->fullUrl(),
+            'method' => $request->method(),
+            'query_params' => $request->query(),
+            'has_auth' => $request->user() !== null,
+            'user_id' => $request->user()?->id,
+        ]);
+        
         $user = $request->user();
         
         // For support messages, allow unauthenticated requests with user_id
         if (!$user && $request->has('user_id')) {
             $userId = $request->input('user_id');
             $user = User::find($userId);
+            \Log::info('Support message: Found user by user_id', [
+                'user_id' => $userId,
+                'user_found' => $user !== null,
+            ]);
         }
 
-        $validated = $request->validate([
-            'chat_id' => 'nullable|exists:chats,id',
-            'craftsman_id' => 'nullable|exists:users,id',
-            'customer_id' => 'nullable|exists:users,id',
-            'user_id' => 'nullable|exists:users,id', // For support messages
-            'type' => 'nullable|string', // For support messages
-        ]);
+        try {
+            $validated = $request->validate([
+                'chat_id' => 'nullable|exists:chats,id',
+                'craftsman_id' => 'nullable|exists:users,id',
+                'customer_id' => 'nullable|exists:users,id',
+                'user_id' => 'nullable|exists:users,id', // For support messages
+                'type' => 'nullable|string', // For support messages
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('Validation failed in chat messages', [
+                'errors' => $e->errors(),
+                'request_data' => $request->all(),
+            ]);
+            throw $e;
+        }
 
         // Handle support messages request
         // Check for type=support first, even if chat_id is provided
         if ($request->has('type') && $request->input('type') === 'support') {
+            \Log::info('Routing to getSupportMessages', [
+                'user_id' => $user?->id,
+                'request_user_id' => $request->input('user_id'),
+                'chat_id' => $request->input('chat_id'),
+            ]);
             return $this->getSupportMessages($request, $user);
         }
 
@@ -142,8 +167,20 @@ class ChatController extends Controller
     
     protected function getSupportMessages(Request $request, ?User $user)
     {
+        \Log::info('=== getSupportMessages called ===', [
+            'user_id' => $user?->id,
+            'request_user_id' => $request->input('user_id'),
+            'chat_id' => $request->input('chat_id'),
+            'type' => $request->input('type'),
+        ]);
+        
         $userId = $user?->id ?? $request->input('user_id');
         $chatId = $request->input('chat_id');
+        
+        \Log::info('getSupportMessages: Resolved IDs', [
+            'resolved_user_id' => $userId,
+            'resolved_chat_id' => $chatId,
+        ]);
         
         // If chat_id is provided, use it directly
         if ($chatId) {

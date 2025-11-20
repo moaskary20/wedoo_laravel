@@ -36,6 +36,9 @@ Route::get('/shops/list', [ShopController::class, 'list']);
 Route::get('/shops/show', [ShopController::class, 'show']);
 Route::get('/craftsman/count', [CraftsmanController::class, 'count']);
 
+// Support messages (can be accessed without authentication for initial support chat)
+Route::get('/chat/messages', [ChatController::class, 'messages']);
+
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
     // User routes
@@ -60,7 +63,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // Chat
     Route::get('/craftsman/nearby', [CraftsmanController::class, 'nearby']);
     Route::get('/chat/list', [ChatController::class, 'list']);
-    Route::get('/chat/messages', [ChatController::class, 'messages']);
     Route::post('/chat/send', [ChatController::class, 'send']);
     
     // Promo codes

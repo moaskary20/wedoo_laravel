@@ -704,14 +704,29 @@ class _ChatScreenState extends State<_ChatScreen> {
   }
   
   Future<void> _refreshMessages() async {
-    print('Refreshing messages...');
+    print('=== Refreshing messages ===');
     print('Is support chat: ${widget.conversation['isSupport']}');
     print('Current chat_id: $_chatId');
     
-    if (widget.conversation['isSupport'] == true) {
-      await _loadSupportMessages(keepLastMessage: false); // Don't keep last message when refreshing
-    } else {
-      await _loadRegularMessages(keepOptimisticMessages: true);
+    // Show loading indicator
+    setState(() {
+      _isLoadingMessages = true;
+    });
+    
+    try {
+      if (widget.conversation['isSupport'] == true) {
+        await _loadSupportMessages(keepLastMessage: false); // Don't keep last message when refreshing
+      } else {
+        await _loadRegularMessages(keepOptimisticMessages: true);
+      }
+    } finally {
+      // Hide loading indicator
+      if (mounted) {
+        setState(() {
+          _isLoadingMessages = false;
+        });
+        _scrollToBottom();
+      }
     }
   }
 
@@ -767,17 +782,48 @@ class _ChatScreenState extends State<_ChatScreen> {
         ),
         body: Column(
           children: [
+            // Loading indicator
+            if (_isLoadingMessages)
+              Container(
+                padding: const EdgeInsets.all(8),
+                color: Colors.blue[100],
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'جاري تحميل الرسائل...',
+                      style: TextStyle(
+                        color: Colors.blue[900],
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             // Messages List
             Expanded(
-              child: ListView.builder(
-                controller: _scrollController,
-                padding: const EdgeInsets.all(16),
-                itemCount: _messages.length,
-                itemBuilder: (context, index) {
-                  final message = _messages[index];
-                  return _buildMessageBubble(message);
-                },
-              ),
+              child: _isLoadingMessages && _messages.isEmpty
+                  ? const Center(
+                      child: CircularProgressIndicator(),
+                    )
+                  : ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _messages.length,
+                      itemBuilder: (context, index) {
+                        final message = _messages[index];
+                        return _buildMessageBubble(message);
+                      },
+                    ),
             ),
             
             // Message Input
@@ -1138,7 +1184,17 @@ class _ChatScreenState extends State<_ChatScreen> {
       // Try to load messages from backend
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getString('user_id') ?? '1';
-      final headers = await _buildChatAuthHeaders() ?? ApiConfig.headers;
+      
+      // Build headers with authentication
+      final authHeaders = await _buildChatAuthHeaders();
+      final headers = authHeaders ?? ApiConfig.headers;
+      
+      // Log authentication status
+      if (authHeaders == null) {
+        print('WARNING: No authentication token found, using default headers');
+      } else {
+        print('Using authenticated headers');
+      }
       
       // Save the last message if we need to keep it
       Map<String, dynamic>? lastMessage;
@@ -1158,14 +1214,36 @@ class _ChatScreenState extends State<_ChatScreen> {
         uri = Uri.parse('${ApiConfig.chatMessages}?user_id=$userId&type=support');
       }
       
-      print('Loading support messages from: $uri');
+      print('=== Loading support messages ===');
+      print('URI: $uri');
       print('Chat ID: $chatId');
       print('User ID: $userId');
+      print('Headers: ${headers.keys.toList()}');
       
-      final response = await http.get(uri, headers: headers).timeout(const Duration(seconds: 30));
+      http.Response response;
+      try {
+        print('Sending HTTP GET request...');
+        response = await http.get(uri, headers: headers).timeout(
+          const Duration(seconds: 30),
+          onTimeout: () {
+            print('ERROR: Request timeout after 30 seconds');
+            throw Exception('Request timeout: Failed to load messages from server');
+          },
+        );
+        print('HTTP request completed');
+      } catch (e) {
+        print('ERROR: HTTP request failed: $e');
+        print('Error type: ${e.runtimeType}');
+        rethrow;
+      }
       
-      print('Support messages response status: ${response.statusCode}');
-      print('Support messages response body: ${response.body}');
+      print('=== Response received ===');
+      print('Status Code: ${response.statusCode}');
+      print('Response Headers: ${response.headers}');
+      final responseBodyPreview = response.body.length > 500 
+          ? '${response.body.substring(0, 500)}... (truncated)' 
+          : response.body;
+      print('Response Body: $responseBodyPreview');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -1258,20 +1336,51 @@ class _ChatScreenState extends State<_ChatScreen> {
           _scrollToBottom();
           return;
         } else {
-          print('Response success is false or data is null');
+          print('ERROR: Response success is false or data is null');
           print('Response data: $data');
+          
+          // Show error message to user
+          if (mounted) {
+            final errorMsg = data['message'] ?? 'فشل تحميل الرسائل';
+            _showErrorSnackBar(errorMsg);
+          }
         }
       } else {
-        print('Response status is not 200: ${response.statusCode}');
+        print('ERROR: Response status is not 200: ${response.statusCode}');
         print('Response body: ${response.body}');
+        
+        // Try to parse error message
+        String errorMessage = 'فشل تحميل الرسائل';
+        try {
+          final errorData = jsonDecode(response.body);
+          errorMessage = errorData['message'] ?? errorMessage;
+        } catch (e) {
+          // If parsing fails, use default message
+        }
+        
+        // Show error message to user
+        if (mounted) {
+          _showErrorSnackBar(errorMessage);
+        }
       }
     } catch (e) {
-      print('Error loading support messages: $e');
+      print('EXCEPTION: Error loading support messages: $e');
       print('Stack trace: ${StackTrace.current}');
+      
+      // Show error message to user
+      if (mounted) {
+        String errorMessage = 'خطأ في تحميل الرسائل';
+        if (e.toString().contains('timeout') || e.toString().contains('TimeoutException')) {
+          errorMessage = 'انتهت مهلة الاتصال. يرجى المحاولة مرة أخرى';
+        } else if (e.toString().contains('SocketException') || e.toString().contains('Failed host lookup')) {
+          errorMessage = 'لا يمكن الاتصال بالخادم. تحقق من اتصال الإنترنت';
+        }
+        _showErrorSnackBar(errorMessage);
+      }
     }
     
-    // Fallback: Add default support messages only if list is empty
-    if (_messages.isEmpty) {
+    // Fallback: Add default support messages only if list is empty and no error occurred
+    if (_messages.isEmpty && mounted) {
       final l10n = AppLocalizations.of(context);
       final isRtl = Localizations.localeOf(context).languageCode == 'ar';
       
@@ -1293,6 +1402,10 @@ class _ChatScreenState extends State<_ChatScreen> {
     try {
       final headers = await _buildChatAuthHeaders();
       if (headers == null) {
+        print('ERROR: No authentication headers available for regular messages');
+        if (mounted) {
+          _showErrorSnackBar('يجب تسجيل الدخول أولاً');
+        }
         return;
       }
 
@@ -1314,7 +1427,22 @@ class _ChatScreenState extends State<_ChatScreen> {
       }
 
       final uri = Uri.parse(ApiConfig.chatMessages).replace(queryParameters: params);
-      final response = await http.get(uri, headers: headers).timeout(const Duration(seconds: 30));
+      
+      print('=== Loading regular messages ===');
+      print('URI: $uri');
+      print('Params: $params');
+      print('Headers: ${headers.keys.toList()}');
+      
+      final response = await http.get(uri, headers: headers).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw Exception('Request timeout: Failed to load messages from server');
+        },
+      );
+      
+      print('=== Response received ===');
+      print('Status Code: ${response.statusCode}');
+      print('Response Body: ${response.body.substring(0, response.body.length > 500 ? 500 : response.body.length)}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -1359,13 +1487,42 @@ class _ChatScreenState extends State<_ChatScreen> {
           });
           _scrollToBottom();
         } else {
-          print('Failed to load chat messages: ${data['message']}');
+          print('ERROR: Failed to load chat messages: ${data['message']}');
+          if (mounted) {
+            _showErrorSnackBar(data['message'] ?? 'فشل تحميل الرسائل');
+          }
         }
       } else {
-        print('Failed to load chat messages: ${response.statusCode}');
+        print('ERROR: Failed to load chat messages: ${response.statusCode}');
+        print('Response body: ${response.body}');
+        
+        // Try to parse error message
+        String errorMessage = 'فشل تحميل الرسائل';
+        try {
+          final errorData = jsonDecode(response.body);
+          errorMessage = errorData['message'] ?? errorMessage;
+        } catch (e) {
+          // If parsing fails, use default message
+        }
+        
+        if (mounted) {
+          _showErrorSnackBar(errorMessage);
+        }
       }
     } catch (e) {
-      print('Error loading conversation messages: $e');
+      print('EXCEPTION: Error loading conversation messages: $e');
+      print('Stack trace: ${StackTrace.current}');
+      
+      // Show error message to user
+      if (mounted) {
+        String errorMessage = 'خطأ في تحميل الرسائل';
+        if (e.toString().contains('timeout') || e.toString().contains('TimeoutException')) {
+          errorMessage = 'انتهت مهلة الاتصال. يرجى المحاولة مرة أخرى';
+        } else if (e.toString().contains('SocketException') || e.toString().contains('Failed host lookup')) {
+          errorMessage = 'لا يمكن الاتصال بالخادم. تحقق من اتصال الإنترنت';
+        }
+        _showErrorSnackBar(errorMessage);
+      }
     }
   }
 
