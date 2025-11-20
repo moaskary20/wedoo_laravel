@@ -36,21 +36,23 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
     }
   }
 
+  Future<Map<String, String>?> _buildAuthHeaders() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('access_token');
+    if (token == null || token.isEmpty) return null;
+    final headers = Map<String, String>.from(ApiConfig.headers);
+    headers['Authorization'] = 'Bearer $token';
+    return headers;
+  }
+
   Future<void> _loadOrders() async {
     try {
-      // First, try to load from admin panel
       List<Map<String, dynamic>> orders = await _loadOrdersFromAdminPanel();
-      
-      // If no orders from admin panel, load from local storage
+
       if (orders.isEmpty) {
         orders = await _loadOrdersFromLocalStorage();
       }
-      
-      // If still no orders, add default orders
-      if (orders.isEmpty) {
-        orders = _getDefaultOrders();
-      }
-      
+
       setState(() {
         _orders = orders;
         _isLoading = false;
@@ -65,22 +67,23 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
 
   Future<List<Map<String, dynamic>>> _loadOrdersFromAdminPanel() async {
     try {
-      // Get user ID from shared preferences
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      String? userId = prefs.getString('user_id');
-      
-      if (userId == null) {
-        print('No user ID found, using default');
-        userId = 'user_123'; // Default user ID for demo
+      final prefs = await SharedPreferences.getInstance();
+      final headers = await _buildAuthHeaders();
+      final userId = prefs.getString('user_id');
+
+      if (headers == null) {
+        print('Missing auth headers, cannot load orders from backend');
+        return [];
       }
-      
+
       print('Loading orders from admin panel for user: $userId');
-      
-      // Make actual HTTP request to admin panel
-      final response = await http.get(
-        Uri.parse('${ApiConfig.ordersList}?user_id=$userId'),
-        headers: ApiConfig.headers,
-      ).timeout(const Duration(seconds: 30));
+
+      final uri = Uri.parse(ApiConfig.ordersList).replace(queryParameters: {
+        if (userId != null && userId.isNotEmpty) 'user_id': userId,
+      });
+
+      final response =
+          await http.get(uri, headers: headers).timeout(const Duration(seconds: 30));
       
       print('API Response Status: ${response.statusCode}');
       print('API Response Body: ${response.body}');
@@ -88,9 +91,12 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
       if (response.statusCode == 200) {
         final responseData = jsonDecode(response.body);
         if (responseData['success'] == true) {
-          List<dynamic> orders = responseData['data'] ?? [];
+          final List<dynamic> orders = responseData['data'] ?? [];
           print('Loaded ${orders.length} orders from admin panel');
-          return orders.cast<Map<String, dynamic>>();
+          return orders
+              .map((order) =>
+                  _normalizeBackendOrder(Map<String, dynamic>.from(order)))
+              .toList();
         } else {
           throw Exception(responseData['message'] ?? 'Failed to load orders');
         }
@@ -115,7 +121,9 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
       for (String orderString in ordersList) {
         try {
           final orderData = jsonDecode(orderString);
-          orders.add(Map<String, dynamic>.from(orderData));
+          final map = Map<String, dynamic>.from(orderData);
+          map['source'] = map['source'] ?? 'local';
+          orders.add(map);
         } catch (e) {
           print('Error parsing order: $e');
         }
@@ -130,55 +138,18 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
     }
   }
 
-  List<Map<String, dynamic>> _getDefaultOrders() {
-    return [
-      {
-        'id': '178288',
-        'service': 'نقاش',
-        'description': 'وحدة اقل من 3 غرف',
-        'location': 'المنتزة - الاسكندرية',
-        'time': 'أكثر من شهر',
-        'progress': 'قدم 4',
-        'status': 'قيد الانتظار',
-        'iconName': 'brush',
-        'serviceType': 'painter',
-        'source': 'default',
-      },
-      {
-        'id': '171554',
-        'service': 'كهربائي',
-        'description': 'صيانات خفيفة',
-        'location': 'البيطاش - الاسكندرية',
-        'time': 'أكثر من شهر',
-        'progress': 'قدم 5',
-        'status': 'قيد الانتظار',
-        'iconName': 'electrical_services',
-        'serviceType': 'electrician',
-        'source': 'default',
-      },
-      {
-        'id': '171552',
-        'service': 'سيراميك',
-        'description': 'وحدة اقل من 3 غرف',
-        'location': 'المنتزة - الاسكندرية',
-        'time': 'أكثر من شهر',
-        'progress': 'قدم 3',
-        'status': 'قيد الانتظار',
-        'iconName': 'home_repair_service',
-        'serviceType': 'ceramic',
-        'source': 'default',
-      },
-    ];
-  }
-
   List<Map<String, dynamic>> get _filteredOrders {
     if (_searchController.text.isEmpty) {
       return _orders;
     }
+    final query = _searchController.text.toLowerCase();
     return _orders.where((order) {
-      return order['service'].toLowerCase().contains(_searchController.text.toLowerCase()) ||
-             order['description'].toLowerCase().contains(_searchController.text.toLowerCase()) ||
-             order['location'].toLowerCase().contains(_searchController.text.toLowerCase());
+      final service = (order['service'] ?? '').toString().toLowerCase();
+      final description = (order['description'] ?? '').toString().toLowerCase();
+      final location = (order['location'] ?? '').toString().toLowerCase();
+      return service.contains(query) ||
+          description.contains(query) ||
+          location.contains(query);
     }).toList();
   }
 
@@ -332,13 +303,21 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: filteredOrders.length,
-      itemBuilder: (context, index) {
-        final order = filteredOrders[index];
-        return _buildOrderCard(order);
+    return RefreshIndicator(
+      onRefresh: () async {
+        setState(() {
+          _isLoading = true;
+        });
+        await _loadOrders();
       },
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: filteredOrders.length,
+        itemBuilder: (context, index) {
+          final order = filteredOrders[index];
+          return _buildOrderCard(order);
+        },
+      ),
     );
   }
 
@@ -375,7 +354,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    order['time'],
+                    _getOrderTimeText(order),
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey[600],
@@ -448,6 +427,28 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
           
           const SizedBox(height: 16),
           
+          if (_formatBudgetForDisplay(order) != null) ...[
+            Row(
+              children: [
+                Icon(
+                  Icons.payments,
+                  size: 16,
+                  color: Colors.grey[600],
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  _formatBudgetForDisplay(order)!,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[800],
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
+
           // Bottom row - Progress and Status
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -461,7 +462,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    order['progress'],
+                    _getProgressText(order, l10n),
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey[600],
@@ -476,7 +477,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  order['status'],
+                  _getStatusText(order, l10n),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 12,
@@ -533,9 +534,11 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                 _buildDetailRow('${l10n.service}:', order['service']),
                 _buildDetailRow('${l10n.description}:', order['description']),
                 _buildDetailRow('${l10n.location}:', order['location']),
-                _buildDetailRow('${l10n.time}:', order['time']),
-                _buildDetailRow('${l10n.progress}:', order['progress']),
-                _buildDetailRow('${l10n.status}:', order['status']),
+                _buildDetailRow('${l10n.time}:', _getOrderTimeText(order)),
+                _buildDetailRow('${l10n.progress}:', _getProgressText(order, l10n)),
+                _buildDetailRow('${l10n.status}:', _getStatusText(order, l10n)),
+                if (_formatBudgetForDisplay(order) != null)
+                  _buildDetailRow('${l10n.budget}:', _formatBudgetForDisplay(order)!),
               ],
             ),
             actions: [
@@ -577,6 +580,167 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
         ],
       ),
     );
+  }
+
+  Map<String, dynamic> _normalizeBackendOrder(Map<String, dynamic> raw) {
+    // Read status first (updated by admin), then fallback to craftsman_status
+    final statusKey =
+        (raw['status'] ?? raw['craftsman_status'] ?? 'pending').toString();
+    return {
+      'id': raw['id']?.toString() ?? '',
+      'service': raw['title'] ??
+          raw['task_type_name'] ??
+          raw['task_type'] ??
+          'طلب خدمة',
+      'description': raw['description'] ?? '—',
+      'location': raw['location'] ?? _composeLocation(raw),
+      'time': raw['created_at'],
+      'created_at': raw['created_at'],
+      'progress_key': statusKey,
+      'status_key': statusKey,
+      'iconName': _guessIconName(raw['task_type_name'] ?? ''),
+      'budget_value': raw['budget'],
+      'source': 'backend',
+    };
+  }
+
+  String _composeLocation(Map<String, dynamic> raw) {
+    final parts = <String>[];
+    for (final field in ['district', 'city', 'governorate']) {
+      final value = raw[field];
+      if (value != null && value.toString().trim().isNotEmpty) {
+        parts.add(value.toString().trim());
+      }
+    }
+    return parts.isNotEmpty ? parts.join(' - ') : '—';
+  }
+
+  String _getOrderTimeText(Map<String, dynamic> order) {
+    if (order['source'] == 'default') {
+      return order['time'] ?? '';
+    }
+    final createdAt = order['time'] ?? order['created_at'];
+    if (createdAt is String && createdAt.isNotEmpty) {
+      try {
+        final date = DateTime.parse(createdAt);
+        final now = DateTime.now();
+        if (date.year == now.year &&
+            date.month == now.month &&
+            date.day == now.day) {
+          return _currentLocale.languageCode == 'ar' ? 'اليوم' : 'Aujourd\'hui';
+        }
+        return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+      } catch (_) {
+        return createdAt;
+      }
+    }
+    return '';
+  }
+
+  String _getProgressText(Map<String, dynamic> order, AppLocalizations l10n) {
+    if (order['source'] == 'default') {
+      return order['progress'] ?? '';
+    }
+    final statusKey = (order['progress_key'] ?? '').toString();
+    switch (statusKey) {
+      case 'awaiting_assignment':
+      case 'pending_assignment':
+      case 'pending':
+        return _currentLocale.languageCode == 'ar'
+            ? 'جاري مراجعة الطلب'
+            : 'Commande en cours de validation';
+      case 'waiting_response':
+        return _currentLocale.languageCode == 'ar'
+            ? 'بانتظار موافقة الصنايعي'
+            : 'En attente de l’artisan';
+      case 'accepted':
+      case 'in_progress':
+        return _currentLocale.languageCode == 'ar'
+            ? 'الصنايعي يعمل على طلبك'
+            : 'Artisan en cours d’intervention';
+      case 'completed':
+        return _currentLocale.languageCode == 'ar'
+            ? 'تم تنفيذ الطلب'
+            : 'Commande terminée';
+      case 'rejected':
+        return _currentLocale.languageCode == 'ar'
+            ? 'تم رفض الطلب'
+            : 'Commande refusée';
+      default:
+        return l10n.pending;
+    }
+  }
+
+  String _getStatusText(Map<String, dynamic> order, AppLocalizations l10n) {
+    if (order['source'] == 'default') {
+      return order['status'] ?? l10n.pending;
+    }
+    final statusKey = (order['status_key'] ?? '').toString();
+    switch (statusKey) {
+      case 'pending':
+      case 'pending_assignment':
+      case 'awaiting_assignment':
+        return _currentLocale.languageCode == 'ar'
+            ? 'قيد المراجعة'
+            : 'En attente';
+      case 'waiting_response':
+        return _currentLocale.languageCode == 'ar'
+            ? 'بانتظار الصنايعي'
+            : 'En attente de l’artisan';
+      case 'accepted':
+      case 'in_progress':
+        return _currentLocale.languageCode == 'ar'
+            ? 'جاري التنفيذ'
+            : 'En cours';
+      case 'completed':
+        return _currentLocale.languageCode == 'ar'
+            ? 'مكتمل'
+            : 'Terminée';
+      case 'rejected':
+        return _currentLocale.languageCode == 'ar'
+            ? 'مرفوض'
+            : 'Refusée';
+      default:
+        return l10n.pendingStatus;
+    }
+  }
+
+  String? _formatBudgetForDisplay(Map<String, dynamic> order) {
+    final value = order['budget_value'] ?? order['budget'];
+    if (value == null) return null;
+
+    num? numeric;
+    if (value is num) {
+      numeric = value;
+    } else {
+      numeric = num.tryParse(value.toString());
+    }
+
+    final amount = numeric != null
+        ? (numeric % 1 == 0 ? numeric.toStringAsFixed(0) : numeric.toString())
+        : value.toString();
+    final suffix = _currentLocale.languageCode == 'fr' ? 'DT' : 'د.ت';
+    return '$amount $suffix';
+  }
+
+  String _guessIconName(String serviceName) {
+    final lower = serviceName.toLowerCase();
+    if (lower.contains('كهرب') || lower.contains('elect')) {
+      return 'electrical_services';
+    }
+    if (lower.contains('سباك') || lower.contains('plumb')) {
+      return 'plumbing';
+    }
+    if (lower.contains('نجار') || lower.contains('menuis')) {
+      return 'build';
+    }
+    if (lower.contains('حداد') || lower.contains('metal')) {
+      return 'construction';
+    }
+    if (lower.contains('دهان') || lower.contains('peint')) {
+      return 'brush';
+    }
+    return 'home_repair_service';
   }
 
   Widget _buildFloatingHelpButton() {
