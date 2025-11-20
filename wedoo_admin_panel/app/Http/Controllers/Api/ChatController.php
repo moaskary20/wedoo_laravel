@@ -84,10 +84,25 @@ class ChatController extends Controller
             return $this->getSupportMessages($request, $user);
         }
 
-        if (empty($validated['chat_id']) && empty($validated['craftsman_id'])) {
-            throw ValidationException::withMessages([
-                'chat_id' => 'chat_id or craftsman_id is required',
-            ]);
+        // Check if we have required parameters
+        // For craftsman: need customer_id
+        // For customer: need craftsman_id or chat_id
+        if (empty($validated['chat_id'])) {
+            if ($user->user_type === 'craftsman') {
+                // Craftsman needs customer_id to chat with customer
+                if (empty($validated['customer_id'])) {
+                    throw ValidationException::withMessages([
+                        'customer_id' => 'customer_id is required when craftsman requests messages',
+                    ]);
+                }
+            } else {
+                // Customer needs craftsman_id
+                if (empty($validated['craftsman_id'])) {
+                    throw ValidationException::withMessages([
+                        'craftsman_id' => 'craftsman_id is required when customer requests messages',
+                    ]);
+                }
+            }
         }
 
         if (!empty($validated['craftsman_id'])) {
