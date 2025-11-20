@@ -172,12 +172,17 @@ class ChatController extends Controller
                 );
             } else {
                 // For craftsman, use their ID as craftsman_id
-                $craftsmanId = $user ? $user->id : ($validated['craftsman_id'] ?? null);
-                
-                if (!$craftsmanId) {
-                    throw ValidationException::withMessages([
-                        'craftsman_id' => 'craftsman_id is required',
-                    ]);
+                // If user is craftsman, use their ID; otherwise use craftsman_id from request
+                if ($user && $user->user_type === 'craftsman') {
+                    $craftsmanId = $user->id;
+                } else {
+                    $craftsmanId = $validated['craftsman_id'] ?? null;
+                    
+                    if (!$craftsmanId) {
+                        throw ValidationException::withMessages([
+                            'craftsman_id' => 'craftsman_id is required',
+                        ]);
+                    }
                 }
                 
                 $chat = Chat::firstOrCreate(
