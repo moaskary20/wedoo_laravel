@@ -402,17 +402,24 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
       // Get user data from SharedPreferences
       final prefs = await SharedPreferences.getInstance();
       
+      final userType = prefs.getString('temp_user_type') ?? 'customer';
+      final categoryId = prefs.getInt('temp_user_category_id');
+
       // Prepare registration data
-      final registrationData = {
+      final Map<String, dynamic> registrationData = {
         'name': prefs.getString('temp_user_name') ?? '',
         'phone': prefs.getString('temp_phone_number') ?? '',
         'email': prefs.getString('temp_user_email') ?? '',
         'password': prefs.getString('temp_user_password') ?? '',
-        'user_type': prefs.getString('temp_user_type') ?? 'customer',
+        'user_type': userType,
         'governorate': _selectedGovernorate!,
         'city': _selectedCity!,
         'district': _selectedDistrict!,
       };
+
+      if (userType == 'craftsman' && categoryId != null) {
+        registrationData['category_id'] = categoryId;
+      }
 
       // Debug: Print registration data
       print('Registration Data: $registrationData');
@@ -445,6 +452,17 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
           await prefs.setString('user_area', userData['district'] ?? userData['area'] ?? registrationData['district']);
           await prefs.setString('user_membership_code', userData['membership_code'] ?? userData['code'] ?? '000000');
           await prefs.setString('user_type', userData['user_type'] ?? registrationData['user_type']);
+          int? resolvedCategoryId;
+          if (userData['category_id'] != null) {
+            resolvedCategoryId = userData['category_id'] is int
+                ? userData['category_id']
+                : int.tryParse(userData['category_id'].toString());
+          } else if (categoryId != null) {
+            resolvedCategoryId = categoryId;
+          }
+          if (resolvedCategoryId != null) {
+            await prefs.setInt('user_category_id', resolvedCategoryId);
+          }
           
           // Save tokens if available
           if (userData['access_token'] != null) {
@@ -490,6 +508,30 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
         // Try to parse error message from response
         try {
           final errorData = jsonDecode(response.body);
+          
+          // Handle Laravel validation errors
+          if (errorData['errors'] != null) {
+            final errors = errorData['errors'] as Map<String, dynamic>;
+            String errorMessage = 'فشل التسجيل';
+            
+            // Check for phone error first
+            if (errors['phone'] != null) {
+              errorMessage = (errors['phone'] as List).first.toString();
+            } else if (errors['email'] != null) {
+              errorMessage = (errors['email'] as List).first.toString();
+            } else if (errors['password'] != null) {
+              errorMessage = (errors['password'] as List).first.toString();
+            } else {
+              // Get first error message
+              final firstError = errors.values.first;
+              if (firstError is List && firstError.isNotEmpty) {
+                errorMessage = firstError.first.toString();
+              }
+            }
+            
+            throw Exception(errorMessage);
+          }
+          
           final errorMessage = errorData['message'] ?? errorData['error'] ?? 'فشل التسجيل';
           throw Exception(errorMessage);
         } catch (e) {
@@ -561,6 +603,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
       await prefs.remove('temp_user_password');
       await prefs.remove('temp_user_age_range');
       await prefs.remove('temp_user_type');
+      await prefs.remove('temp_user_category_id');
     } catch (e) {
       print('Error clearing temp data: $e');
     }

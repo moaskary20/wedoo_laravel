@@ -55,12 +55,15 @@ class AuthController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8',
-            'phone' => 'nullable|string|max:255',
+            'phone' => 'required|string|max:255|unique:users,phone',
             'user_type' => 'required|in:customer,craftsman',
             'category_id' => 'nullable|exists:categories,id',
             'governorate' => 'nullable|string|max:255',
             'city' => 'nullable|string|max:255',
             'district' => 'nullable|string|max:255',
+        ], [
+            'phone.required' => 'رقم الهاتف مطلوب',
+            'phone.unique' => 'رقم الهاتف مستخدم بالفعل. يرجى استخدام رقم آخر',
         ]);
 
         $user = User::create([
