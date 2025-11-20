@@ -39,16 +39,24 @@ class ChatController extends Controller
     {
         $user = $request->user();
         
-        // Allow admin to reply to support chats
-        if ($user && $user->user_type === 'admin') {
-            return $this->handleAdminReply($request, $user);
+        // For support messages, allow unauthenticated requests with user_id
+        if (!$user && $request->has('user_id')) {
+            $userId = $request->input('user_id');
+            $user = User::find($userId);
         }
 
         $validated = $request->validate([
             'chat_id' => 'nullable|exists:chats,id',
             'craftsman_id' => 'nullable|exists:users,id',
             'customer_id' => 'nullable|exists:users,id',
+            'user_id' => 'nullable|exists:users,id', // For support messages
+            'type' => 'nullable|string', // For support messages
         ]);
+
+        // Handle support messages request
+        if ($request->has('type') && $request->input('type') === 'support') {
+            return $this->getSupportMessages($request, $user);
+        }
 
         if (empty($validated['chat_id']) && empty($validated['craftsman_id'])) {
             throw ValidationException::withMessages([
@@ -101,19 +109,24 @@ class ChatController extends Controller
             $chat->load(['customer', 'craftsman', 'order']);
         }
 
-        $this->authorizeChat($chat, $user);
+        // Only authorize if user is not admin (admin can access all chats)
+        if ($user && $user->user_type !== 'admin') {
+            $this->authorizeChat($chat, $user);
+        }
 
         $messages = $chat->messages()->orderBy('created_at')->get();
 
-        $chat->messages()
-            ->where('sender_id', '!=', $user->id)
-            ->where('is_read', false)
-            ->update(['is_read' => true, 'read_at' => now()]);
+        if ($user) {
+            $chat->messages()
+                ->where('sender_id', '!=', $user->id)
+                ->where('is_read', false)
+                ->update(['is_read' => true, 'read_at' => now()]);
 
-        if ($user->user_type === 'craftsman') {
-            $chat->update(['craftsman_read' => true]);
-        } else {
-            $chat->update(['customer_read' => true]);
+            if ($user->user_type === 'craftsman') {
+                $chat->update(['craftsman_read' => true]);
+            } else {
+                $chat->update(['customer_read' => true]);
+            }
         }
 
         return response()->json([
@@ -123,6 +136,76 @@ class ChatController extends Controller
                 'messages' => $messages->map(fn (ChatMessage $message) => $this->transformMessage($message, $user)),
             ],
             'message' => 'Chat messages loaded successfully',
+        ]);
+    }
+    
+    protected function getSupportMessages(Request $request, ?User $user)
+    {
+        $userId = $user?->id ?? $request->input('user_id');
+        
+        if (!$userId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User ID is required for support messages',
+            ], 400);
+        }
+
+        // Get admin user for support
+        $adminUser = User::where('user_type', 'admin')->first();
+        if (!$adminUser) {
+            $adminUser = User::firstOrCreate(
+                ['email' => 'support@wedoo.com'],
+                [
+                    'name' => 'Support Team',
+                    'user_type' => 'admin',
+                    'status' => 'active',
+                    'password' => bcrypt('support123'),
+                ]
+            );
+        }
+
+        // Find support chat for this user
+        $chat = Chat::where('customer_id', $userId)
+            ->where('craftsman_id', $adminUser->id)
+            ->first();
+
+        if (!$chat) {
+            // Return empty messages if chat doesn't exist yet
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'chat' => null,
+                    'messages' => [],
+                ],
+                'message' => 'No support chat found',
+            ]);
+        }
+
+        $chat->load(['customer', 'craftsman']);
+        $messages = $chat->messages()->orderBy('created_at')->get();
+
+        \Log::info('Loading support messages', [
+            'chat_id' => $chat->id,
+            'user_id' => $userId,
+            'messages_count' => $messages->count(),
+        ]);
+
+        // Mark messages as read for customer
+        if ($user) {
+            $chat->messages()
+                ->where('sender_id', '!=', $user->id)
+                ->where('is_read', false)
+                ->update(['is_read' => true, 'read_at' => now()]);
+            $chat->update(['customer_read' => true]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'chat' => $this->transformChat($chat, $user),
+                'messages' => $messages->map(fn (ChatMessage $message) => $this->transformMessage($message, $user)),
+            ],
+            'message' => 'Support messages loaded successfully',
         ]);
     }
 
@@ -243,6 +326,11 @@ class ChatController extends Controller
 
     protected function authorizeChat(Chat $chat, User $user): void
     {
+        // Admin can access all chats
+        if ($user->user_type === 'admin') {
+            return;
+        }
+
         if ($user->user_type === 'craftsman' && $chat->craftsman_id !== $user->id) {
             abort(403, 'Unauthorized chat access');
         }
@@ -289,15 +377,17 @@ class ChatController extends Controller
         ];
     }
 
-    protected function transformMessage(ChatMessage $message, User $user): array
+    protected function transformMessage(ChatMessage $message, ?User $user = null): array
     {
         return [
             'id' => $message->id,
             'chat_id' => $message->chat_id,
             'text' => $message->message,
+            'message' => $message->message, // Also include as 'message' for compatibility
             'message_type' => $message->message_type,
-            'is_me' => $message->sender_id === $user->id,
+            'is_me' => $user ? ($message->sender_id === $user->id) : false,
             'sender_id' => $message->sender_id,
+            'sender_type' => $message->sender->user_type ?? 'user', // Add sender type
             'created_at' => $message->created_at?->toIso8601String(),
             'is_read' => $message->is_read,
         ];

@@ -910,7 +910,13 @@ class _ChatScreenState extends State<_ChatScreen> {
           
           // Update chat_id if available
           if (data['data']?['chat']?['id'] != null) {
-            _chatId = data['data']['chat']['id'] as int?;
+            final newChatId = data['data']['chat']['id'];
+            if (newChatId is int) {
+              _chatId = newChatId;
+            } else if (newChatId is String) {
+              _chatId = int.tryParse(newChatId);
+            }
+            print('Updated chat_id to: $_chatId');
           }
           
           // Update the message with backend data if available
@@ -1094,6 +1100,7 @@ class _ChatScreenState extends State<_ChatScreen> {
       setState(() {
         _isLoadingMessages = false;
       });
+      _scrollToBottom();
     }
   }
 
@@ -1114,11 +1121,21 @@ class _ChatScreenState extends State<_ChatScreen> {
       final chatId = _chatId ?? widget.conversation['chat_id'];
       
       // API call to get support messages
-      final uri = chatId != null
-          ? Uri.parse('${ApiConfig.chatMessages}?chat_id=$chatId')
-          : Uri.parse('${ApiConfig.chatMessages}?user_id=$userId&type=support&conversation_id=${widget.conversation['id']}');
+      Uri uri;
+      if (chatId != null) {
+        uri = Uri.parse('${ApiConfig.chatMessages}?chat_id=$chatId');
+      } else {
+        uri = Uri.parse('${ApiConfig.chatMessages}?user_id=$userId&type=support');
+      }
+      
+      print('Loading support messages from: $uri');
+      print('Chat ID: $chatId');
+      print('User ID: $userId');
       
       final response = await http.get(uri, headers: headers).timeout(const Duration(seconds: 30));
+      
+      print('Support messages response status: ${response.statusCode}');
+      print('Support messages response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -1128,29 +1145,54 @@ class _ChatScreenState extends State<_ChatScreen> {
           
           // Update chat_id if available
           if (messagesData['chat']?['id'] != null) {
-            _chatId = messagesData['chat']['id'] as int?;
+            final newChatId = messagesData['chat']['id'];
+            if (newChatId is int) {
+              _chatId = newChatId;
+            } else if (newChatId is String) {
+              _chatId = int.tryParse(newChatId);
+            }
+            print('Updated chat_id to: $_chatId');
           }
           
           // Get existing message IDs to avoid duplicates
           final existingIds = _messages.map((m) => m['id']).toSet();
+          print('Existing message IDs: $existingIds');
+          print('New messages count: ${messages.length}');
           
           setState(() {
-            // Add new messages that don't exist yet
+            // Clear and reload all messages to ensure we have the latest
+            // This ensures admin replies are included
+            final allMessages = <Map<String, dynamic>>[];
+            
+            // Add all messages from backend
             for (var msg in messages) {
-              final msgId = msg['id'];
-              if (!existingIds.contains(msgId)) {
-                _messages.add({
-                  'id': msgId,
-                  'text': msg['message'] ?? msg['text'],
-                  'isMe': msg['sender_id']?.toString() == userId || msg['sender_type'] == 'user' || msg['is_me'] == true,
-                  'time': msg['created_at'] ?? DateTime.now().toString(),
-                  'type': msg['message_type'] ?? 'text',
-                });
+              final msgSenderId = msg['sender_id']?.toString();
+              final isMe = msgSenderId == userId || 
+                          msg['is_me'] == true || 
+                          msg['sender_type'] == 'user' ||
+                          msg['sender_type'] == 'customer';
+              
+              allMessages.add({
+                'id': msg['id'],
+                'text': msg['message'] ?? msg['text'],
+                'isMe': isMe,
+                'time': msg['created_at'] ?? DateTime.now().toString(),
+                'type': msg['message_type'] ?? 'text',
+                'sender_id': msgSenderId, // Keep for debugging
+              });
+            }
+            
+            // If we need to keep the last message and it's not in the backend response, add it back
+            if (keepLastMessage && lastMessage != null) {
+              final lastMessageId = lastMessage['id'];
+              final messageExists = allMessages.any((msg) => msg['id'] == lastMessageId);
+              if (!messageExists) {
+                allMessages.add(lastMessage);
               }
             }
             
             // Sort messages by time
-            _messages.sort((a, b) {
+            allMessages.sort((a, b) {
               try {
                 final timeA = DateTime.parse(a['time'] ?? DateTime.now().toString());
                 final timeB = DateTime.parse(b['time'] ?? DateTime.now().toString());
@@ -1160,14 +1202,8 @@ class _ChatScreenState extends State<_ChatScreen> {
               }
             });
             
-            // If we need to keep the last message and it's not in the backend response, add it back
-            if (keepLastMessage && lastMessage != null) {
-              final lastMessageId = lastMessage['id'];
-              final messageExists = _messages.any((msg) => msg['id'] == lastMessageId);
-              if (!messageExists) {
-                _messages.add(lastMessage);
-              }
-            }
+            print('Loaded ${allMessages.length} messages total');
+            _messages = allMessages;
           });
           _scrollToBottom();
           return;

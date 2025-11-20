@@ -37,18 +37,35 @@ class ViewChat extends ViewRecord
                     $chat = $this->record;
                     $adminUser = Auth::user();
                     
-                    // Get the other party (customer or craftsman)
-                    $recipientId = $adminUser->id === $chat->craftsman_id 
-                        ? $chat->customer_id 
-                        : $chat->craftsman_id;
-                    
-                    // If admin is not in the chat, use craftsman_id as admin
-                    if ($adminUser->user_type === 'admin') {
-                        // Admin can reply to support chats
-                        $senderId = $chat->craftsman_id; // Admin user ID
-                    } else {
-                        $senderId = $adminUser->id;
+                    if (!$adminUser) {
+                        Notification::make()
+                            ->title('خطأ')
+                            ->body('يجب تسجيل الدخول أولاً')
+                            ->danger()
+                            ->send();
+                        return;
                     }
+
+                    // Determine sender ID
+                    // If admin is the craftsman in the chat, use admin's ID
+                    // Otherwise, if admin is replying to support chat, use craftsman_id (which should be admin)
+                    $senderId = $adminUser->id;
+                    
+                    // For support chats, the admin is usually the craftsman
+                    // But if admin is not in the chat, we need to use the craftsman_id
+                    if ($adminUser->user_type === 'admin' && $chat->craftsman_id !== $adminUser->id) {
+                        // Admin is replying to a chat where they're not the craftsman
+                        // This shouldn't happen for support chats, but handle it
+                        $senderId = $chat->craftsman_id;
+                    }
+
+                    \Log::info('Admin replying to chat', [
+                        'admin_id' => $adminUser->id,
+                        'chat_id' => $chat->id,
+                        'sender_id' => $senderId,
+                        'craftsman_id' => $chat->craftsman_id,
+                        'customer_id' => $chat->customer_id,
+                    ]);
 
                     $message = ChatMessage::create([
                         'chat_id' => $chat->id,
@@ -63,6 +80,11 @@ class ViewChat extends ViewRecord
                     $chat->craftsman_read = true;
                     $chat->customer_read = false;
                     $chat->save();
+
+                    \Log::info('Admin reply saved', [
+                        'message_id' => $message->id,
+                        'chat_id' => $chat->id,
+                    ]);
 
                     Notification::make()
                         ->title('تم إرسال الرد بنجاح')
