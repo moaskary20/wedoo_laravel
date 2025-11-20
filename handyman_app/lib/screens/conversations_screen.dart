@@ -668,8 +668,26 @@ class _ChatScreenState extends State<_ChatScreen> {
   @override
   void initState() {
     super.initState();
+    _initializeChat();
+  }
+  
+  Future<void> _initializeChat() async {
+    // Try to get chat_id from conversation first
     _chatId = widget.conversation['chat_id'] as int?;
-    _loadMessages(); // This will call _loadSupportMessages or _loadRegularMessages
+    
+    // If no chat_id in conversation and this is a support chat, try to load from SharedPreferences
+    if (_chatId == null && widget.conversation['isSupport'] == true) {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('user_id') ?? '1';
+      final savedChatId = prefs.getInt('support_chat_id_$userId');
+      if (savedChatId != null) {
+        _chatId = savedChatId;
+        print('Loaded chat_id from SharedPreferences: $_chatId');
+      }
+    }
+    
+    // Load messages
+    await _loadMessages();
     
     // Set up periodic refresh to get new messages from backend
     _startMessagePolling();
@@ -912,13 +930,20 @@ class _ChatScreenState extends State<_ChatScreen> {
           print('Message ID: ${data['data']?['message']?['id']}');
           print('Chat ID: ${data['data']?['chat']?['id']}');
           
-          // Update chat_id if available
+          // Update chat_id if available and save to SharedPreferences
           if (data['data']?['chat']?['id'] != null) {
             final newChatId = data['data']['chat']['id'];
             if (newChatId is int) {
               _chatId = newChatId;
             } else if (newChatId is String) {
               _chatId = int.tryParse(newChatId);
+            }
+            
+            // Save chat_id to SharedPreferences for future use
+            if (_chatId != null) {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setInt('support_chat_id_$userId', _chatId!);
+              print('Saved chat_id to SharedPreferences: $_chatId');
             }
             print('Updated chat_id to: $_chatId');
           }
@@ -1156,13 +1181,20 @@ class _ChatScreenState extends State<_ChatScreen> {
             print('Last message: ${messages.last}');
           }
           
-          // Update chat_id if available
+          // Update chat_id if available and save to SharedPreferences
           if (messagesData['chat']?['id'] != null) {
             final newChatId = messagesData['chat']['id'];
             if (newChatId is int) {
               _chatId = newChatId;
             } else if (newChatId is String) {
               _chatId = int.tryParse(newChatId);
+            }
+            
+            // Save chat_id to SharedPreferences for future use
+            if (_chatId != null) {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setInt('support_chat_id_$userId', _chatId!);
+              print('Saved chat_id to SharedPreferences: $_chatId');
             }
             print('Updated chat_id to: $_chatId');
           }
@@ -1180,10 +1212,13 @@ class _ChatScreenState extends State<_ChatScreen> {
             // Add all messages from backend
             for (var msg in messages) {
               final msgSenderId = msg['sender_id']?.toString();
+              final senderType = msg['sender_type']?.toString() ?? '';
               final isMe = msgSenderId == userId || 
                           msg['is_me'] == true || 
-                          msg['sender_type'] == 'user' ||
-                          msg['sender_type'] == 'customer';
+                          senderType == 'user' ||
+                          senderType == 'customer';
+              
+              print('Processing message: id=${msg['id']}, sender_id=$msgSenderId, sender_type=$senderType, is_me=${msg['is_me']}, isMe=$isMe, text=${(msg['message'] ?? msg['text'] ?? '').toString().substring(0, (msg['message'] ?? msg['text'] ?? '').toString().length > 30 ? 30 : (msg['message'] ?? msg['text'] ?? '').toString().length)}');
               
               allMessages.add({
                 'id': msg['id'],
@@ -1192,6 +1227,7 @@ class _ChatScreenState extends State<_ChatScreen> {
                 'time': msg['created_at'] ?? DateTime.now().toString(),
                 'type': msg['message_type'] ?? 'text',
                 'sender_id': msgSenderId, // Keep for debugging
+                'sender_type': senderType, // Keep for debugging
               });
             }
             
@@ -1285,8 +1321,22 @@ class _ChatScreenState extends State<_ChatScreen> {
         if (data['success'] == true) {
           final chatData = data['data'];
           final List<dynamic> messages = chatData['messages'] ?? [];
+          
+          // Update chat_id if available and save to SharedPreferences
+          final newChatId = chatData['chat']?['id'] as int?;
+          if (newChatId != null) {
+            _chatId = newChatId;
+            // Save chat_id for regular chats too (using craftsman_id as key)
+            final prefs = await SharedPreferences.getInstance();
+            final craftsman = widget.conversation['craftsman'];
+            final craftsmanId = craftsman?['id'] ?? widget.conversation['id'];
+            if (craftsmanId != null) {
+              await prefs.setInt('chat_id_$craftsmanId', newChatId);
+              print('Saved regular chat_id to SharedPreferences: $newChatId');
+            }
+          }
+          
           setState(() {
-            _chatId = chatData['chat']?['id'] as int?;
             _messages.clear();
             _messages.addAll(messages.map((msg) => {
                   'id': msg['id'],
@@ -1349,6 +1399,17 @@ class _ChatScreenState extends State<_ChatScreen> {
 
   Future<Map<String, String>?> _buildChatAuthHeaders() async {
     return _getAuthHeaders();
+  }
+  
+  Future<void> _saveChatId(int chatId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('user_id') ?? '1';
+      await prefs.setInt('support_chat_id_$userId', chatId);
+      print('Saved chat_id to SharedPreferences: $chatId');
+    } catch (e) {
+      print('Error saving chat_id: $e');
+    }
   }
 }
 

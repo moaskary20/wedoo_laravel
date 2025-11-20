@@ -157,8 +157,14 @@ class ChatController extends Controller
             }
             
             // Verify this is a support chat (craftsman is admin)
-            $adminUser = User::where('user_type', 'admin')->first();
-            if (!$adminUser || $chat->craftsman_id !== $adminUser->id) {
+            // Check if craftsman is an admin (not just the first admin)
+            $craftsman = $chat->craftsman;
+            if (!$craftsman || $craftsman->user_type !== 'admin') {
+                \Log::warning('Support messages: Chat is not a support chat', [
+                    'chat_id' => $chatId,
+                    'craftsman_id' => $chat->craftsman_id,
+                    'craftsman_type' => $craftsman?->user_type,
+                ]);
                 return response()->json([
                     'success' => false,
                     'message' => 'This is not a support chat',
@@ -170,6 +176,15 @@ class ChatController extends Controller
             \Log::info('Loading support messages by chat_id', [
                 'chat_id' => $chatId,
                 'messages_count' => $messages->count(),
+                'user_id' => $userId,
+                'messages' => $messages->map(function ($msg) {
+                    return [
+                        'id' => $msg->id,
+                        'sender_id' => $msg->sender_id,
+                        'message' => substr($msg->message, 0, 50),
+                        'created_at' => $msg->created_at,
+                    ];
+                })->toArray(),
             ]);
             
             // Mark messages as read for customer

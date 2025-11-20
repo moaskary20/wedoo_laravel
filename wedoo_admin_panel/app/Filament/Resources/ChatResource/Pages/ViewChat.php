@@ -47,15 +47,23 @@ class ViewChat extends ViewRecord
                     }
 
                     // Determine sender ID
-                    // If admin is the craftsman in the chat, use admin's ID
-                    // Otherwise, if admin is replying to support chat, use craftsman_id (which should be admin)
+                    // For support chats, always use the admin's ID as sender
+                    // The craftsman_id in support chats is the admin who created the chat
+                    // But any admin can reply, so we use the current admin's ID
                     $senderId = $adminUser->id;
                     
-                    // For support chats, the admin is usually the craftsman
-                    // But if admin is not in the chat, we need to use the craftsman_id
-                    if ($adminUser->user_type === 'admin' && $chat->craftsman_id !== $adminUser->id) {
-                        // Admin is replying to a chat where they're not the craftsman
-                        // This shouldn't happen for support chats, but handle it
+                    // For support chats, if the craftsman is an admin, we can use the current admin's ID
+                    // This allows any admin to reply to support chats
+                    $isSupportChat = $chat->craftsman && $chat->craftsman->user_type === 'admin';
+                    
+                    if ($isSupportChat) {
+                        // For support chats, use the current admin's ID
+                        $senderId = $adminUser->id;
+                    } else if ($chat->craftsman_id === $adminUser->id) {
+                        // If admin is the craftsman in a regular chat, use admin's ID
+                        $senderId = $adminUser->id;
+                    } else {
+                        // Fallback: use craftsman_id (shouldn't happen for support chats)
                         $senderId = $chat->craftsman_id;
                     }
 
@@ -84,6 +92,19 @@ class ViewChat extends ViewRecord
                     \Log::info('Admin reply saved', [
                         'message_id' => $message->id,
                         'chat_id' => $chat->id,
+                        'sender_id' => $senderId,
+                        'admin_id' => $adminUser->id,
+                        'craftsman_id' => $chat->craftsman_id,
+                        'customer_id' => $chat->customer_id,
+                        'message_preview' => substr($data['message'], 0, 50),
+                    ]);
+                    
+                    // Verify message was saved
+                    $savedMessage = ChatMessage::find($message->id);
+                    \Log::info('Verifying saved message', [
+                        'message_exists' => $savedMessage !== null,
+                        'message_sender_id' => $savedMessage?->sender_id,
+                        'message_chat_id' => $savedMessage?->chat_id,
                     ]);
 
                     Notification::make()
