@@ -43,9 +43,16 @@ class ChatController extends Controller
             'query_params' => $request->query(),
             'has_auth' => $request->user() !== null,
             'user_id' => $request->user()?->id,
+            'authorization_header' => $request->header('Authorization') ? 'present' : 'missing',
         ]);
         
         $user = $request->user();
+        
+        \Log::info('User from request', [
+            'user_id' => $user?->id,
+            'user_type' => $user?->user_type,
+            'user_exists' => $user !== null,
+        ]);
         
         // For support messages, allow unauthenticated requests with user_id
         if (!$user && $request->has('user_id')) {
@@ -173,15 +180,40 @@ class ChatController extends Controller
             } else {
                 // For craftsman, use their ID as craftsman_id
                 // If user is craftsman, use their ID; otherwise use craftsman_id from request
+                \Log::info('Creating chat for craftsman', [
+                    'user_id' => $user?->id,
+                    'user_type' => $user?->user_type,
+                    'customer_id' => $customerId,
+                    'craftsman_id_from_request' => $validated['craftsman_id'] ?? null,
+                ]);
+                
                 if ($user && $user->user_type === 'craftsman') {
                     $craftsmanId = $user->id;
+                    \Log::info('Using craftsman user ID', ['craftsman_id' => $craftsmanId]);
                 } else {
+                    // If no user or user is not craftsman, try to get craftsman_id from request
                     $craftsmanId = $validated['craftsman_id'] ?? null;
                     
+                    // If user is null but we have customer_id, this might mean the user is not authenticated
+                    // In this case, we need craftsman_id from the request
                     if (!$craftsmanId) {
-                        throw ValidationException::withMessages([
-                            'craftsman_id' => 'craftsman_id is required',
+                        \Log::warning('craftsman_id is missing', [
+                            'user' => $user ? 'exists' : 'null',
+                            'user_type' => $user?->user_type,
+                            'customer_id' => $customerId,
+                            'validated' => $validated,
                         ]);
+                        
+                        // If user is null, they need to authenticate or provide craftsman_id
+                        if (!$user) {
+                            throw ValidationException::withMessages([
+                                'craftsman_id' => 'craftsman_id is required when user is not authenticated. Please authenticate or provide craftsman_id.',
+                            ]);
+                        } else {
+                            throw ValidationException::withMessages([
+                                'craftsman_id' => 'craftsman_id is required when user is not a craftsman',
+                            ]);
+                        }
                     }
                 }
                 
@@ -194,6 +226,12 @@ class ChatController extends Controller
                         'status' => 'active',
                     ]
                 );
+                
+                \Log::info('Chat created/found', [
+                    'chat_id' => $chat->id,
+                    'customer_id' => $chat->customer_id,
+                    'craftsman_id' => $chat->craftsman_id,
+                ]);
             }
 
             // Load relationships safely
