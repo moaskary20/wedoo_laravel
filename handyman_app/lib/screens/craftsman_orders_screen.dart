@@ -31,10 +31,12 @@ class _CraftsmanOrdersScreenState extends State<CraftsmanOrdersScreen> {
     super.initState();
     _initializeNotifications();
     _fetchOrders();
-    // Start polling after a short delay to allow initial load
-    Future.delayed(const Duration(seconds: 2), () {
+    // Start polling immediately and also after a short delay
+    _startPolling();
+    // Also check immediately after a short delay
+    Future.delayed(const Duration(seconds: 3), () {
       if (mounted) {
-        _startPolling();
+        _checkForNewOrders();
       }
     });
   }

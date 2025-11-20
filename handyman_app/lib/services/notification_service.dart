@@ -57,8 +57,17 @@ class NotificationService {
         AndroidFlutterLocalNotificationsPlugin>();
     
     if (androidPlugin != null) {
-      await androidPlugin.requestNotificationsPermission();
-      await androidPlugin.requestExactAlarmsPermission();
+      // Request notification permission (required for Android 13+)
+      final granted = await androidPlugin.requestNotificationsPermission();
+      print('Notification permission granted: $granted');
+      
+      // Request exact alarms permission (for scheduling notifications)
+      try {
+        await androidPlugin.requestExactAlarmsPermission();
+      } catch (e) {
+        print('Exact alarms permission error: $e');
+        // This is optional, continue even if it fails
+      }
     }
 
     // iOS permissions are requested automatically through DarwinInitializationSettings
@@ -78,18 +87,24 @@ class NotificationService {
   }) async {
     await initialize();
 
-    // Sound will be played automatically by the notification system
+    print('=== Showing notification ===');
+    print('Order ID: $orderId');
+    print('Title: $title');
+    print('Customer: $customerName');
 
+    // Use default notification sound (system default)
     const androidDetails = AndroidNotificationDetails(
-      'new_orders',
-      'طلبات جديدة',
+      'new_orders', // Channel ID - must match the channel created in initialize()
+      'طلبات جديدة', // Channel name
       channelDescription: 'إشعارات الطلبات الجديدة للصنايعيين',
-      importance: Importance.high,
-      priority: Priority.high,
-      playSound: true,
-      enableVibration: true,
-      // Use default system sound (no custom sound file needed)
+      importance: Importance.high, // High importance for sound and heads-up display
+      priority: Priority.high, // High priority for immediate display
+      playSound: true, // Enable sound
+      enableVibration: true, // Enable vibration
+      // Use default system notification sound (no custom sound file needed)
       category: AndroidNotificationCategory.message,
+      showWhen: true,
+      when: DateTime.now().millisecondsSinceEpoch,
       actions: [
         AndroidNotificationAction(
           'accept',
@@ -122,13 +137,20 @@ class NotificationService {
       iOS: iosDetails,
     );
 
-    await _notifications.show(
-      orderId,
-      'طلب جديد من $customerName',
-      title,
-      details,
-      payload: 'order_$orderId',
-    );
+    try {
+      await _notifications.show(
+        orderId,
+        'طلب جديد من $customerName',
+        title,
+        details,
+        payload: 'order_$orderId',
+      );
+      print('✓ Notification displayed successfully');
+    } catch (e) {
+      print('✗ Error displaying notification: $e');
+      print('Stack trace: ${StackTrace.current}');
+      rethrow;
+    }
   }
 
   Future<void> cancelNotification(int id) async {

@@ -494,18 +494,42 @@ class ChatController extends Controller
 
     protected function transformChat(Chat $chat, ?User $user = null): array
     {
+        // Safely get customer and craftsman without triggering errors
+        $customer = null;
+        $craftsman = null;
+        
+        try {
+            $customer = $chat->customer;
+        } catch (\Exception $e) {
+            \Log::warning('Customer not found for chat', [
+                'chat_id' => $chat->id,
+                'customer_id' => $chat->customer_id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+        
+        try {
+            $craftsman = $chat->craftsman;
+        } catch (\Exception $e) {
+            \Log::warning('Craftsman not found for chat', [
+                'chat_id' => $chat->id,
+                'craftsman_id' => $chat->craftsman_id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+        
         $otherParty = null;
         if ($user) {
             $otherParty = $user->user_type === 'craftsman'
-                ? $chat->customer
-                : $chat->craftsman;
+                ? $customer
+                : $craftsman;
         } else {
             // If no user, determine other party based on chat context
             // For support chats, the other party is the admin (craftsman)
-            if ($chat->craftsman && $chat->craftsman->user_type === 'admin') {
-                $otherParty = $chat->craftsman;
+            if ($craftsman && $craftsman->user_type === 'admin') {
+                $otherParty = $craftsman;
             } else {
-                $otherParty = $chat->craftsman ?? $chat->customer;
+                $otherParty = $craftsman ?? $customer;
             }
         }
 
@@ -529,16 +553,16 @@ class ChatController extends Controller
             'last_message' => $chat->last_message,
             'last_message_at' => optional($chat->last_message_at)->toIso8601String(),
             'unread_count' => $unreadCount,
-            'customer' => $chat->customer ? [
-                'id' => $chat->customer->id,
-                'name' => $chat->customer->name,
-                'phone' => $chat->customer->phone,
+            'customer' => $customer ? [
+                'id' => $customer->id,
+                'name' => $customer->name,
+                'phone' => $customer->phone,
             ] : null,
-            'craftsman' => $chat->craftsman ? [
-                'id' => $chat->craftsman->id,
-                'name' => $chat->craftsman->name,
-                'phone' => $chat->craftsman->phone,
-                'category_id' => $chat->craftsman->category_id,
+            'craftsman' => $craftsman ? [
+                'id' => $craftsman->id,
+                'name' => $craftsman->name,
+                'phone' => $craftsman->phone,
+                'category_id' => $craftsman->category_id,
             ] : null,
             'order' => $chat->order ? [
                 'id' => $chat->order->id,
@@ -550,6 +574,23 @@ class ChatController extends Controller
 
     protected function transformMessage(ChatMessage $message, ?User $user = null): array
     {
+        // Safely get sender without triggering errors
+        $sender = null;
+        $senderType = 'user';
+        
+        try {
+            $sender = $message->sender;
+            if ($sender) {
+                $senderType = $sender->user_type ?? 'user';
+            }
+        } catch (\Exception $e) {
+            \Log::warning('Sender not found for message', [
+                'message_id' => $message->id,
+                'sender_id' => $message->sender_id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+        
         return [
             'id' => $message->id,
             'chat_id' => $message->chat_id,
@@ -558,7 +599,7 @@ class ChatController extends Controller
             'message_type' => $message->message_type,
             'is_me' => $user ? ($message->sender_id === $user->id) : false,
             'sender_id' => $message->sender_id,
-            'sender_type' => $message->sender->user_type ?? 'user', // Add sender type
+            'sender_type' => $senderType,
             'created_at' => $message->created_at?->toIso8601String(),
             'is_read' => $message->is_read,
         ];
