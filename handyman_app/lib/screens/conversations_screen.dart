@@ -661,7 +661,7 @@ class _ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<_ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final List<Map<String, dynamic>> _messages = [];
+  List<Map<String, dynamic>> _messages = [];
   int? _chatId;
   bool _isLoadingMessages = false;
 
