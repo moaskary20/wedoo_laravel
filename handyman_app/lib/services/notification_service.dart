@@ -12,14 +12,16 @@ class NotificationService {
   Future<void> initialize() async {
     if (_initialized) return;
 
-    // Create notification channel for Android
+    // Create notification channel for Android with sound enabled
     const androidChannel = AndroidNotificationChannel(
       'new_orders',
       'طلبات جديدة',
       description: 'إشعارات الطلبات الجديدة للصنايعيين',
-      importance: Importance.high,
-      playSound: true,
-      enableVibration: true,
+      importance: Importance.high, // High importance ensures sound and heads-up display
+      playSound: true, // Enable sound
+      enableVibration: true, // Enable vibration
+      // Use default system notification sound (no custom sound file needed)
+      showBadge: true, // Show badge on app icon
     );
 
     final androidPlugin = _notifications.resolvePlatformSpecificImplementation<
@@ -93,7 +95,8 @@ class NotificationService {
     print('Customer: $customerName');
 
     // Use default notification sound (system default)
-    const androidDetails = AndroidNotificationDetails(
+    // Note: Cannot use const because 'when' requires a runtime value
+    final androidDetails = AndroidNotificationDetails(
       'new_orders', // Channel ID - must match the channel created in initialize()
       'طلبات جديدة', // Channel name
       channelDescription: 'إشعارات الطلبات الجديدة للصنايعيين',
@@ -105,6 +108,17 @@ class NotificationService {
       category: AndroidNotificationCategory.message,
       showWhen: true,
       when: DateTime.now().millisecondsSinceEpoch,
+      styleInformation: BigTextStyleInformation(
+        title, // Title text
+        contentTitle: 'طلب جديد من $customerName', // Notification title
+        summaryText: description.isNotEmpty ? description : 'اضغط للعرض', // Summary text
+        htmlFormatTitle: true,
+        htmlFormatContent: true,
+      ),
+      fullScreenIntent: false, // Don't show as full screen
+      autoCancel: true, // Auto cancel when tapped
+      ongoing: false, // Not ongoing
+      ticker: 'طلب جديد من $customerName', // Ticker text for status bar
       actions: [
         AndroidNotificationAction(
           'accept',
@@ -132,7 +146,7 @@ class NotificationService {
       categoryIdentifier: 'new_orders',
     );
 
-    const details = NotificationDetails(
+    final details = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
     );

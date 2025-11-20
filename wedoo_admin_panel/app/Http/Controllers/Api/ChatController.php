@@ -91,9 +91,18 @@ class ChatController extends Controller
         }
 
         if (!empty($validated['craftsman_id'])) {
-            $craftsman = User::where('id', $validated['craftsman_id'])
-                ->where('user_type', 'craftsman')
-                ->firstOrFail();
+            // Only try to find craftsman if user is not a craftsman (i.e., customer requesting messages)
+            // If user is craftsman, they should provide customer_id instead
+            if ($user->user_type !== 'craftsman') {
+                $craftsman = User::where('id', $validated['craftsman_id'])
+                    ->where('user_type', 'craftsman')
+                    ->first();
+                if (!$craftsman) {
+                    throw ValidationException::withMessages([
+                        'craftsman_id' => 'Craftsman not found',
+                    ]);
+                }
+            }
         }
 
         if (!empty($validated['chat_id'])) {

@@ -629,7 +629,7 @@ Future<void> openCraftsmanChat(
   final conversation = {
     'id': craftsman['id']?.toString() ?? 'craftsman_${DateTime.now().millisecondsSinceEpoch}',
     'name': craftsman['name'] ?? (isRtl ? 'صنايعي' : 'Artisan'),
-    'service': craftsman['specialization'] ?? (isRtl ? 'خدمة حرفية' : 'Service artisanale'),
+    'service': craftsman['specialization'] ?? craftsman['service'] ?? (isRtl ? 'خدمة حرفية' : 'Service artisanale'),
     'lastMessage': isRtl ? 'ابدأ المحادثة الآن' : 'Commencez la discussion maintenant',
     'time': DateTime.now().toString(),
     'unreadCount': 0,
@@ -638,6 +638,10 @@ Future<void> openCraftsmanChat(
     'isSupport': false,
     'chat_id': craftsman['chat_id'],
     'craftsman': craftsman,
+    // Copy customer_id and craftsman_id if they exist (for craftsman-customer chats)
+    if (craftsman['customer_id'] != null) 'customer_id': craftsman['customer_id'],
+    if (craftsman['craftsman_id'] != null) 'craftsman_id': craftsman['craftsman_id'],
+    if (craftsman['order_id'] != null) 'order_id': craftsman['order_id'],
   };
 
   Navigator.of(context).push(
@@ -1431,17 +1435,23 @@ class _ChatScreenState extends State<_ChatScreen> {
       final params = <String, String>{};
       if (_chatId != null) {
         params['chat_id'] = _chatId.toString();
+        print('Using chat_id: $_chatId');
       } else {
         // Check if we have customer_id (when craftsman is chatting with customer)
         final customerId = widget.conversation['customer_id'];
+        print('Conversation data: ${widget.conversation.keys.toList()}');
+        print('customer_id in conversation: $customerId');
+        
         if (customerId != null) {
           params['customer_id'] = customerId.toString();
+          print('Using customer_id: $customerId');
         } else {
           // Fallback to craftsman_id (when customer is chatting with craftsman)
           final craftsman = widget.conversation['craftsman'];
           final craftsmanId = craftsman?['id'] ?? widget.conversation['id'];
           if (craftsmanId != null) {
             params['craftsman_id'] = craftsmanId.toString();
+            print('Using craftsman_id: $craftsmanId');
           }
         }
       }

@@ -48,51 +48,97 @@ class _CraftsmanOrdersScreenState extends State<CraftsmanOrdersScreen> {
   }
 
   Future<void> _initializeNotifications() async {
-    await _notificationService.initialize();
-    
-    // Handle notification actions
-    FlutterLocalNotificationsPlugin().initialize(
-      const InitializationSettings(
-        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-        iOS: DarwinInitializationSettings(),
-      ),
-      onDidReceiveNotificationResponse: (NotificationResponse response) {
-        _handleNotificationAction(response);
-      },
-    );
+    try {
+      await _notificationService.initialize();
+      print('✓ Notification service initialized');
+      
+      // Handle notification actions - use the same instance
+      final notifications = FlutterLocalNotificationsPlugin();
+      await notifications.initialize(
+        const InitializationSettings(
+          android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+          iOS: DarwinInitializationSettings(
+            requestAlertPermission: true,
+            requestBadgePermission: true,
+            requestSoundPermission: true,
+          ),
+        ),
+        onDidReceiveNotificationResponse: (NotificationResponse response) {
+          print('Notification action received: ${response.actionId}, payload: ${response.payload}');
+          _handleNotificationAction(response);
+        },
+      );
+      print('✓ Notification handler registered');
+    } catch (e) {
+      print('✗ Error initializing notifications: $e');
+    }
   }
 
   void _handleNotificationAction(NotificationResponse response) {
-    if (response.payload == null) return;
+    print('=== Handling notification action ===');
+    print('Action ID: ${response.actionId}');
+    print('Payload: ${response.payload}');
+    
+    if (response.payload == null) {
+      print('No payload, refreshing orders');
+      _fetchOrders();
+      return;
+    }
     
     // Extract order ID from payload (format: "order_123")
     final payload = response.payload!;
-    if (!payload.startsWith('order_')) return;
+    if (!payload.startsWith('order_')) {
+      print('Invalid payload format: $payload');
+      _fetchOrders();
+      return;
+    }
     
     final orderIdStr = payload.replaceFirst('order_', '');
     final orderId = int.tryParse(orderIdStr);
-    if (orderId == null) return;
+    if (orderId == null) {
+      print('Invalid order ID: $orderIdStr');
+      _fetchOrders();
+      return;
+    }
+
+    print('Processing action for order ID: $orderId');
 
     switch (response.actionId) {
       case 'accept':
+        print('Accept action triggered');
         _respondToOrder(orderId, true);
         break;
       case 'reject':
+        print('Reject action triggered');
         _respondToOrder(orderId, false);
         break;
       case 'chat':
+        print('Chat action triggered');
+        // Find the order in the current list
         final order = _orders.firstWhere(
           (o) => o['id'] == orderId,
           orElse: () => {},
         );
         if (order.isNotEmpty) {
           _openChatWithCustomer(order);
+        } else {
+          // If order not found, refresh and try again
+          print('Order not found in list, refreshing...');
+          _fetchOrders().then((_) {
+            final refreshedOrder = _orders.firstWhere(
+              (o) => o['id'] == orderId,
+              orElse: () => {},
+            );
+            if (refreshedOrder.isNotEmpty) {
+              _openChatWithCustomer(refreshedOrder);
+            }
+          });
         }
         break;
       default:
         // If notification is tapped (not an action), refresh and show the order
+        print('Notification tapped (no action), refreshing orders');
         _fetchOrders();
-        // Optionally, you can navigate to the order details
         break;
     }
   }
