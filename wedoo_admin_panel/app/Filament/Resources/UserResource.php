@@ -44,6 +44,15 @@ class UserResource extends Resource
                     ->label('رقم الهاتف')
                     ->tel()
                     ->maxLength(255),
+                Forms\Components\TextInput::make('password')
+                    ->label('كلمة المرور')
+                    ->password()
+                    ->minLength(8)
+                    ->maxLength(255)
+                    ->dehydrated(fn ($state) => filled($state))
+                    ->helperText('اتركه فارغاً إذا كنت لا تريد تغيير كلمة المرور')
+                    ->visibleOn(['create', 'edit'])
+                    ->requiredOn('create'),
                 Forms\Components\Select::make('user_type')
                     ->label('نوع المستخدم')
                     ->options([
