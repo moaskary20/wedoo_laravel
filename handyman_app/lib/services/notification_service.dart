@@ -44,16 +44,8 @@ class NotificationService {
       await androidPlugin.requestExactAlarmsPermission();
     }
 
-    final iosPlugin = _notifications.resolvePlatformSpecificImplementation<
-        DarwinFlutterLocalNotificationsPlugin>();
-    
-    if (iosPlugin != null) {
-      await iosPlugin.requestPermissions(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
-    }
+    // iOS permissions are requested automatically through DarwinInitializationSettings
+    // No need for separate permission request
   }
 
   void _onNotificationTapped(NotificationResponse response) {
