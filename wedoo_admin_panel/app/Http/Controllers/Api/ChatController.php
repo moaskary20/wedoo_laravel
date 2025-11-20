@@ -441,16 +441,35 @@ class ChatController extends Controller
         }
     }
 
-    protected function transformChat(Chat $chat, User $user): array
+    protected function transformChat(Chat $chat, ?User $user = null): array
     {
-        $otherParty = $user->user_type === 'craftsman'
-            ? $chat->customer
-            : $chat->craftsman;
+        $otherParty = null;
+        if ($user) {
+            $otherParty = $user->user_type === 'craftsman'
+                ? $chat->customer
+                : $chat->craftsman;
+        } else {
+            // If no user, determine other party based on chat context
+            // For support chats, the other party is the admin (craftsman)
+            if ($chat->craftsman && $chat->craftsman->user_type === 'admin') {
+                $otherParty = $chat->craftsman;
+            } else {
+                $otherParty = $chat->craftsman ?? $chat->customer;
+            }
+        }
 
-        $unreadCount = $chat->messages()
-            ->where('sender_id', '!=', $user->id)
-            ->where('is_read', false)
-            ->count();
+        $unreadCount = 0;
+        if ($user) {
+            $unreadCount = $chat->messages()
+                ->where('sender_id', '!=', $user->id)
+                ->where('is_read', false)
+                ->count();
+        } else {
+            // If no user, count all unread messages
+            $unreadCount = $chat->messages()
+                ->where('is_read', false)
+                ->count();
+        }
 
         return [
             'id' => $chat->id,
