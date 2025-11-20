@@ -686,8 +686,12 @@ class _ChatScreenState extends State<_ChatScreen> {
   }
   
   Future<void> _refreshMessages() async {
+    print('Refreshing messages...');
+    print('Is support chat: ${widget.conversation['isSupport']}');
+    print('Current chat_id: $_chatId');
+    
     if (widget.conversation['isSupport'] == true) {
-      await _loadSupportMessages(keepLastMessage: true);
+      await _loadSupportMessages(keepLastMessage: false); // Don't keep last message when refreshing
     } else {
       await _loadRegularMessages(keepOptimisticMessages: true);
     }
@@ -1121,9 +1125,10 @@ class _ChatScreenState extends State<_ChatScreen> {
       final chatId = _chatId ?? widget.conversation['chat_id'];
       
       // API call to get support messages
+      // Always use chat_id if available, but also pass type=support to ensure correct handling
       Uri uri;
       if (chatId != null) {
-        uri = Uri.parse('${ApiConfig.chatMessages}?chat_id=$chatId');
+        uri = Uri.parse('${ApiConfig.chatMessages}?chat_id=$chatId&type=support');
       } else {
         uri = Uri.parse('${ApiConfig.chatMessages}?user_id=$userId&type=support');
       }
@@ -1139,9 +1144,17 @@ class _ChatScreenState extends State<_ChatScreen> {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        print('Parsed response data: $data');
+        
         if (data['success'] == true && data['data'] != null) {
           final messagesData = data['data'];
           final List<dynamic> messages = messagesData['messages'] ?? (messagesData is List ? messagesData : []);
+          
+          print('Messages array length: ${messages.length}');
+          if (messages.isNotEmpty) {
+            print('First message: ${messages.first}');
+            print('Last message: ${messages.last}');
+          }
           
           // Update chat_id if available
           if (messagesData['chat']?['id'] != null) {
@@ -1203,14 +1216,22 @@ class _ChatScreenState extends State<_ChatScreen> {
             });
             
             print('Loaded ${allMessages.length} messages total');
+            print('Messages IDs: ${allMessages.map((m) => m['id']).toList()}');
             _messages = allMessages;
           });
           _scrollToBottom();
           return;
+        } else {
+          print('Response success is false or data is null');
+          print('Response data: $data');
         }
+      } else {
+        print('Response status is not 200: ${response.statusCode}');
+        print('Response body: ${response.body}');
       }
     } catch (e) {
       print('Error loading support messages: $e');
+      print('Stack trace: ${StackTrace.current}');
     }
     
     // Fallback: Add default support messages only if list is empty

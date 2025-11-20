@@ -54,6 +54,7 @@ class ChatController extends Controller
         ]);
 
         // Handle support messages request
+        // Check for type=support first, even if chat_id is provided
         if ($request->has('type') && $request->input('type') === 'support') {
             return $this->getSupportMessages($request, $user);
         }
@@ -142,11 +143,59 @@ class ChatController extends Controller
     protected function getSupportMessages(Request $request, ?User $user)
     {
         $userId = $user?->id ?? $request->input('user_id');
+        $chatId = $request->input('chat_id');
         
+        // If chat_id is provided, use it directly
+        if ($chatId) {
+            $chat = Chat::with(['customer', 'craftsman'])->find($chatId);
+            
+            if (!$chat) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Chat not found',
+                ], 404);
+            }
+            
+            // Verify this is a support chat (craftsman is admin)
+            $adminUser = User::where('user_type', 'admin')->first();
+            if (!$adminUser || $chat->craftsman_id !== $adminUser->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This is not a support chat',
+                ], 403);
+            }
+            
+            $messages = $chat->messages()->orderBy('created_at')->get();
+            
+            \Log::info('Loading support messages by chat_id', [
+                'chat_id' => $chatId,
+                'messages_count' => $messages->count(),
+            ]);
+            
+            // Mark messages as read for customer
+            if ($user) {
+                $chat->messages()
+                    ->where('sender_id', '!=', $user->id)
+                    ->where('is_read', false)
+                    ->update(['is_read' => true, 'read_at' => now()]);
+                $chat->update(['customer_read' => true]);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'chat' => $this->transformChat($chat, $user),
+                    'messages' => $messages->map(fn (ChatMessage $message) => $this->transformMessage($message, $user)),
+                ],
+                'message' => 'Support messages loaded successfully',
+            ]);
+        }
+        
+        // If no chat_id, find by user_id
         if (!$userId) {
             return response()->json([
                 'success' => false,
-                'message' => 'User ID is required for support messages',
+                'message' => 'User ID or Chat ID is required for support messages',
             ], 400);
         }
 
