@@ -109,7 +109,27 @@ class MessagesRelationManager extends RelationManager
                     ->falseLabel('غير مقروءة'),
             ])
             ->headerActions([
-                Tables\Actions\CreateAction::make(),
+                Tables\Actions\CreateAction::make()
+                    ->label('إرسال رسالة')
+                    ->mutateFormDataUsing(function (array $data): array {
+                        // Set sender_id to current admin user if not set
+                        if (empty($data['sender_id'])) {
+                            $data['sender_id'] = auth()->id();
+                        }
+                        // Set chat_id from the relationship
+                        $data['chat_id'] = $this->ownerRecord->id;
+                        return $data;
+                    })
+                    ->after(function () {
+                        // Update chat's last_message after creating a message
+                        $chat = $this->ownerRecord;
+                        $lastMessage = $chat->messages()->latest()->first();
+                        if ($lastMessage) {
+                            $chat->last_message = $lastMessage->message;
+                            $chat->last_message_at = $lastMessage->created_at;
+                            $chat->save();
+                        }
+                    }),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),

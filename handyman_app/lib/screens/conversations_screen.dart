@@ -670,6 +670,27 @@ class _ChatScreenState extends State<_ChatScreen> {
     super.initState();
     _chatId = widget.conversation['chat_id'] as int?;
     _loadMessages(); // This will call _loadSupportMessages or _loadRegularMessages
+    
+    // Set up periodic refresh to get new messages from backend
+    _startMessagePolling();
+  }
+  
+  void _startMessagePolling() {
+    // Poll for new messages every 5 seconds
+    Future.delayed(const Duration(seconds: 5), () {
+      if (mounted) {
+        _refreshMessages();
+        _startMessagePolling(); // Continue polling
+      }
+    });
+  }
+  
+  Future<void> _refreshMessages() async {
+    if (widget.conversation['isSupport'] == true) {
+      await _loadSupportMessages(keepLastMessage: true);
+    } else {
+      await _loadRegularMessages(keepOptimisticMessages: true);
+    }
   }
 
   @override
@@ -712,6 +733,15 @@ class _ChatScreenState extends State<_ChatScreen> {
             icon: const Icon(Icons.arrow_back, color: Colors.white),
             onPressed: () => Navigator.of(context).pop(),
           ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh, color: Colors.white),
+              onPressed: () {
+                _refreshMessages();
+              },
+              tooltip: 'تحديث الرسائل',
+            ),
+          ],
         ),
         body: Column(
           children: [
@@ -822,20 +852,19 @@ class _ChatScreenState extends State<_ChatScreen> {
     final messageText = _messageController.text.trim();
     _messageController.clear();
 
-    // Add user message immediately
-    setState(() {
-      _messages.add({
-        'id': _messages.length + 1,
-        'text': messageText,
-        'isMe': true,
-        'time': _getCurrentTime(),
-        'type': 'text',
-      });
-    });
-    _scrollToBottom();
-
-    // Send to backend
+    // Send to backend (the send methods will add the message to the UI)
     if (widget.conversation['isSupport'] == true) {
+      // For support messages, add immediately
+      setState(() {
+        _messages.add({
+          'id': DateTime.now().millisecondsSinceEpoch,
+          'text': messageText,
+          'isMe': true,
+          'time': _getCurrentTime(),
+          'type': 'text',
+        });
+      });
+      _scrollToBottom();
       await _sendSupportMessage(messageText);
     } else {
       await _sendRegularMessage(messageText);
@@ -872,20 +901,50 @@ class _ChatScreenState extends State<_ChatScreen> {
       print('Response Status: ${response.statusCode}');
       print('Response Body: ${response.body}');
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
         if (data['success'] == true) {
           print('Message sent successfully to backend');
-          // Reload messages to get the latest from backend
-          await _loadSupportMessages();
+          print('Message ID: ${data['data']?['message']?['id']}');
+          print('Chat ID: ${data['data']?['chat']?['id']}');
+          
+          // Update chat_id if available
+          if (data['data']?['chat']?['id'] != null) {
+            _chatId = data['data']['chat']['id'] as int?;
+          }
+          
+          // Update the message with backend data if available
+          final messageData = data['data']?['message'] ?? {};
+          if (messageData.isNotEmpty && _messages.isNotEmpty) {
+            setState(() {
+              // Find and update the last message (the one we just sent)
+              final lastIndex = _messages.length - 1;
+              _messages[lastIndex] = {
+                'id': messageData['id'] ?? _messages[lastIndex]['id'],
+                'text': messageData['text'] ?? messageData['message'] ?? _messages[lastIndex]['text'],
+                'isMe': true,
+                'time': messageData['created_at'] ?? _messages[lastIndex]['time'],
+                'type': messageData['message_type'] ?? 'text',
+              };
+            });
+          }
+          // Don't reload messages immediately to avoid clearing the sent message
+          // The message is already in the list, and we'll get new messages on next load
           // Also wait for support response
           _waitForSupportResponse();
         } else {
           print('Backend returned success=false: ${data['message']}');
+          _showErrorSnackBar(data['message'] ?? 'فشل إرسال الرسالة');
           _showFallbackResponse();
         }
       } else {
         print('Backend returned error status: ${response.statusCode}');
+        try {
+          final errorData = jsonDecode(response.body);
+          _showErrorSnackBar(errorData['message'] ?? 'خطأ في إرسال الرسالة');
+        } catch (e) {
+          _showErrorSnackBar('خطأ في إرسال الرسالة: ${response.statusCode}');
+        }
         _showFallbackResponse();
       }
     } catch (e) {
@@ -902,6 +961,7 @@ class _ChatScreenState extends State<_ChatScreen> {
       'isMe': true,
       'time': _getCurrentTime(),
       'type': 'text',
+      'isOptimistic': true, // Flag to identify optimistic messages
     };
 
     setState(() {
@@ -913,6 +973,7 @@ class _ChatScreenState extends State<_ChatScreen> {
       final headers = await _buildChatAuthHeaders();
       if (headers == null) {
         _showErrorSnackBar('يرجى تسجيل الدخول لإرسال الرسائل');
+        // Keep the message even if auth fails
         return;
       }
 
@@ -934,15 +995,14 @@ class _ChatScreenState extends State<_ChatScreen> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['success'] == true) {
-          final messageData = data['data']['message'] ?? {};
+          final messageData = data['data']?['message'] ?? {};
           setState(() {
-            if (_messages.isNotEmpty) {
-              _messages.remove(optimisticMessage);
-            }
-            _chatId = data['data']['chat']?['id'] as int? ?? _chatId;
+            // Remove optimistic message and add the real one from backend
+            _messages.removeWhere((msg) => msg['isOptimistic'] == true && msg['text'] == message);
+            _chatId = data['data']?['chat']?['id'] as int? ?? _chatId;
             _messages.add({
               'id': messageData['id'] ?? optimisticMessage['id'],
-              'text': messageData['text'] ?? message,
+              'text': messageData['text'] ?? messageData['message'] ?? message,
               'isMe': true,
               'time': messageData['created_at'] ?? _getCurrentTime(),
               'type': messageData['message_type'] ?? 'text',
@@ -953,15 +1013,26 @@ class _ChatScreenState extends State<_ChatScreen> {
         }
       }
 
-      _showErrorSnackBar('خطأ في إرسال الرسالة');
+      // If sending failed, keep the optimistic message but mark it as failed
+      _showErrorSnackBar('خطأ في إرسال الرسالة. سيتم إعادة المحاولة تلقائيًا');
       setState(() {
-        _messages.remove(optimisticMessage);
+        // Keep the message but mark it as failed
+        final index = _messages.indexWhere((msg) => msg['isOptimistic'] == true && msg['text'] == message);
+        if (index != -1) {
+          _messages[index]['isOptimistic'] = false;
+          _messages[index]['failed'] = true;
+        }
       });
     } catch (e) {
       print('Error sending chat message: $e');
-      _showErrorSnackBar('خطأ في إرسال الرسالة');
+      _showErrorSnackBar('خطأ في إرسال الرسالة. سيتم إعادة المحاولة تلقائيًا');
+      // Keep the message even on error
       setState(() {
-        _messages.remove(optimisticMessage);
+        final index = _messages.indexWhere((msg) => msg['isOptimistic'] == true && msg['text'] == message);
+        if (index != -1) {
+          _messages[index]['isOptimistic'] = false;
+          _messages[index]['failed'] = true;
+        }
       });
     }
   }
@@ -1026,31 +1097,77 @@ class _ChatScreenState extends State<_ChatScreen> {
     }
   }
 
-  Future<void> _loadSupportMessages() async {
+  Future<void> _loadSupportMessages({bool keepLastMessage = false}) async {
     try {
       // Try to load messages from backend
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getString('user_id') ?? '1';
       final headers = await _buildChatAuthHeaders() ?? ApiConfig.headers;
       
+      // Save the last message if we need to keep it
+      Map<String, dynamic>? lastMessage;
+      if (keepLastMessage && _messages.isNotEmpty) {
+        lastMessage = Map<String, dynamic>.from(_messages.last);
+      }
+      
+      // Get chat_id if available
+      final chatId = _chatId ?? widget.conversation['chat_id'];
+      
       // API call to get support messages
-      final response = await http.get(
-        Uri.parse('${ApiConfig.chatList}?user_id=$userId&type=support&conversation_id=${widget.conversation['id']}'),
-        headers: headers,
-      );
+      final uri = chatId != null
+          ? Uri.parse('${ApiConfig.chatMessages}?chat_id=$chatId')
+          : Uri.parse('${ApiConfig.chatMessages}?user_id=$userId&type=support&conversation_id=${widget.conversation['id']}');
+      
+      final response = await http.get(uri, headers: headers).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['success'] == true && data['data'] != null) {
+          final messagesData = data['data'];
+          final List<dynamic> messages = messagesData['messages'] ?? (messagesData is List ? messagesData : []);
+          
+          // Update chat_id if available
+          if (messagesData['chat']?['id'] != null) {
+            _chatId = messagesData['chat']['id'] as int?;
+          }
+          
+          // Get existing message IDs to avoid duplicates
+          final existingIds = _messages.map((m) => m['id']).toSet();
+          
           setState(() {
-            _messages.clear();
-            _messages.addAll((data['data'] as List).map((msg) => {
-              'id': msg['id'],
-              'text': msg['message'] ?? msg['text'],
-              'isMe': msg['sender_id'] == userId || msg['sender_type'] == 'user',
-              'time': msg['created_at'] ?? DateTime.now().toString(),
-              'type': 'text',
-            }).toList());
+            // Add new messages that don't exist yet
+            for (var msg in messages) {
+              final msgId = msg['id'];
+              if (!existingIds.contains(msgId)) {
+                _messages.add({
+                  'id': msgId,
+                  'text': msg['message'] ?? msg['text'],
+                  'isMe': msg['sender_id']?.toString() == userId || msg['sender_type'] == 'user' || msg['is_me'] == true,
+                  'time': msg['created_at'] ?? DateTime.now().toString(),
+                  'type': msg['message_type'] ?? 'text',
+                });
+              }
+            }
+            
+            // Sort messages by time
+            _messages.sort((a, b) {
+              try {
+                final timeA = DateTime.parse(a['time'] ?? DateTime.now().toString());
+                final timeB = DateTime.parse(b['time'] ?? DateTime.now().toString());
+                return timeA.compareTo(timeB);
+              } catch (e) {
+                return 0;
+              }
+            });
+            
+            // If we need to keep the last message and it's not in the backend response, add it back
+            if (keepLastMessage && lastMessage != null) {
+              final lastMessageId = lastMessage['id'];
+              final messageExists = _messages.any((msg) => msg['id'] == lastMessageId);
+              if (!messageExists) {
+                _messages.add(lastMessage);
+              }
+            }
           });
           _scrollToBottom();
           return;
@@ -1060,29 +1177,36 @@ class _ChatScreenState extends State<_ChatScreen> {
       print('Error loading support messages: $e');
     }
     
-    // Fallback: Add default support messages
-    final l10n = AppLocalizations.of(context);
-    final isRtl = Localizations.localeOf(context).languageCode == 'ar';
-    
-    setState(() {
-      _messages.clear();
-      _messages.addAll([
-        {
-          'id': 1,
-          'text': isRtl ? 'مرحباً، كيف يمكنني مساعدتك؟' : 'Bonjour, comment puis-je vous aider?',
-          'isMe': false,
-          'time': DateTime.now().toString(),
-          'type': 'text',
-        },
-      ]);
-    });
+    // Fallback: Add default support messages only if list is empty
+    if (_messages.isEmpty) {
+      final l10n = AppLocalizations.of(context);
+      final isRtl = Localizations.localeOf(context).languageCode == 'ar';
+      
+      setState(() {
+        _messages.addAll([
+          {
+            'id': 1,
+            'text': isRtl ? 'مرحباً، كيف يمكنني مساعدتك؟' : 'Bonjour, comment puis-je vous aider?',
+            'isMe': false,
+            'time': DateTime.now().toString(),
+            'type': 'text',
+          },
+        ]);
+      });
+    }
   }
 
-  Future<void> _loadRegularMessages() async {
+  Future<void> _loadRegularMessages({bool keepOptimisticMessages = false}) async {
     try {
       final headers = await _buildChatAuthHeaders();
       if (headers == null) {
         return;
+      }
+
+      // Save optimistic messages if we need to keep them
+      List<Map<String, dynamic>> optimisticMessages = [];
+      if (keepOptimisticMessages) {
+        optimisticMessages = _messages.where((msg) => msg['isOptimistic'] == true).toList();
       }
 
       final params = <String, String>{};
@@ -1106,15 +1230,25 @@ class _ChatScreenState extends State<_ChatScreen> {
           final List<dynamic> messages = chatData['messages'] ?? [];
           setState(() {
             _chatId = chatData['chat']?['id'] as int?;
-            _messages
-              ..clear()
-              ..addAll(messages.map((msg) => {
-                    'id': msg['id'],
-                    'text': msg['text'],
-                    'isMe': msg['is_me'] == true,
-                    'time': msg['created_at'] ?? DateTime.now().toString(),
-                    'type': msg['message_type'] ?? 'text',
-                  }));
+            _messages.clear();
+            _messages.addAll(messages.map((msg) => {
+                  'id': msg['id'],
+                  'text': msg['text'] ?? msg['message'],
+                  'isMe': msg['is_me'] == true || msg['sender_type'] == 'user',
+                  'time': msg['created_at'] ?? DateTime.now().toString(),
+                  'type': msg['message_type'] ?? 'text',
+                }));
+            
+            // Add back optimistic messages that are not in the backend response
+            if (keepOptimisticMessages && optimisticMessages.isNotEmpty) {
+              for (var optMsg in optimisticMessages) {
+                final optText = optMsg['text'];
+                final exists = _messages.any((msg) => msg['text'] == optText);
+                if (!exists) {
+                  _messages.add(optMsg);
+                }
+              }
+            }
           });
           _scrollToBottom();
         } else {

@@ -38,6 +38,11 @@ class ChatController extends Controller
     public function messages(Request $request)
     {
         $user = $request->user();
+        
+        // Allow admin to reply to support chats
+        if ($user && $user->user_type === 'admin') {
+            return $this->handleAdminReply($request, $user);
+        }
 
         $validated = $request->validate([
             'chat_id' => 'nullable|exists:chats,id',
@@ -123,18 +128,24 @@ class ChatController extends Controller
 
     public function send(Request $request)
     {
+        // Log incoming request
+        \Log::info('Chat send request received', [
+            'type' => $request->input('type'),
+            'user_id' => $request->user()?->id,
+            'message' => substr($request->input('message', ''), 0, 100),
+            'all_data' => $request->all(),
+        ]);
+
         if ($request->input('type') === 'support') {
-            // Placeholder for support chat integration
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'message' => 'Support message received',
-                ],
-                'message' => 'Support chat is not implemented yet',
-            ]);
+            return $this->handleSupportMessage($request);
         }
 
         $user = $request->user();
+        
+        // Allow admin to reply to support chats
+        if ($user && $user->user_type === 'admin') {
+            return $this->handleAdminReply($request, $user);
+        }
 
         $validated = $request->validate([
             'chat_id' => 'nullable|exists:chats,id',
@@ -290,5 +301,170 @@ class ChatController extends Controller
             'created_at' => $message->created_at?->toIso8601String(),
             'is_read' => $message->is_read,
         ];
+    }
+
+    protected function handleSupportMessage(Request $request)
+    {
+        // Get user from request (can be from auth or user_id parameter)
+        $user = $request->user();
+        $userId = $user?->id ?? $request->input('user_id');
+        
+        if (!$userId) {
+            \Log::error('Support message: No user ID provided', [
+                'request_data' => $request->all(),
+                'has_auth_user' => $user !== null,
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'User ID is required. Please provide user_id in request body or authenticate.',
+            ], 400);
+        }
+
+        $validated = $request->validate([
+            'message' => 'required|string|max:5000',
+            'conversation_id' => 'nullable|string',
+            'user_id' => 'nullable|exists:users,id',
+        ]);
+
+        // Get the user object
+        if (!$user) {
+            $user = User::find($userId);
+            if (!$user) {
+                \Log::error('Support message: User not found', ['user_id' => $userId]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not found',
+                ], 404);
+            }
+        }
+
+        \Log::info('Support message validated', [
+            'user_id' => $userId,
+            'user_name' => $user->name,
+            'message_length' => strlen($validated['message']),
+            'conversation_id' => $validated['conversation_id'] ?? null,
+        ]);
+
+        // Get admin user for support (first admin user or create one)
+        $adminUser = User::where('user_type', 'admin')->first();
+        if (!$adminUser) {
+            // If no admin exists, use user ID 1 or create a support user
+            $adminUser = User::firstOrCreate(
+                ['email' => 'support@wedoo.com'],
+                [
+                    'name' => 'Support Team',
+                    'user_type' => 'admin',
+                    'status' => 'active',
+                    'password' => bcrypt('support123'), // Default password, should be changed
+                ]
+            );
+            \Log::info('Support admin user created', ['admin_user_id' => $adminUser->id]);
+        }
+
+        // Find or create support chat
+        // Use firstOrCreate to avoid unique constraint violation
+        $chat = Chat::where('customer_id', $userId)
+            ->where('craftsman_id', $adminUser->id)
+            ->first();
+
+        if (!$chat) {
+            $chat = Chat::create([
+                'customer_id' => $userId,
+                'craftsman_id' => $adminUser->id,
+                'status' => 'active',
+            ]);
+            \Log::info('Support chat created', ['chat_id' => $chat->id]);
+        }
+
+        // Create the message
+        $message = $chat->messages()->create([
+            'sender_id' => $userId,
+            'message' => $validated['message'],
+            'message_type' => 'text',
+        ]);
+
+        // Update chat
+        $chat->last_message = $validated['message'];
+        $chat->last_message_at = now();
+        $chat->customer_read = true;
+        $chat->craftsman_read = false;
+        $chat->save();
+
+        \Log::info('Support message saved successfully', [
+            'chat_id' => $chat->id,
+            'message_id' => $message->id,
+            'user_id' => $userId,
+            'message_preview' => substr($validated['message'], 0, 50),
+        ]);
+
+        // Reload chat with relationships
+        $chat->load(['customer', 'craftsman']);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'chat' => $this->transformChat($chat, $user),
+                'message' => $this->transformMessage($message, $user),
+            ],
+            'message' => 'Support message sent successfully',
+        ], 201);
+    }
+
+    protected function handleAdminReply(Request $request, User $adminUser)
+    {
+        \Log::info('Admin reply request received', [
+            'admin_id' => $adminUser->id,
+            'request_data' => $request->all(),
+        ]);
+
+        $validated = $request->validate([
+            'chat_id' => 'required|exists:chats,id',
+            'message' => 'required|string|max:5000',
+            'message_type' => 'nullable|string|in:text,image,file',
+        ]);
+
+        $chat = Chat::with(['customer', 'craftsman'])->findOrFail($validated['chat_id']);
+
+        // Verify admin has access to this chat (support chats have admin as craftsman)
+        if ($chat->craftsman_id !== $adminUser->id && $adminUser->user_type !== 'admin') {
+            \Log::error('Admin reply: Unauthorized access', [
+                'admin_id' => $adminUser->id,
+                'chat_id' => $chat->id,
+                'chat_craftsman_id' => $chat->craftsman_id,
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized access to this chat',
+            ], 403);
+        }
+
+        // Create the reply message
+        $message = $chat->messages()->create([
+            'sender_id' => $adminUser->id,
+            'message' => $validated['message'],
+            'message_type' => $validated['message_type'] ?? 'text',
+        ]);
+
+        // Update chat
+        $chat->last_message = $validated['message'];
+        $chat->last_message_at = now();
+        $chat->craftsman_read = true;
+        $chat->customer_read = false;
+        $chat->save();
+
+        \Log::info('Admin reply saved successfully', [
+            'chat_id' => $chat->id,
+            'message_id' => $message->id,
+            'admin_id' => $adminUser->id,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'chat' => $this->transformChat($chat->fresh(['customer', 'craftsman']), $adminUser),
+                'message' => $this->transformMessage($message, $adminUser),
+            ],
+            'message' => 'Reply sent successfully',
+        ], 201);
     }
 }
