@@ -171,10 +171,19 @@ class ChatController extends Controller
                     ]
                 );
             } else {
+                // For craftsman, use their ID as craftsman_id
+                $craftsmanId = $user ? $user->id : ($validated['craftsman_id'] ?? null);
+                
+                if (!$craftsmanId) {
+                    throw ValidationException::withMessages([
+                        'craftsman_id' => 'craftsman_id is required',
+                    ]);
+                }
+                
                 $chat = Chat::firstOrCreate(
                     [
                         'customer_id' => $customerId,
-                        'craftsman_id' => $user->id,
+                        'craftsman_id' => $craftsmanId,
                     ],
                     [
                         'status' => 'active',
@@ -416,9 +425,9 @@ class ChatController extends Controller
             $chat = Chat::findOrFail($validated['chat_id']);
             $chat->loadMissing(['customer', 'craftsman', 'order']);
         } else {
-            $customerId = $user->user_type === 'craftsman'
+            $customerId = ($user && $user->user_type === 'craftsman')
                 ? ($validated['customer_id'] ?? null)
-                : $user->id;
+                : ($user ? $user->id : ($validated['customer_id'] ?? null));
 
             if (!$customerId) {
                 throw ValidationException::withMessages([
@@ -434,9 +443,9 @@ class ChatController extends Controller
                 ]);
             }
 
-            $craftsmanId = $user->user_type === 'craftsman'
+            $craftsmanId = ($user && $user->user_type === 'craftsman')
                 ? $user->id
-                : $validated['craftsman_id'];
+                : ($validated['craftsman_id'] ?? null);
 
             if (!$craftsmanId) {
                 throw ValidationException::withMessages([
@@ -474,6 +483,12 @@ class ChatController extends Controller
             ], 422);
         }
 
+        if (!$user) {
+            throw ValidationException::withMessages([
+                'user' => 'User must be authenticated to send messages',
+            ]);
+        }
+        
         $message = $chat->messages()->create([
             'sender_id' => $user->id,
             'message' => $validated['message'],
