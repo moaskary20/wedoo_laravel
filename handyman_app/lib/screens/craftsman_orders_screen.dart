@@ -31,7 +31,12 @@ class _CraftsmanOrdersScreenState extends State<CraftsmanOrdersScreen> {
     super.initState();
     _initializeNotifications();
     _fetchOrders();
-    _startPolling();
+    // Start polling after a short delay to allow initial load
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        _startPolling();
+      }
+    });
   }
 
   @override
@@ -101,20 +106,31 @@ class _CraftsmanOrdersScreenState extends State<CraftsmanOrdersScreen> {
 
   Future<void> _checkForNewOrders() async {
     try {
+      print('=== Checking for new orders ===');
       final headers = await _buildAuthHeaders();
-      if (headers == null) return;
+      if (headers == null) {
+        print('No auth headers available');
+        return;
+      }
 
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getString('user_id');
-      if (userId == null || userId.isEmpty) return;
+      if (userId == null || userId.isEmpty) {
+        print('No user ID available');
+        return;
+      }
 
       final uri = Uri.parse(ApiConfig.ordersList).replace(queryParameters: {
         'craftsman_id': userId,
       });
 
+      print('Fetching orders from: $uri');
+
       final response = await http.get(uri, headers: headers).timeout(
         const Duration(seconds: 30),
       );
+
+      print('Response status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -124,6 +140,9 @@ class _CraftsmanOrdersScreenState extends State<CraftsmanOrdersScreen> {
               .map<Map<String, dynamic>>((item) => Map<String, dynamic>.from(item))
               .toList();
 
+          print('Total orders received: ${newOrders.length}');
+          print('Known order IDs: ${_knownOrderIds.length}');
+
           // Check for new orders
           for (var order in newOrders) {
             final orderId = order['id'] as int?;
@@ -131,18 +150,30 @@ class _CraftsmanOrdersScreenState extends State<CraftsmanOrdersScreen> {
 
             final status = (order['craftsman_status'] ?? order['status'] ?? '').toString();
             
-            // Show notification for new waiting_response orders
+            // Show notification for new waiting_response, awaiting_assignment, or pending orders
             if (!_knownOrderIds.contains(orderId) && 
-                (status == 'waiting_response' || status == 'awaiting_assignment')) {
+                (status == 'waiting_response' || status == 'awaiting_assignment' || status == 'pending')) {
               _knownOrderIds.add(orderId);
               
+              print('=== New order detected ===');
+              print('Order ID: $orderId');
+              print('Status: $status');
+              print('Title: ${order['title']}');
+              print('Customer: ${order['customer_name']}');
+              
               // Show notification
-              await _notificationService.showNewOrderNotification(
-                orderId: orderId,
-                title: order['title'] ?? 'طلب جديد',
-                customerName: order['customer_name'] ?? 'عميل',
-                description: order['description'] ?? '',
-              );
+              try {
+                await _notificationService.showNewOrderNotification(
+                  orderId: orderId,
+                  title: order['title'] ?? 'طلب جديد',
+                  customerName: order['customer_name'] ?? 'عميل',
+                  description: order['description'] ?? '',
+                );
+                print('✓ Notification shown successfully');
+              } catch (e) {
+                print('✗ Error showing notification: $e');
+                print('Stack trace: ${StackTrace.current}');
+              }
             }
           }
 
@@ -461,7 +492,7 @@ class _CraftsmanOrdersScreenState extends State<CraftsmanOrdersScreen> {
     return locale.languageCode == 'ar' ? ar : fr;
   }
 
-  void _openChatWithCustomer(Map<String, dynamic> order) {
+  void _openChatWithCustomer(Map<String, dynamic> order) async {
     final customerId = order['customer_id'];
     final customerName = order['customer_name'] ?? _localizedText('العميل', 'Client');
     final orderId = order['id'];
@@ -476,9 +507,25 @@ class _CraftsmanOrdersScreenState extends State<CraftsmanOrdersScreen> {
       return;
     }
 
+    // Get current user (craftsman) ID
+    final prefs = await SharedPreferences.getInstance();
+    final craftsmanId = prefs.getString('user_id');
+    
+    if (craftsmanId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_localizedText('خطأ: يجب تسجيل الدخول أولاً', 'Erreur: Vous devez vous connecter d\'abord')),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     // Create conversation data for the customer
+    // Note: In openCraftsmanChat, 'craftsman' refers to the other party (customer in this case)
+    // But we need to pass the current craftsman ID for the API
     final conversation = {
-      'id': customerId.toString(),
+      'id': customerId.toString(), // Customer ID (the other party)
       'name': customerName,
       'service': order['title'] ?? _localizedText('خدمة', 'Service'),
       'lastMessage': _localizedText('ابدأ المحادثة الآن', 'Commencez la discussion maintenant'),
@@ -489,9 +536,11 @@ class _CraftsmanOrdersScreenState extends State<CraftsmanOrdersScreen> {
       'isSupport': false,
       'chat_id': order['chat_id'],
       'craftsman': {
-        'id': customerId,
+        'id': customerId, // Customer ID (the other party in the chat)
         'name': customerName,
       },
+      'customer_id': customerId, // Customer ID for API
+      'craftsman_id': int.parse(craftsmanId), // Current user (craftsman) ID for API
       'order_id': orderId,
     };
 

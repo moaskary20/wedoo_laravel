@@ -23,6 +23,7 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -77,4 +78,7 @@ dependencies {
     // Google Play Core libraries removed due to SDK 34 incompatibility
     // implementation("com.google.android.play:core:1.10.3")
     // implementation("com.google.android.play:core-ktx:1.8.1")
+    
+    // Core library desugaring for flutter_local_notifications
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 }

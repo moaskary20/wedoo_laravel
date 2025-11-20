@@ -11,6 +11,8 @@ import 'conversations_screen.dart';
 import 'terms_of_use_screen.dart';
 import 'contact_us_screen.dart';
 import 'login_screen.dart';
+import 'my_orders_screen.dart';
+import 'craftsman_orders_screen.dart';
 import '../services/language_service.dart';
 import '../main.dart';
 import 'package:handyman_app/l10n/app_localizations.dart';
@@ -28,6 +30,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _isLoading = true;
   String? _userProfileImage;
   Locale _currentLocale = LanguageService.defaultLocale;
+  String _userType = 'customer';
   
   // Backend configuration
   static const String _baseUrl = 'https:///api/api';
@@ -70,6 +73,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       // Get user data from SharedPreferences
       final userName = prefs.getString('user_name') ?? 'مستخدم';
       final membershipCode = prefs.getString('user_membership_code') ?? '000000';
+      final userType = prefs.getString('user_type') ?? 'customer';
       
       // Load user profile image from admin panel
       final userProfileImage = await _loadUserProfileImage();
@@ -78,6 +82,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _userName = userName;
         _membershipCode = membershipCode;
         _userProfileImage = userProfileImage;
+        _userType = userType;
         _isLoading = false;
       });
     } catch (e) {
@@ -377,6 +382,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
               MaterialPageRoute(builder: (context) => const NotificationsScreen()),
             );
           }),
+          if (_userType == 'craftsman')
+            _buildSettingsItem(l10n.myOrders, Icons.work_outline, () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const CraftsmanOrdersScreen()),
+              );
+            })
+          else
+            _buildSettingsItem(l10n.myOrders, Icons.receipt_long, () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const MyOrdersScreen()),
+              );
+            }),
           _buildSettingsItem(l10n.conversations, Icons.chat, () {
             Navigator.of(context).push(
               MaterialPageRoute(builder: (context) => const ConversationsScreen()),

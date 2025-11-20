@@ -1058,12 +1058,25 @@ class _ChatScreenState extends State<_ChatScreen> {
         return;
       }
 
-      final body = {
+      final body = <String, dynamic>{
         'message': message,
-        if (_chatId != null) 'chat_id': _chatId,
-        if (_chatId == null)
-          'craftsman_id': (widget.conversation['craftsman']?['id'] ?? widget.conversation['id']).toString(),
       };
+      
+      if (_chatId != null) {
+        body['chat_id'] = _chatId.toString();
+      } else {
+        // Check if we have customer_id (when craftsman is chatting with customer)
+        final customerId = widget.conversation['customer_id'];
+        if (customerId != null) {
+          body['customer_id'] = customerId.toString();
+        } else {
+          // Fallback to craftsman_id (when customer is chatting with craftsman)
+          final craftsmanId = widget.conversation['craftsman']?['id'] ?? widget.conversation['id'];
+          if (craftsmanId != null) {
+            body['craftsman_id'] = craftsmanId.toString();
+          }
+        }
+      }
 
       final response = await http
           .post(
@@ -1419,10 +1432,17 @@ class _ChatScreenState extends State<_ChatScreen> {
       if (_chatId != null) {
         params['chat_id'] = _chatId.toString();
       } else {
-        final craftsman = widget.conversation['craftsman'];
-        final craftsmanId = craftsman?['id'] ?? widget.conversation['id'];
-        if (craftsmanId != null) {
-          params['craftsman_id'] = craftsmanId.toString();
+        // Check if we have customer_id (when craftsman is chatting with customer)
+        final customerId = widget.conversation['customer_id'];
+        if (customerId != null) {
+          params['customer_id'] = customerId.toString();
+        } else {
+          // Fallback to craftsman_id (when customer is chatting with craftsman)
+          final craftsman = widget.conversation['craftsman'];
+          final craftsmanId = craftsman?['id'] ?? widget.conversation['id'];
+          if (craftsmanId != null) {
+            params['craftsman_id'] = craftsmanId.toString();
+          }
         }
       }
 

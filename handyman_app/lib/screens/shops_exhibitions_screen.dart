@@ -885,7 +885,7 @@ class _ShopsExhibitionsScreenState extends State<ShopsExhibitionsScreen> {
                                 ? Icons.star
                                 : Icons.star_border,
                             size: 16,
-                            color: Colors.amber,
+                            color: Colors.white,
                           );
                         }),
                         const SizedBox(width: 8),

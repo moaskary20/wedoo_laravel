@@ -12,6 +12,23 @@ class NotificationService {
   Future<void> initialize() async {
     if (_initialized) return;
 
+    // Create notification channel for Android
+    const androidChannel = AndroidNotificationChannel(
+      'new_orders',
+      'طلبات جديدة',
+      description: 'إشعارات الطلبات الجديدة للصنايعيين',
+      importance: Importance.high,
+      playSound: true,
+      enableVibration: true,
+    );
+
+    final androidPlugin = _notifications.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    
+    if (androidPlugin != null) {
+      await androidPlugin.createNotificationChannel(androidChannel);
+    }
+
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
     const iosSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
@@ -71,7 +88,7 @@ class NotificationService {
       priority: Priority.high,
       playSound: true,
       enableVibration: true,
-      sound: RawResourceAndroidNotificationSound('notification'),
+      // Use default system sound (no custom sound file needed)
       category: AndroidNotificationCategory.message,
       actions: [
         AndroidNotificationAction(

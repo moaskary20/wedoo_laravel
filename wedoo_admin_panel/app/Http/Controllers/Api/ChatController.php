@@ -97,8 +97,9 @@ class ChatController extends Controller
         }
 
         if (!empty($validated['chat_id'])) {
-            $chat = Chat::with(['customer', 'craftsman', 'order'])
-                ->findOrFail($validated['chat_id']);
+            $chat = Chat::findOrFail($validated['chat_id']);
+            // Load relationships safely (won't fail if user doesn't exist)
+            $chat->loadMissing(['customer', 'craftsman', 'order']);
         } else {
             $customerId = $user->user_type === 'craftsman'
                 ? ($validated['customer_id'] ?? null)
@@ -110,7 +111,25 @@ class ChatController extends Controller
                 ]);
             }
 
+            // Verify customer exists
+            $customer = User::find($customerId);
+            if (!$customer) {
+                throw ValidationException::withMessages([
+                    'customer_id' => 'Customer not found',
+                ]);
+            }
+
             if ($user->user_type !== 'craftsman') {
+                // Verify craftsman exists
+                if (!empty($validated['craftsman_id'])) {
+                    $craftsman = User::find($validated['craftsman_id']);
+                    if (!$craftsman || $craftsman->user_type !== 'craftsman') {
+                        throw ValidationException::withMessages([
+                            'craftsman_id' => 'Craftsman not found',
+                        ]);
+                    }
+                }
+
                 $chat = Chat::firstOrCreate(
                     [
                         'customer_id' => $customerId,
@@ -132,7 +151,8 @@ class ChatController extends Controller
                 );
             }
 
-            $chat->load(['customer', 'craftsman', 'order']);
+            // Load relationships safely
+            $chat->loadMissing(['customer', 'craftsman', 'order']);
         }
 
         // Only authorize if user is not admin (admin can access all chats)
@@ -155,10 +175,14 @@ class ChatController extends Controller
             }
         }
 
+        // Refresh chat with relationships safely
+        $chat->refresh();
+        $chat->loadMissing(['customer', 'craftsman', 'order']);
+
         return response()->json([
             'success' => true,
             'data' => [
-                'chat' => $this->transformChat($chat->fresh(['customer', 'craftsman', 'order']), $user),
+                'chat' => $this->transformChat($chat, $user),
                 'messages' => $messages->map(fn (ChatMessage $message) => $this->transformMessage($message, $user)),
             ],
             'message' => 'Chat messages loaded successfully',
@@ -349,11 +373,17 @@ class ChatController extends Controller
         if (!empty($validated['craftsman_id'])) {
             $craftsman = User::where('id', $validated['craftsman_id'])
                 ->where('user_type', 'craftsman')
-                ->firstOrFail();
+                ->first();
+            if (!$craftsman) {
+                throw ValidationException::withMessages([
+                    'craftsman_id' => 'Craftsman not found',
+                ]);
+            }
         }
 
         if (!empty($validated['chat_id'])) {
             $chat = Chat::findOrFail($validated['chat_id']);
+            $chat->loadMissing(['customer', 'craftsman', 'order']);
         } else {
             $customerId = $user->user_type === 'craftsman'
                 ? ($validated['customer_id'] ?? null)
@@ -365,9 +395,23 @@ class ChatController extends Controller
                 ]);
             }
 
+            // Verify customer exists
+            $customer = User::find($customerId);
+            if (!$customer) {
+                throw ValidationException::withMessages([
+                    'customer_id' => 'Customer not found',
+                ]);
+            }
+
             $craftsmanId = $user->user_type === 'craftsman'
                 ? $user->id
                 : $validated['craftsman_id'];
+
+            if (!$craftsmanId) {
+                throw ValidationException::withMessages([
+                    'craftsman_id' => 'craftsman_id is required',
+                ]);
+            }
 
             $chat = Chat::firstOrCreate(
                 [
@@ -379,6 +423,9 @@ class ChatController extends Controller
                     'status' => 'active',
                 ]
             );
+            
+            // Load relationships safely
+            $chat->loadMissing(['customer', 'craftsman', 'order']);
         }
 
         $this->authorizeChat($chat, $user);
@@ -387,7 +434,7 @@ class ChatController extends Controller
             $chat->order_id = $validated['order_id'];
         }
 
-        $chat->load('order');
+        $chat->loadMissing('order');
 
         if ($chat->order && $chat->order->craftsman_status !== 'accepted') {
             return response()->json([
@@ -415,14 +462,18 @@ class ChatController extends Controller
 
         $chat->save();
 
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'chat' => $this->transformChat($chat->fresh(['customer', 'craftsman', 'order']), $user),
-                'message' => $this->transformMessage($message, $user),
-            ],
-            'message' => 'Message sent successfully',
-        ]);
+            // Refresh chat with relationships safely
+            $chat->refresh();
+            $chat->loadMissing(['customer', 'craftsman', 'order']);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'chat' => $this->transformChat($chat, $user),
+                    'message' => $this->transformMessage($message, $user),
+                ],
+                'message' => 'Message sent successfully',
+            ]);
     }
 
     protected function authorizeChat(Chat $chat, User $user): void
@@ -633,7 +684,8 @@ class ChatController extends Controller
             'message_type' => 'nullable|string|in:text,image,file',
         ]);
 
-        $chat = Chat::with(['customer', 'craftsman'])->findOrFail($validated['chat_id']);
+        $chat = Chat::findOrFail($validated['chat_id']);
+        $chat->loadMissing(['customer', 'craftsman']);
 
         // Verify admin has access to this chat (support chats have admin as craftsman)
         if ($chat->craftsman_id !== $adminUser->id && $adminUser->user_type !== 'admin') {
@@ -671,7 +723,7 @@ class ChatController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'chat' => $this->transformChat($chat->fresh(['customer', 'craftsman']), $adminUser),
+                'chat' => $this->transformChat($chat->refresh()->loadMissing(['customer', 'craftsman']), $adminUser),
                 'message' => $this->transformMessage($message, $adminUser),
             ],
             'message' => 'Reply sent successfully',

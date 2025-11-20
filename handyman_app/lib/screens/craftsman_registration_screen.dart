@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../config/api_config.dart';
 import 'location_selection_screen.dart';
 
 class CraftsmanRegistrationScreen extends StatefulWidget {
@@ -16,14 +17,90 @@ class _CraftsmanRegistrationScreenState extends State<CraftsmanRegistrationScree
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   String? _selectedAgeRange;
+  int? _selectedCategoryId;
   bool _isPasswordVisible = false;
   bool _isLoading = false;
+  bool _isLoadingCategories = true;
+  List<Map<String, dynamic>> _categories = [];
+  String? _categoryError;
 
   final List<String> _ageRanges = ['20-35', '35-45', '45-65'];
   
   // Backend configuration - Using localhost
   static const String _baseUrl = 'https://free-styel.store/api';
   static const String _saveCraftsmanDataEndpoint = '/auth/save-craftsman-data';
+  
+  Future<void> _loadCategories() async {
+    setState(() {
+      _isLoadingCategories = true;
+      _categoryError = null;
+    });
+
+    try {
+      final response = await http
+          .get(Uri.parse(ApiConfig.categoriesList), headers: ApiConfig.headers)
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true) {
+          final items = (data['data'] as List<dynamic>? ?? [])
+              .where((item) => item['id'] != null)
+              .map<Map<String, dynamic>>((item) {
+            return {
+              'id': item['id'],
+              'name': item['name_ar'] ??
+                  item['name'] ??
+                  item['title'] ??
+                  item['name_fr'] ??
+                  'القسم',
+            };
+          }).toList();
+
+          setState(() {
+            _categories = items.isNotEmpty ? items : _buildFallbackCategories();
+            if (items.isEmpty) {
+              _categoryError = 'تم تحميل قائمة الأقسام الافتراضية';
+            }
+          });
+        } else {
+          throw Exception(data['message'] ?? 'فشل تحميل الأقسام');
+        }
+      } else {
+        throw Exception('HTTP ${response.statusCode}');
+      }
+    } catch (e) {
+      setState(() {
+        _categories = _buildFallbackCategories();
+        _categoryError = 'تعذر تحميل الأقسام، تم تحميل قائمة افتراضية';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingCategories = false;
+        });
+      }
+    }
+  }
+
+  List<Map<String, dynamic>> _buildFallbackCategories() {
+    return [
+      {'id': 1, 'name': 'خدمات صيانة المنازل'},
+      {'id': 2, 'name': 'خدمات التنظيف'},
+      {'id': 3, 'name': 'النقل والخدمات اللوجستية'},
+      {'id': 4, 'name': 'خدمات السيارات'},
+      {'id': 5, 'name': 'خدمات طارئة (عاجلة)'},
+      {'id': 6, 'name': 'خدمات الأسر والعائلات'},
+      {'id': 7, 'name': 'خدمات تقنية'},
+      {'id': 8, 'name': 'خدمات الحديقة'},
+    ];
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCategories();
+  }
 
   @override
   void dispose() {
@@ -122,6 +199,10 @@ class _CraftsmanRegistrationScreenState extends State<CraftsmanRegistrationScree
                 const SizedBox(height: 15),
                 
                 ..._ageRanges.map((ageRange) => _buildAgeRangeOption(ageRange)),
+                
+                const SizedBox(height: 30),
+                
+                _buildCategoryDropdown(),
                 
                 const SizedBox(height: 40),
                 
@@ -263,11 +344,96 @@ class _CraftsmanRegistrationScreenState extends State<CraftsmanRegistrationScree
     );
   }
 
+  Widget _buildCategoryDropdown() {
+    if (_isLoadingCategories) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 20),
+        child: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (_categories.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'لا توجد أقسام متاحة حالياً',
+            style: TextStyle(fontSize: 16, color: Colors.red),
+          ),
+          TextButton(
+            onPressed: _loadCategories,
+            child: const Text('إعادة تحميل الأقسام'),
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Align(
+          alignment: Alignment.centerRight,
+          child: Text(
+            'اختر القسم الذي تعمل به',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(15),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<int>(
+              isExpanded: true,
+              value: _selectedCategoryId,
+              hint: const Text('اختر القسم'),
+              items: _categories.map((category) {
+                return DropdownMenuItem<int>(
+                  value: category['id'] as int,
+                  child: Text(category['name'] as String),
+                );
+              }).toList(),
+              onChanged: (value) {
+                setState(() {
+                  _selectedCategoryId = value;
+                });
+              },
+            ),
+          ),
+        ),
+        if (_categoryError != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            _categoryError!,
+            style: const TextStyle(color: Colors.orange, fontSize: 12),
+          ),
+        ],
+      ],
+    );
+  }
+
   void _handleNext() async {
     if (_nameController.text.isEmpty ||
         _emailController.text.isEmpty ||
         _passwordController.text.isEmpty ||
-        _selectedAgeRange == null) {
+        _selectedAgeRange == null ||
+        _selectedCategoryId == null) {
       _showErrorSnackBar('يرجى ملء جميع الحقول');
       return;
     }
@@ -296,6 +462,7 @@ class _CraftsmanRegistrationScreenState extends State<CraftsmanRegistrationScree
       await prefs.setString('temp_user_password', _passwordController.text);
       await prefs.setString('temp_user_age_range', _selectedAgeRange!);
       await prefs.setString('temp_user_type', 'craftsman');
+      await prefs.setInt('temp_user_category_id', _selectedCategoryId!);
       
       // Show success message
       _showSuccessSnackBar('تم حفظ بيانات الصنايعي بنجاح');
