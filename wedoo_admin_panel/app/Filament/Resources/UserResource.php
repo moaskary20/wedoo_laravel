@@ -51,8 +51,7 @@ class UserResource extends Resource
                     ->maxLength(255)
                     ->dehydrated(fn ($state) => filled($state))
                     ->helperText('اتركه فارغاً إذا كنت لا تريد تغيير كلمة المرور')
-                    ->visibleOn(['create', 'edit'])
-                    ->requiredOn('create'),
+                    ->visibleOn(['create', 'edit']),
                 Forms\Components\Select::make('user_type')
                     ->label('نوع المستخدم')
                     ->options([

@@ -18,6 +18,14 @@ class EditUser extends EditRecord
         ];
     }
 
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        // Make password optional on edit
+        $this->form->getComponent('password')?->required(false);
+        
+        return $data;
+    }
+
     protected function mutateFormDataBeforeSave(array $data): array
     {
         // If password is provided, hash it
