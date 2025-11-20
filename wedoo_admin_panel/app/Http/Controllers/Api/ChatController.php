@@ -88,18 +88,25 @@ class ChatController extends Controller
         // For craftsman: need customer_id
         // For customer: need craftsman_id or chat_id
         if (empty($validated['chat_id'])) {
-            if ($user->user_type === 'craftsman') {
+            if ($user && $user->user_type === 'craftsman') {
                 // Craftsman needs customer_id to chat with customer
                 if (empty($validated['customer_id'])) {
                     throw ValidationException::withMessages([
                         'customer_id' => 'customer_id is required when craftsman requests messages',
                     ]);
                 }
-            } else {
+            } else if ($user) {
                 // Customer needs craftsman_id
                 if (empty($validated['craftsman_id'])) {
                     throw ValidationException::withMessages([
                         'craftsman_id' => 'craftsman_id is required when customer requests messages',
+                    ]);
+                }
+            } else {
+                // No user authenticated - require either chat_id or both customer_id and craftsman_id
+                if (empty($validated['customer_id']) && empty($validated['craftsman_id'])) {
+                    throw ValidationException::withMessages([
+                        'chat_id' => 'chat_id or (customer_id and craftsman_id) is required',
                     ]);
                 }
             }
@@ -108,7 +115,7 @@ class ChatController extends Controller
         if (!empty($validated['craftsman_id'])) {
             // Only try to find craftsman if user is not a craftsman (i.e., customer requesting messages)
             // If user is craftsman, they should provide customer_id instead
-            if ($user->user_type !== 'craftsman') {
+            if ($user && $user->user_type !== 'craftsman') {
                 $craftsman = User::where('id', $validated['craftsman_id'])
                     ->where('user_type', 'craftsman')
                     ->first();
@@ -125,9 +132,9 @@ class ChatController extends Controller
             // Load relationships safely (won't fail if user doesn't exist)
             $chat->loadMissing(['customer', 'craftsman', 'order']);
         } else {
-            $customerId = $user->user_type === 'craftsman'
+            $customerId = ($user && $user->user_type === 'craftsman')
                 ? ($validated['customer_id'] ?? null)
-                : $user->id;
+                : ($user ? $user->id : ($validated['customer_id'] ?? null));
 
             if (!$customerId) {
                 throw ValidationException::withMessages([
@@ -143,7 +150,7 @@ class ChatController extends Controller
                 ]);
             }
 
-            if ($user->user_type !== 'craftsman') {
+            if ($user && $user->user_type !== 'craftsman') {
                 // Verify craftsman exists
                 if (!empty($validated['craftsman_id'])) {
                     $craftsman = User::find($validated['craftsman_id']);
