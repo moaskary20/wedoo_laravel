@@ -666,11 +666,13 @@ class ChatController extends Controller
         // Safely get sender without triggering errors
         $sender = null;
         $senderType = 'user';
+        $senderName = 'مستخدم';
         
         try {
             $sender = $message->sender;
             if ($sender) {
                 $senderType = $sender->user_type ?? 'user';
+                $senderName = $sender->name ?? 'مستخدم';
             }
         } catch (\Exception $e) {
             \Log::warning('Sender not found for message', [
@@ -689,6 +691,7 @@ class ChatController extends Controller
             'is_me' => $user ? ($message->sender_id === $user->id) : false,
             'sender_id' => $message->sender_id,
             'sender_type' => $senderType,
+            'sender_name' => $senderName, // Add sender name
             'created_at' => $message->created_at?->toIso8601String(),
             'is_read' => $message->is_read,
         ];

@@ -218,6 +218,17 @@ class _CraftsmanOrdersScreenState extends State<CraftsmanOrdersScreen> {
                   description: order['description'] ?? '',
                 );
                 print('✓ Notification shown successfully');
+                
+                // Show dialog in the middle of the screen
+                if (mounted) {
+                  _showNewOrderDialog(
+                    orderId: orderId,
+                    title: order['title'] ?? 'طلب جديد',
+                    customerName: order['customer_name'] ?? 'عميل',
+                    description: order['description'] ?? '',
+                    order: order,
+                  );
+                }
               } catch (e) {
                 print('✗ Error showing notification: $e');
                 print('Stack trace: ${StackTrace.current}');
@@ -538,6 +549,137 @@ class _CraftsmanOrdersScreenState extends State<CraftsmanOrdersScreen> {
   String _localizedText(String ar, String fr) {
     final locale = Localizations.localeOf(context);
     return locale.languageCode == 'ar' ? ar : fr;
+  }
+
+  void _showNewOrderDialog({
+    required int orderId,
+    required String title,
+    required String customerName,
+    required String description,
+    required Map<String, dynamic> order,
+  }) {
+    showDialog(
+      context: context,
+      barrierDismissible: false, // User must interact with the dialog
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Row(
+            children: [
+              const Icon(
+                Icons.notifications_active,
+                color: Colors.blue,
+                size: 28,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  _localizedText('طلب جديد', 'Nouvelle commande'),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _localizedText('من: $customerName', 'De: $customerName'),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: Colors.black87,
+                ),
+              ),
+              if (description.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  description,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey,
+                  ),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            // Reject button
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _respondToOrder(orderId, false);
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.red,
+              ),
+              child: Text(
+                _localizedText('رفض', 'Refuser'),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            // Accept button
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _respondToOrder(orderId, true);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+              child: Text(
+                _localizedText('قبول', 'Accepter'),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            // Chat button
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _openChatWithCustomer(order);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+              child: Text(
+                _localizedText('التحدث', 'Discuter'),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _openChatWithCustomer(Map<String, dynamic> order) async {

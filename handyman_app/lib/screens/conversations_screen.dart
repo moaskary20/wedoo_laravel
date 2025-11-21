@@ -891,13 +891,20 @@ class _ChatScreenState extends State<_ChatScreen> {
   }
 
   Widget _buildMessageBubble(Map<String, dynamic> message) {
+    final isMe = message['isMe'] == true;
+    final senderName = message['sender_name'] as String?;
+    final showSenderName = !isMe && senderName != null && senderName.isNotEmpty;
+    
     return Align(
-      alignment: message['isMe'] ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.75,
+        ),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: message['isMe'] ? Colors.blue : Colors.white,
+          color: isMe ? Colors.blue : Colors.white,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
@@ -907,12 +914,31 @@ class _ChatScreenState extends State<_ChatScreen> {
             ),
           ],
         ),
-        child: Text(
-          message['text'],
-          style: TextStyle(
-            color: message['isMe'] ? Colors.white : Colors.black,
-            fontSize: 14,
-          ),
+        child: Column(
+          crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          children: [
+            // Sender name (only for messages from others)
+            if (showSenderName)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  senderName,
+                  style: TextStyle(
+                    color: isMe ? Colors.white70 : Colors.blue[700],
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            // Message text
+            Text(
+              message['text'] ?? message['message'] ?? '',
+              style: TextStyle(
+                color: isMe ? Colors.white : Colors.black,
+                fontSize: 14,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -1104,6 +1130,7 @@ class _ChatScreenState extends State<_ChatScreen> {
               'isMe': true,
               'time': messageData['created_at'] ?? _getCurrentTime(),
               'type': messageData['message_type'] ?? 'text',
+              'sender_name': messageData['sender_name'], // Add sender name
             });
           });
           _scrollToBottom();
@@ -1323,6 +1350,7 @@ class _ChatScreenState extends State<_ChatScreen> {
                 'type': msg['message_type'] ?? 'text',
                 'sender_id': msgSenderId, // Keep for debugging
                 'sender_type': senderType, // Keep for debugging
+                'sender_name': msg['sender_name'], // Add sender name
               });
             }
             
@@ -1439,19 +1467,27 @@ class _ChatScreenState extends State<_ChatScreen> {
       } else {
         // Check if we have customer_id (when craftsman is chatting with customer)
         final customerId = widget.conversation['customer_id'];
+        final craftsmanId = widget.conversation['craftsman_id'];
         print('Conversation data: ${widget.conversation.keys.toList()}');
         print('customer_id in conversation: $customerId');
+        print('craftsman_id in conversation: $craftsmanId');
         
         if (customerId != null) {
           params['customer_id'] = customerId.toString();
           print('Using customer_id: $customerId');
+          
+          // Also send craftsman_id if available (for when user is not authenticated)
+          if (craftsmanId != null) {
+            params['craftsman_id'] = craftsmanId.toString();
+            print('Also sending craftsman_id: $craftsmanId');
+          }
         } else {
           // Fallback to craftsman_id (when customer is chatting with craftsman)
           final craftsman = widget.conversation['craftsman'];
-          final craftsmanId = craftsman?['id'] ?? widget.conversation['id'];
-          if (craftsmanId != null) {
-            params['craftsman_id'] = craftsmanId.toString();
-            print('Using craftsman_id: $craftsmanId');
+          final craftsmanIdFromCraftsman = craftsman?['id'] ?? widget.conversation['id'];
+          if (craftsmanIdFromCraftsman != null) {
+            params['craftsman_id'] = craftsmanIdFromCraftsman.toString();
+            print('Using craftsman_id: $craftsmanIdFromCraftsman');
           }
         }
       }
@@ -1502,6 +1538,7 @@ class _ChatScreenState extends State<_ChatScreen> {
                   'isMe': msg['is_me'] == true || msg['sender_type'] == 'user',
                   'time': msg['created_at'] ?? DateTime.now().toString(),
                   'type': msg['message_type'] ?? 'text',
+                  'sender_name': msg['sender_name'], // Add sender name
                 }));
             
             // Add back optimistic messages that are not in the backend response
