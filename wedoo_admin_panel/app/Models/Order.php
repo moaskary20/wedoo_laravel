@@ -21,10 +21,12 @@ class Order extends Model
         'status',
         'notes',
         'craftsman_status',
+        'images',
     ];
 
     protected $casts = [
         'preferred_date' => 'datetime',
+        'images' => 'array',
     ];
 
     protected static function boot()

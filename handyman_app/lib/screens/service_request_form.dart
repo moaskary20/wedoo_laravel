@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:convert' as convert;
 import 'dart:async';
 import 'location_selection_screen.dart';
 import 'package:image_picker/image_picker.dart';
@@ -14,6 +15,7 @@ import '../services/language_service.dart';
 import 'package:handyman_app/l10n/app_localizations.dart';
 import 'my_orders_screen.dart';
 import 'conversations_screen.dart';
+import 'craftsman_selection_screen.dart';
 
 class ServiceRequestForm extends StatefulWidget {
   final String categoryName;
@@ -39,6 +41,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
   String? _errorMessage;
   bool _isSearchingCraftsman = false;
   Map<String, dynamic>? _nearestCraftsman;
+  List<Map<String, dynamic>> _availableCraftsmen = [];
   final ValueNotifier<int> _craftsmanDialogVersion = ValueNotifier<int>(0);
   Timer? _orderStatusTimer;
   String? _currentOrderId;
@@ -1653,6 +1656,17 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
         throw Exception('User is not authenticated. Please log in again.');
       }
 
+      // Upload images first if any
+      List<String> imageUrls = [];
+      if (_selectedImages.isNotEmpty) {
+        imageUrls = await _uploadImages(headers);
+      }
+
+      // Add image URLs to request data
+      if (imageUrls.isNotEmpty) {
+        requestData['images'] = imageUrls;
+      }
+
       // Send to admin panel
       final uri = Uri.parse(ApiConfig.ordersCreate);
       final httpResponse = await http
@@ -1681,18 +1695,44 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
       // Verify order exists in backend before proceeding
       await _verifyOrderStoredInBackend(userId, backendOrderId);
 
-      // Start searching for nearby craftsman (async, updates dialog when done)
-      _startCraftsmanSearch(requestData);
-      
-      // Stop loading before showing success UI
+      // Stop loading before showing dialog
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
       }
-      
-      // Show success dialog with chat option
-      _showSuccessDialogWithChat();
+
+      // Get category ID from task type or widget
+      int? categoryId = widget.categoryId;
+      if (categoryId == null && selectedTaskTypeDetails != null) {
+        final taskCategoryId = selectedTaskTypeDetails['task_category_id'] ?? 
+                               selectedTaskTypeDetails['category_id'] ??
+                               selectedTaskTypeDetails['categoryId'];
+        if (taskCategoryId != null) {
+          if (taskCategoryId is int) {
+            categoryId = taskCategoryId;
+          } else if (taskCategoryId is String) {
+            categoryId = int.tryParse(taskCategoryId);
+          }
+        }
+      }
+      // Fallback to helper function if still null
+      if (categoryId == null) {
+        categoryId = widget.categoryId ?? _getCategoryId(widget.categoryName);
+      }
+
+      // Store order ID and category ID for later use
+      if (backendOrderId != null) {
+        _currentOrderId = backendOrderId;
+      }
+
+      // Start automatic search for all available craftsmen in the same category
+      if (mounted && categoryId != null) {
+        _startCraftsmanSearchForAll(requestData, categoryId, locationDetails);
+      }
+
+      // Show success dialog with craftsmen list
+      _showSuccessDialogWithCraftsmenList();
       
     } catch (e) {
       print('Error submitting request: $e');
@@ -1720,6 +1760,29 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
     final headers = Map<String, String>.from(ApiConfig.headers);
     headers['Authorization'] = 'Bearer $token';
     return headers;
+  }
+
+  Future<List<String>> _uploadImages(Map<String, String> headers) async {
+    List<String> imageUrls = [];
+    
+    for (int i = 0; i < _selectedImages.length; i++) {
+      final imageFile = _selectedImages[i];
+      if (imageFile.path.isEmpty) continue;
+
+      try {
+        // Convert image to base64
+        final bytes = await imageFile.readAsBytes();
+        final base64Image = base64Encode(bytes);
+        
+        // Create data URL format
+        imageUrls.add('data:image/jpeg;base64,$base64Image');
+      } catch (e) {
+        print('Error processing image $i: $e');
+        // Continue with other images even if one fails
+      }
+    }
+
+    return imageUrls;
   }
 
   String _buildOrderTitle(String taskTypeName) {
@@ -1904,6 +1967,92 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
     });
   }
 
+  void _startCraftsmanSearchForAll(
+    Map<String, dynamic> requestData,
+    int categoryId,
+    Map<String, dynamic> locationDetails,
+  ) {
+    setState(() {
+      _isSearchingCraftsman = true;
+      _availableCraftsmen = [];
+    });
+    _craftsmanDialogVersion.value++;
+
+    _findAllAvailableCraftsmen(categoryId, locationDetails).then((craftsmen) {
+      if (!mounted) return;
+      setState(() {
+        _isSearchingCraftsman = false;
+        _availableCraftsmen = craftsmen;
+      });
+      _craftsmanDialogVersion.value++;
+    }).catchError((error) {
+      print('Error finding all craftsmen: $error');
+      if (!mounted) return;
+      setState(() {
+        _isSearchingCraftsman = false;
+        _availableCraftsmen = [];
+      });
+      _craftsmanDialogVersion.value++;
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> _findAllAvailableCraftsmen(
+    int categoryId,
+    Map<String, dynamic> locationDetails,
+  ) async {
+    try {
+      final headers = await _buildAuthHeaders();
+      if (headers == null) {
+        print('Cannot load craftsmen: missing auth token');
+        return [];
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+
+      final queryParams = <String, String>{
+        'category_id': categoryId.toString(),
+        'limit': '20', // Get up to 20 craftsmen
+        if ((locationDetails['governorate'] ?? '').toString().isNotEmpty)
+          'governorate': locationDetails['governorate'].toString(),
+        if ((locationDetails['city'] ?? '').toString().isNotEmpty)
+          'city': locationDetails['city'].toString(),
+        if ((locationDetails['district'] ?? '').toString().isNotEmpty)
+          'district': locationDetails['district'].toString(),
+        if ((prefs.getString('user_governorate') ?? '').isNotEmpty && (locationDetails['governorate'] ?? '').toString().isEmpty)
+          'governorate': prefs.getString('user_governorate') ?? '',
+        if ((prefs.getString('user_city') ?? '').isNotEmpty && (locationDetails['city'] ?? '').toString().isEmpty)
+          'city': prefs.getString('user_city') ?? '',
+        if ((prefs.getString('user_area') ?? '').isNotEmpty && (locationDetails['district'] ?? '').toString().isEmpty)
+          'district': prefs.getString('user_area') ?? '',
+      };
+
+      queryParams.removeWhere((key, value) => value.isEmpty);
+
+      final uri = Uri.parse(ApiConfig.craftsmanNearby).replace(queryParameters: queryParams);
+      print('Fetching all craftsmen from: $uri');
+      final response = await http.get(uri, headers: headers).timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true) {
+          final List<dynamic> list = data['data'] ?? [];
+          final craftsmen = list
+              .map<Map<String, dynamic>>((item) => Map<String, dynamic>.from(item))
+              .toList();
+          print('Found ${craftsmen.length} available craftsmen');
+          return craftsmen;
+        } else {
+          throw Exception(data['message'] ?? 'Failed to load craftsmen');
+        }
+      } else {
+        throw Exception('HTTP ${response.statusCode}: ${response.body}');
+      }
+    } catch (e) {
+      print('Error loading all craftsmen: $e');
+      return [];
+    }
+  }
+
   Widget _buildCraftsmanStatusSection(BuildContext dialogContext) {
     return ValueListenableBuilder<int>(
       valueListenable: _craftsmanDialogVersion,
@@ -1919,7 +2068,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
         return Text(
           _localizedText(
             'لم نتمكن من العثور على صنايعي في الوقت الحالي، سنرسل لك إشعاراً بمجرد توفر أحدهم.',
-            'Impossible de trouver un artisan pour le moment. Nous vous informerons dès qu’un artisan sera disponible.',
+            "Impossible de trouver un artisan pour le moment. Nous vous informerons dès qu'un artisan sera disponible.",
           ),
           style: const TextStyle(
             fontSize: 14,
@@ -1930,6 +2079,218 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
         );
       },
     );
+  }
+
+  Widget _buildCraftsmenListSection(BuildContext dialogContext) {
+    return ValueListenableBuilder<int>(
+      valueListenable: _craftsmanDialogVersion,
+      builder: (_, __, ___) {
+        if (_isSearchingCraftsman) {
+          return _buildCraftsmanSearchingView();
+        }
+
+        if (_availableCraftsmen.isEmpty) {
+          return SizedBox(
+            height: 150,
+            child: Center(
+              child: Text(
+                _localizedText(
+                  'لا يوجد صنايعيون متاحون في هذه الفئة حالياً',
+                  'Aucun artisan disponible dans cette catégorie pour le moment',
+                ),
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.black54,
+                  height: 1.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          );
+        }
+
+        // Show scrollable list of craftsmen
+        return SizedBox(
+          height: 300,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _localizedText(
+                  'الصنايعيون المتاحون (${_availableCraftsmen.length})',
+                  'Artisans disponibles (${_availableCraftsmen.length})',
+                ),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _availableCraftsmen.length,
+                  itemBuilder: (context, index) {
+                    final craftsman = _availableCraftsmen[index];
+                    return _buildCraftsmanListItem(dialogContext, craftsman);
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildCraftsmanListItem(
+    BuildContext dialogContext,
+    Map<String, dynamic> craftsman,
+  ) {
+    final name = craftsman['name']?.toString() ?? 'صنايعي';
+    final rating = (craftsman['rating'] as num?)?.toDouble() ?? 0.0;
+    final ratingCount = (craftsman['rating_count'] as num?)?.toInt() ?? 0;
+    final distanceLabel = craftsman['distance_label']?.toString() ?? '';
+    final craftsmanId = craftsman['id'] as int?;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      elevation: 1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: Colors.blue.withValues(alpha: 0.1),
+          child: Text(
+            name.isNotEmpty ? name.substring(0, 1).toUpperCase() : '?',
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.blue,
+            ),
+          ),
+        ),
+        title: Text(
+          name,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Icon(Icons.star, color: Colors.orange, size: 16),
+                const SizedBox(width: 4),
+                Text(
+                  rating.toStringAsFixed(1),
+                  style: const TextStyle(fontSize: 14),
+                ),
+                if (ratingCount > 0) ...[
+                  const SizedBox(width: 4),
+                  Text(
+                    '($ratingCount)',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            if (distanceLabel.isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Row(
+                children: [
+                  const Icon(Icons.place, color: Colors.redAccent, size: 14),
+                  const SizedBox(width: 4),
+                  Text(
+                    distanceLabel,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+        trailing: _currentOrderId != null && craftsmanId != null
+            ? ElevatedButton(
+                onPressed: () => _inviteCraftsmanFromDialog(
+                  dialogContext,
+                  craftsman,
+                  _currentOrderId!,
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                ),
+                child: Text(
+                  _localizedText('اختر', 'Choisir'),
+                  style: const TextStyle(fontSize: 12),
+                ),
+              )
+            : null,
+      ),
+    );
+  }
+
+  Future<void> _inviteCraftsmanFromDialog(
+    BuildContext dialogContext,
+    Map<String, dynamic> craftsman,
+    String orderId,
+  ) async {
+    final craftsmanId = craftsman['id'] as int?;
+    if (craftsmanId == null) return;
+
+    try {
+      await _inviteCraftsmanToOrder(craftsman, orderId);
+      
+      if (mounted) {
+        Navigator.of(dialogContext).pop();
+        final l10n = AppLocalizations.of(context)!;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_localizedText(
+              'تم إرسال الدعوة للصنايعي بنجاح',
+              'Invitation envoyée à l\'artisan avec succès',
+            )),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        
+        // Navigate to orders screen
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => const MyOrdersScreen(),
+          ),
+        );
+        _resetForm();
+      }
+    } catch (e) {
+      print('Error inviting craftsman: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${_localizedText("خطأ", "Erreur")}: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildCraftsmanSearchingView() {
@@ -2180,6 +2541,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
       _useSavedLocation = true;
       _isSearchingCraftsman = false;
       _nearestCraftsman = null;
+      _availableCraftsmen = [];
       _currentOrderId = null;
       _currentCraftsmanStatus = 'awaiting_assignment';
     });
@@ -2387,7 +2749,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
   }
 
 
-  void _showSuccessDialogWithChat() {
+  void _showSuccessDialogWithCraftsmenList() {
     if (!mounted) return;
     final l10n = AppLocalizations.of(context)!;
     final isRtl = _currentLocale.languageCode == 'ar';
@@ -2431,7 +2793,10 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  _getRequestSuccessMessage(),
+                  _localizedText(
+                    'تم إنشاء الطلب بنجاح. اختر صنايعي من القائمة التالية:',
+                    'Commande créée avec succès. Choisissez un artisan dans la liste suivante:',
+                  ),
                   style: const TextStyle(
                     fontSize: 16,
                     color: Colors.black54,
@@ -2440,7 +2805,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 24),
-                _buildCraftsmanStatusSection(dialogContext),
+                _buildCraftsmenListSection(dialogContext),
                 const SizedBox(height: 16),
                 SizedBox(
                   width: double.infinity,

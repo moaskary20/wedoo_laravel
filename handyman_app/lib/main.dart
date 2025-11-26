@@ -8,6 +8,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:handyman_app/l10n/app_localizations.dart';
 
+import 'services/notification_service.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // فقط للـ mobile platforms
@@ -15,6 +17,7 @@ void main() async {
     HttpOverrides.global = MyHttpOverrides();
   }
   ApiService.init();
+  await NotificationService().initialize();
   runApp(const HandymanApp());
 }
 
@@ -22,7 +25,8 @@ class MyHttpOverrides extends HttpOverrides {
   @override
   HttpClient createHttpClient(SecurityContext? context) {
     return super.createHttpClient(context)
-      ..badCertificateCallback = (X509Certificate cert, String host, int port) => true;
+      ..badCertificateCallback =
+          (X509Certificate cert, String host, int port) => true;
   }
 }
 
@@ -130,4 +134,3 @@ extension LocaleExtension on BuildContext {
     provider?.changeLocale(newLocale);
   }
 }
-

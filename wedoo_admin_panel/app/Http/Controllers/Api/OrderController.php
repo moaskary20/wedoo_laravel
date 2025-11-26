@@ -23,17 +23,64 @@ class OrderController extends Controller
             'district' => 'nullable|string|max:255',
             'budget' => 'nullable|numeric',
             'preferred_date' => 'nullable|date',
-            'notes' => 'nullable|string'
+            'notes' => 'nullable|string',
+            'images' => 'nullable|array',
+            'images.*' => 'nullable|string|url'
         ]);
 
         $validated['status'] = $validated['status'] ?? 'pending';
         $validated['craftsman_status'] = 'awaiting_assignment';
 
+        // Handle image uploads if provided
+        $imageUrls = [];
+        if ($request->hasFile('images')) {
+            $uploadedImages = $request->file('images');
+            foreach ($uploadedImages as $image) {
+                if ($image->isValid()) {
+                    $path = $image->store('orders/images', 'public');
+                    $imageUrls[] = asset('storage/' . $path);
+                }
+            }
+        } elseif ($request->has('images') && is_array($request->images)) {
+            // If images are sent as base64 data URLs
+            foreach ($request->images as $imageData) {
+                if (is_string($imageData) && strpos($imageData, 'data:image') === 0) {
+                    // Extract base64 data
+                    $base64Data = explode(',', $imageData)[1] ?? '';
+                    $imageData = base64_decode($base64Data);
+                    
+                    if ($imageData) {
+                        // Generate unique filename
+                        $filename = 'order_' . time() . '_' . uniqid() . '.jpg';
+                        $path = 'orders/images/' . $filename;
+                        $fullPath = storage_path('app/public/' . $path);
+                        
+                        // Create directory if it doesn't exist
+                        $directory = dirname($fullPath);
+                        if (!is_dir($directory)) {
+                            mkdir($directory, 0755, true);
+                        }
+                        
+                        // Save image
+                        file_put_contents($fullPath, $imageData);
+                        $imageUrls[] = asset('storage/' . $path);
+                    }
+                } elseif (is_string($imageData) && filter_var($imageData, FILTER_VALIDATE_URL)) {
+                    // If it's already a URL, use it directly
+                    $imageUrls[] = $imageData;
+                }
+            }
+        }
+
+        if (!empty($imageUrls)) {
+            $validated['images'] = $imageUrls;
+        }
+
         $order = Order::create($validated);
 
         return response()->json([
             'success' => true,
-            'data' => $order,
+            'data' => $this->transformOrder($order),
             'message' => 'Order created successfully'
         ]);
     }
@@ -228,6 +275,7 @@ class OrderController extends Controller
             'status' => $order->status,
             'craftsman_status' => $order->craftsman_status,
             'notes' => $order->notes,
+            'images' => $order->images ?? [],
             'created_at' => optional($order->created_at)?->format('Y-m-d H:i:s'),
         ];
     }

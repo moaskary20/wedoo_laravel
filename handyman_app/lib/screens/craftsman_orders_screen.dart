@@ -30,11 +30,24 @@ class _CraftsmanOrdersScreenState extends State<CraftsmanOrdersScreen> {
   void initState() {
     super.initState();
     _initializeNotifications();
-    _fetchOrders();
-    // Start polling immediately and also after a short delay
+    _fetchOrders().then((_) {
+      // After initial load, check for pending orders and show notifications
+      if (mounted) {
+        // First, mark all current orders as known to prevent duplicate notifications
+        _knownOrderIds = _orders
+            .where((o) => o['id'] != null)
+            .map((o) => o['id'] as int)
+            .toSet();
+        print('Initial known order IDs: ${_knownOrderIds.length}');
+        
+        // Check for pending orders and show notifications for them
+        _checkPendingOrdersForNotification();
+      }
+    });
+    // Start polling immediately
     _startPolling();
     // Also check immediately after a short delay
-    Future.delayed(const Duration(seconds: 3), () {
+    Future.delayed(const Duration(seconds: 5), () {
       if (mounted) {
         _checkForNewOrders();
       }
@@ -144,8 +157,8 @@ class _CraftsmanOrdersScreenState extends State<CraftsmanOrdersScreen> {
   }
 
   void _startPolling() {
-    // Poll every 30 seconds for new orders
-    _pollingTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+    // Poll every 10 seconds for new orders (more frequent for better responsiveness)
+    _pollingTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
       if (mounted) {
         _checkForNewOrders();
       }
@@ -203,14 +216,17 @@ class _CraftsmanOrdersScreenState extends State<CraftsmanOrdersScreen> {
                 (status == 'waiting_response' || status == 'awaiting_assignment' || status == 'pending')) {
               _knownOrderIds.add(orderId);
               
-              print('=== New order detected ===');
+              print('=== 🎉 NEW ORDER DETECTED ===');
               print('Order ID: $orderId');
               print('Status: $status');
               print('Title: ${order['title']}');
               print('Customer: ${order['customer_name']}');
+              print('Known order IDs before: ${_knownOrderIds.length - 1}');
+              print('Known order IDs after: ${_knownOrderIds.length}');
               
-              // Show notification
+              // Show notification with sound
               try {
+                print('Attempting to show notification...');
                 await _notificationService.showNewOrderNotification(
                   orderId: orderId,
                   title: order['title'] ?? 'طلب جديد',
@@ -221,6 +237,7 @@ class _CraftsmanOrdersScreenState extends State<CraftsmanOrdersScreen> {
                 
                 // Show dialog in the middle of the screen
                 if (mounted) {
+                  print('Showing dialog in middle of screen...');
                   _showNewOrderDialog(
                     orderId: orderId,
                     title: order['title'] ?? 'طلب جديد',
@@ -228,15 +245,26 @@ class _CraftsmanOrdersScreenState extends State<CraftsmanOrdersScreen> {
                     description: order['description'] ?? '',
                     order: order,
                   );
+                  print('✓ Dialog shown successfully');
+                } else {
+                  print('⚠ Widget not mounted, cannot show dialog');
                 }
               } catch (e) {
-                print('✗ Error showing notification: $e');
+                print('✗ Error showing notification/dialog: $e');
                 print('Stack trace: ${StackTrace.current}');
+              }
+            } else {
+              if (_knownOrderIds.contains(orderId)) {
+                print('Order $orderId already known, skipping notification');
+              } else {
+                print('Order $orderId status is $status, not eligible for notification');
               }
             }
           }
 
           // Update orders list
+          // Note: Don't update _knownOrderIds here to allow detection of new orders
+          // _knownOrderIds is only updated when a new order is detected and notification is shown
           if (mounted) {
             setState(() {
               _orders = newOrders;
@@ -246,6 +274,69 @@ class _CraftsmanOrdersScreenState extends State<CraftsmanOrdersScreen> {
       }
     } catch (e) {
       print('Error checking for new orders: $e');
+    }
+  }
+
+  Future<void> _checkPendingOrdersForNotification() async {
+    // Wait a bit to ensure notifications are initialized
+    await Future.delayed(const Duration(seconds: 2));
+    
+    if (!mounted) return;
+    
+    print('=== Checking for pending orders on screen load ===');
+    print('Total orders: ${_orders.length}');
+    
+    // Check all current orders for pending status and show notifications
+    for (var order in _orders) {
+      final orderId = order['id'] as int?;
+      if (orderId == null) continue;
+
+      final status = (order['craftsman_status'] ?? order['status'] ?? '').toString();
+      
+      print('Checking order $orderId with status: $status');
+      
+      // Show notification for pending orders (waiting_response, awaiting_assignment, or pending)
+      if (status == 'waiting_response' || status == 'awaiting_assignment' || status == 'pending') {
+        print('=== 🎉 Found pending order on screen load ===');
+        print('Order ID: $orderId');
+        print('Status: $status');
+        print('Title: ${order['title']}');
+        print('Customer: ${order['customer_name']}');
+        
+        // Show notification with sound
+        try {
+          print('Attempting to show notification for pending order...');
+          await _notificationService.showNewOrderNotification(
+            orderId: orderId,
+            title: order['title'] ?? 'طلب جديد',
+            customerName: order['customer_name'] ?? 'عميل',
+            description: order['description'] ?? '',
+          );
+          print('✓ Notification shown successfully for pending order');
+          
+          // Wait a bit before showing dialog to ensure notification is displayed
+          await Future.delayed(const Duration(milliseconds: 500));
+          
+          // Show dialog in the middle of the screen
+          if (mounted) {
+            print('Showing dialog for pending order...');
+            _showNewOrderDialog(
+              orderId: orderId,
+              title: order['title'] ?? 'طلب جديد',
+              customerName: order['customer_name'] ?? 'عميل',
+              description: order['description'] ?? '',
+              order: order,
+            );
+            print('✓ Dialog shown successfully for pending order');
+          }
+        } catch (e) {
+          print('✗ Error showing notification/dialog for pending order: $e');
+          print('Stack trace: ${StackTrace.current}');
+        }
+        
+        // Only show notification for the first pending order to avoid spam
+        break;
+      }
     }
   }
 
@@ -300,11 +391,9 @@ class _CraftsmanOrdersScreenState extends State<CraftsmanOrdersScreen> {
                   (item) => Map<String, dynamic>.from(item))
               .toList();
           
-          // Update known order IDs
-          _knownOrderIds = orders
-              .where((o) => o['id'] != null)
-              .map((o) => o['id'] as int)
-              .toSet();
+          // Don't update _knownOrderIds here - only update when we detect a new order
+          // This allows us to detect new orders that arrive after initial load
+          // _knownOrderIds will be updated in _checkForNewOrders when a new order is detected
           
           setState(() {
             _orders = orders;
@@ -467,6 +556,45 @@ class _CraftsmanOrdersScreenState extends State<CraftsmanOrdersScreen> {
             ],
             const SizedBox(height: 8),
             Text(order['description'] ?? ''),
+            // Display images if available
+            if (order['images'] != null && (order['images'] as List).isNotEmpty) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 120,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: (order['images'] as List).length,
+                  itemBuilder: (context, imgIndex) {
+                    final imageUrl = (order['images'] as List)[imgIndex] as String;
+                    return Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      width: 120,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey[300]!),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              color: Colors.grey[200],
+                              child: const Icon(Icons.broken_image, color: Colors.grey),
+                            );
+                          },
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return const Center(child: CircularProgressIndicator());
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
             const SizedBox(height: 8),
             Row(
               children: [
