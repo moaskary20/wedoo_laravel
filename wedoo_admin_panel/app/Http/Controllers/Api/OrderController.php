@@ -25,7 +25,7 @@ class OrderController extends Controller
             'preferred_date' => 'nullable|date',
             'notes' => 'nullable|string',
             'images' => 'nullable|array',
-            'images.*' => 'nullable|string|url'
+            'images.*' => 'nullable|string' // Accept both URLs and base64 data URLs
         ]);
 
         $validated['status'] = $validated['status'] ?? 'pending';
