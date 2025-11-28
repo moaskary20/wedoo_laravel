@@ -21,7 +21,8 @@ class ServiceRequestForm extends StatefulWidget {
   final String categoryName;
   final String categoryIcon;
   final Color categoryColor;
-  final int? categoryId; // Optional: if provided, use it directly instead of converting from name
+  final int?
+  categoryId; // Optional: if provided, use it directly instead of converting from name
 
   const ServiceRequestForm({
     super.key,
@@ -51,15 +52,18 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
   final ImagePicker _picker = ImagePicker();
   List<File> _selectedImages = [];
   List<Uint8List> _imageBytes = [];
-  
+
   // Location
   String _selectedLocationText = 'Cairo, Egypt, Cairo';
-  
+
   // Google Maps
   GoogleMapController? _mapController;
   Set<Marker> _markers = {};
-  LatLng _selectedLocation = const LatLng(30.0444, 31.2357); // Cairo coordinates
-  
+  LatLng _selectedLocation = const LatLng(
+    30.0444,
+    31.2357,
+  ); // Cairo coordinates
+
   // Interactive map marker position
   Offset _markerPosition = const Offset(150, 100); // Initial marker position
 
@@ -67,22 +71,29 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
   int? _selectedTaskTypeId; // Store task type ID instead of name
   List<Map<String, dynamic>> _taskTypes = [];
   bool _isLoadingTaskTypes = false;
-  
+
   // Helper function to get task type name based on current locale
   String _getTaskTypeName(Map<String, dynamic> taskType) {
     final isRtl = _currentLocale.languageCode == 'ar';
-    
+
     if (isRtl) {
       // Return Arabic name if available, otherwise fallback to name
-      return taskType['name_ar'] ?? taskType['name_arabic'] ?? taskType['name'] ?? '';
+      return taskType['name_ar'] ??
+          taskType['name_arabic'] ??
+          taskType['name'] ??
+          '';
     } else {
       // Return French name if available, otherwise fallback to name
-      return taskType['name_fr'] ?? taskType['name_french'] ?? taskType['name'] ?? '';
+      return taskType['name_fr'] ??
+          taskType['name_french'] ??
+          taskType['name'] ??
+          '';
     }
   }
 
   // Step 2: Task Specifications
-  final TextEditingController _taskDescriptionController = TextEditingController();
+  final TextEditingController _taskDescriptionController =
+      TextEditingController();
   final TextEditingController _urgencyController = TextEditingController();
   final TextEditingController _budgetController = TextEditingController();
   String? _selectedUrgency;
@@ -152,7 +163,8 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
             'longitude': prefs.getDouble('longitude') ?? 0.0,
           };
           setState(() {
-          _selectedLocationText = '${_savedLocation!['address']}, ${_savedLocation!['city']}';
+            _selectedLocationText =
+                '${_savedLocation!['address']}, ${_savedLocation!['city']}';
           });
         });
       }
@@ -169,17 +181,19 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
 
       // Get category ID - use provided ID if available, otherwise convert from name
       int categoryId = widget.categoryId ?? _getCategoryId(widget.categoryName);
-      
+
       // Debug logging
       print('Category Name: ${widget.categoryName}');
       print('Category ID (from backend): ${widget.categoryId}');
       print('Category ID (used): $categoryId');
 
       // Fetch from HTTPS server
-      final response = await http.get(
-        Uri.parse('${ApiConfig.taskTypes}?category_id=$categoryId'),
-        headers: ApiConfig.headers,
-      ).timeout(const Duration(seconds: 30));
+      final response = await http
+          .get(
+            Uri.parse('${ApiConfig.taskTypes}?category_id=$categoryId'),
+            headers: ApiConfig.headers,
+          )
+          .timeout(const Duration(seconds: 30));
 
       print('API Response Status: ${response.statusCode}');
       print('API Response Body: ${response.body}');
@@ -189,15 +203,16 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
         if (responseData['success'] == true) {
           // Extract task types directly from data array
           List<dynamic> allTaskTypes = responseData['data'] ?? [];
-          
+
           // Filter task types by category_id to ensure only relevant types are shown
           List<Map<String, dynamic>> filteredTaskTypes = [];
           for (var taskType in allTaskTypes) {
             final taskTypeMap = taskType as Map<String, dynamic>;
-            final taskCategoryId = taskTypeMap['category_id'] ?? 
-                                  taskTypeMap['categoryId'] ?? 
-                                  taskTypeMap['category']?['id'];
-            
+            final taskCategoryId =
+                taskTypeMap['category_id'] ??
+                taskTypeMap['categoryId'] ??
+                taskTypeMap['category']?['id'];
+
             // Convert to int for comparison
             int? taskCategoryIdInt;
             if (taskCategoryId != null) {
@@ -207,45 +222,55 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                 taskCategoryIdInt = int.tryParse(taskCategoryId);
               }
             }
-            
+
             // Only include task types that match the current category
             if (taskCategoryIdInt == categoryId) {
               filteredTaskTypes.add(taskTypeMap);
             }
           }
-          
+
           print('Total task types from API: ${allTaskTypes.length}');
-          print('Filtered task types for category $categoryId: ${filteredTaskTypes.length}');
-          
+          print(
+            'Filtered task types for category $categoryId: ${filteredTaskTypes.length}',
+          );
+
           setState(() {
             _taskTypes = filteredTaskTypes;
             _isLoadingTaskTypes = false;
           });
         } else {
-          throw Exception(responseData['message'] ?? 'Failed to fetch task types');
+          throw Exception(
+            responseData['message'] ?? 'Failed to fetch task types',
+          );
         }
       } else {
         throw Exception('Failed to fetch task types: ${response.statusCode}');
       }
-      
     } catch (e) {
       print('Error fetching task types: $e');
       setState(() {
         _isLoadingTaskTypes = false;
         _taskTypes = [];
       });
-      
+
       final l10n = AppLocalizations.of(context);
       // Show specific error messages
-      String errorMessage = l10n?.errorLoadingTaskTypes ?? 'خطأ في تحميل أنواع المهام';
+      String errorMessage =
+          l10n?.errorLoadingTaskTypes ?? 'خطأ في تحميل أنواع المهام';
       if (e.toString().contains('ClientException')) {
-        errorMessage = l10n?.serverConnectionErrorCheckInternet ?? 'خطأ في الاتصال بالخادم. تحقق من اتصال الإنترنت';
+        errorMessage =
+            l10n?.serverConnectionErrorCheckInternet ??
+            'خطأ في الاتصال بالخادم. تحقق من اتصال الإنترنت';
       } else if (e.toString().contains('TimeoutException')) {
-        errorMessage = l10n?.connectionTimeoutTryAgain ?? 'انتهت مهلة الاتصال. حاول مرة أخرى';
+        errorMessage =
+            l10n?.connectionTimeoutTryAgain ??
+            'انتهت مهلة الاتصال. حاول مرة أخرى';
       } else if (e.toString().contains('SocketException')) {
-        errorMessage = l10n?.cannotReachServer ?? 'لا يمكن الوصول إلى الخادم. تحقق من اتصال الإنترنت';
+        errorMessage =
+            l10n?.cannotReachServer ??
+            'لا يمكن الوصول إلى الخادم. تحقق من اتصال الإنترنت';
       }
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(errorMessage),
@@ -270,47 +295,44 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final isRtl = _currentLocale.languageCode == 'ar';
-    
+
     return Directionality(
       textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
-      backgroundColor: const Color(0xFFfec901),
-      appBar: AppBar(
-        title: Text(
-          l10n.createServiceRequest,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-            fontSize: 18,
+        backgroundColor: const Color(0xFFfec901),
+        appBar: AppBar(
+          title: Text(
+            l10n.createServiceRequest,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              fontSize: 18,
+            ),
+          ),
+          backgroundColor: Colors.blue,
+          elevation: 0,
+          centerTitle: true,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.of(context).pop(),
           ),
         ),
-        backgroundColor: Colors.blue,
-        elevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
+        body: Stack(
+          children: [
+            Column(
+              children: [
+                // Progress Indicator
+                _buildProgressIndicator(),
+
+                // Form Content
+                Expanded(child: _buildFormContent()),
+
+                // Navigation Buttons
+                _buildNavigationButtons(),
+              ],
+            ),
+          ],
         ),
-      ),
-      body: Stack(
-        children: [
-          Column(
-        children: [
-          // Progress Indicator
-          _buildProgressIndicator(),
-          
-          // Form Content
-          Expanded(
-            child: _buildFormContent(),
-          ),
-          
-          // Navigation Buttons
-          _buildNavigationButtons(),
-        ],
-          ),
-          
-        ],
-      ),
       ),
     );
   }
@@ -334,25 +356,27 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
   Widget _buildStepIndicator(int step, String title) {
     bool isActive = step == _currentStep;
     bool isCompleted = step < _currentStep;
-    
+
     return Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-        color: isActive ? Colors.blue : (isCompleted ? Colors.blue : const Color(0xFFfec901)),
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: isCompleted
-                  ? const Icon(Icons.check, color: Colors.white, size: 20)
-                  : Text(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: isActive
+            ? Colors.blue
+            : (isCompleted ? Colors.blue : const Color(0xFFfec901)),
+        shape: BoxShape.circle,
+      ),
+      child: Center(
+        child: isCompleted
+            ? const Icon(Icons.check, color: Colors.white, size: 20)
+            : Text(
                 title,
-                      style: TextStyle(
+                style: TextStyle(
                   color: isActive ? Colors.white : Colors.black,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
       ),
     );
   }
@@ -367,7 +391,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
 
   Widget _buildFormContent() {
     final l10n = AppLocalizations.of(context)!;
-    
+
     if (_isLoading) {
       return Center(
         child: Column(
@@ -396,7 +420,11 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
               const SizedBox(height: 20),
               Text(
                 l10n.errorSendingRequest,
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.red),
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red,
+                ),
               ),
               const SizedBox(height: 10),
               Text(
@@ -440,7 +468,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
   Widget _buildStep1() {
     final l10n = AppLocalizations.of(context)!;
     final isRtl = _currentLocale.languageCode == 'ar';
-    
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Center(
@@ -461,17 +489,17 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-          Text(
-            l10n.taskType,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+              Text(
+                l10n.taskType,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
                   color: Colors.black87,
                 ),
                 textAlign: TextAlign.right,
               ),
               const SizedBox(height: 20),
-              
+
               // Task Type Options
               if (_isLoadingTaskTypes)
                 const Center(
@@ -508,10 +536,11 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                 ..._taskTypes.asMap().entries.map((entry) {
                   int index = entry.key;
                   Map<String, dynamic> taskType = entry.value;
-                  int taskTypeId = taskType['id'] ?? taskType['task_type_id'] ?? index;
+                  int taskTypeId =
+                      taskType['id'] ?? taskType['task_type_id'] ?? index;
                   bool isSelected = _selectedTaskTypeId == taskTypeId;
                   String displayName = _getTaskTypeName(taskType);
-                  
+
                   return Column(
                     children: [
                       RadioListTile<int>(
@@ -527,7 +556,8 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            if (taskType['description'] != null && taskType['description'].isNotEmpty)
+                            if (taskType['description'] != null &&
+                                taskType['description'].isNotEmpty)
                               Text(
                                 taskType['description'],
                                 style: const TextStyle(
@@ -582,7 +612,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
 
   Widget _buildStep2() {
     final l10n = AppLocalizations.of(context)!;
-    
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -598,7 +628,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
             textAlign: TextAlign.right,
           ),
           const SizedBox(height: 20),
-          
+
           // Task Description
           Text(
             l10n.taskDescriptionLabel,
@@ -622,9 +652,9 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
               fillColor: Colors.white,
             ),
           ),
-          
+
           const SizedBox(height: 20),
-          
+
           // Urgency Level
           Text(
             l10n.priorityLevel,
@@ -645,7 +675,9 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
-                value: _selectedUrgency ?? _getUrgencyLevels()[1], // Default to 'normal' translated
+                value:
+                    _selectedUrgency ??
+                    _getUrgencyLevels()[1], // Default to 'normal' translated
                 isExpanded: true,
                 items: _getUrgencyLevels().map((String urgency) {
                   return DropdownMenuItem<String>(
@@ -661,9 +693,9 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
               ),
             ),
           ),
-          
+
           const SizedBox(height: 20),
-          
+
           // Budget
           Text(
             l10n.expectedBudget,
@@ -701,14 +733,14 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
         children: [
           // Task Location Section
           _buildLocationSection(),
-          
+
           const SizedBox(height: 20),
-          
+
           // Map Section
           _buildMapSection(),
-          
+
           const SizedBox(height: 20),
-          
+
           // Image Upload Section
           _buildImageUploadSection(),
         ],
@@ -718,7 +750,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
 
   Widget _buildLocationSection() {
     final l10n = AppLocalizations.of(context)!;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -739,9 +771,9 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
             ),
           ),
         ),
-        
+
         const SizedBox(height: 12),
-        
+
         // Current Location
         Container(
           width: double.infinity,
@@ -752,10 +784,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
           ),
           child: Text(
             _selectedLocationText,
-            style: const TextStyle(
-              fontSize: 16,
-              color: Colors.black87,
-            ),
+            style: const TextStyle(fontSize: 16, color: Colors.black87),
           ),
         ),
       ],
@@ -764,7 +793,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
 
   Widget _buildMapSection() {
     final l10n = AppLocalizations.of(context)!;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -788,9 +817,9 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
             ),
           ),
         ),
-        
+
         const SizedBox(height: 8),
-        
+
         // Map Container
         Container(
           width: double.infinity,
@@ -810,7 +839,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
 
   Widget _buildImageUploadSection() {
     final l10n = AppLocalizations.of(context)!;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -830,9 +859,9 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
             ),
           ),
         ),
-        
+
         const SizedBox(height: 12),
-        
+
         // Image placeholders
         Row(
           children: List.generate(5, (index) {
@@ -844,7 +873,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                   color: Colors.grey[200],
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-              color: Colors.blue,
+                    color: Colors.blue,
                     width: 2,
                     style: BorderStyle.solid,
                   ),
@@ -864,7 +893,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
   void _showImagePicker(int index) {
     final l10n = AppLocalizations.of(context)!;
     final isRtl = _currentLocale.languageCode == 'ar';
-    
+
     showModalBottomSheet(
       context: context,
       builder: (BuildContext context) {
@@ -880,9 +909,9 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 20),
+                  ),
+                ),
+                const SizedBox(height: 20),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
@@ -907,12 +936,16 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
     );
   }
 
-  Widget _buildImageSourceOption(String title, IconData icon, VoidCallback onTap) {
+  Widget _buildImageSourceOption(
+    String title,
+    IconData icon,
+    VoidCallback onTap,
+  ) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
           color: Colors.blue[50],
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: Colors.blue[200]!),
@@ -928,9 +961,9 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                 fontWeight: FontWeight.bold,
                 color: Colors.blue,
               ),
-                ),
-              ],
             ),
+          ],
+        ),
       ),
     );
   }
@@ -943,7 +976,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
         maxHeight: 1024,
         imageQuality: 85,
       );
-      
+
       if (image != null) {
         setState(() {
           // Ensure we have enough slots in the lists
@@ -953,9 +986,9 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
           while (_imageBytes.length <= index) {
             _imageBytes.add(Uint8List(0));
           }
-          
+
           _selectedImages[index] = File(image.path);
-          
+
           // For web compatibility, read image as bytes
           if (kIsWeb) {
             image.readAsBytes().then((bytes) {
@@ -965,9 +998,9 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
             });
           }
         });
-        
+
         Navigator.of(context).pop(); // Close bottom sheet
-        
+
         final l10n = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -977,7 +1010,9 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
           ),
         );
       } else {
-        Navigator.of(context).pop(); // Close bottom sheet even if no image selected
+        Navigator.of(
+          context,
+        ).pop(); // Close bottom sheet even if no image selected
       }
     } catch (e) {
       final l10n = AppLocalizations.of(context)!;
@@ -994,19 +1029,15 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
 
   Widget _buildMapWidget() {
     return Stack(
-              children: [
+      children: [
         // Try to show Google Map, fallback to placeholder if error
         _buildGoogleMapWithFallback(),
-        
+
         // Map pin overlay
         Positioned(
           top: 80,
           left: MediaQuery.of(context).size.width / 2 - 20,
-          child: const Icon(
-            Icons.location_on,
-            color: Colors.red,
-            size: 40,
-          ),
+          child: const Icon(Icons.location_on, color: Colors.red, size: 40),
         ),
       ],
     );
@@ -1018,7 +1049,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
 
   Widget _buildInteractiveMapPlaceholder() {
     final l10n = AppLocalizations.of(context)!;
-    
+
     return Container(
       width: double.infinity,
       height: double.infinity,
@@ -1026,11 +1057,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Colors.blue[50]!,
-            Colors.green[50]!,
-            Colors.yellow[50]!,
-          ],
+          colors: [Colors.blue[50]!, Colors.green[50]!, Colors.yellow[50]!],
         ),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: Colors.grey[300]!, width: 2),
@@ -1038,38 +1065,32 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
       child: Stack(
         children: [
           // Map-like background pattern
-          Positioned.fill(
-            child: CustomPaint(
-              painter: MapPatternPainter(),
-            ),
-          ),
-          
+          Positioned.fill(child: CustomPaint(painter: MapPatternPainter())),
+
           // Interactive map area
           Positioned.fill(
             child: GestureDetector(
               onTapDown: (details) {
                 // Move marker to tap position
-                    setState(() {
+                setState(() {
                   _updateLocationFromTap(details.localPosition);
-                    });
-                  },
-              child: Container(
-                color: Colors.transparent,
-              ),
+                });
+              },
+              child: Container(color: Colors.transparent),
             ),
           ),
-          
+
           // Draggable map pin
           Positioned(
             top: _markerPosition.dy - 20,
             left: _markerPosition.dx - 20,
             child: GestureDetector(
               onPanUpdate: (details) {
-                    setState(() {
+                setState(() {
                   _markerPosition = details.localPosition;
                   _updateLocationFromDrag(details.localPosition);
-                    });
-                  },
+                });
+              },
               onPanEnd: (details) {
                 // Final position update
                 _updateLocationFromDrag(_markerPosition);
@@ -1096,7 +1117,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
               ),
             ),
           ),
-          
+
           // Map instructions
           Positioned(
             bottom: 20,
@@ -1119,17 +1140,14 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
               ),
             ),
           ),
-          
+
           // Map attribution
           Positioned(
             bottom: 4,
             left: 8,
             child: Text(
               'Map ©2025',
-              style: TextStyle(
-                fontSize: 10,
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 10, color: Colors.grey[600]),
             ),
           ),
         ],
@@ -1158,7 +1176,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
     } else {
       locationText = 'موقع مخصص';
     }
-    
+
     setState(() {
       _selectedLocationText = locationText;
     });
@@ -1168,146 +1186,133 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
     return GestureDetector(
       onTap: () => _showLocationPicker(),
       child: Container(
-              width: double.infinity,
+        width: double.infinity,
         height: double.infinity,
-              decoration: BoxDecoration(
+        decoration: BoxDecoration(
           color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(10),
-              ),
+          borderRadius: BorderRadius.circular(10),
+        ),
         child: Builder(
           builder: (context) {
             final l10n = AppLocalizations.of(context)!;
             return Center(
               child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-              Icon(
-                Icons.map,
-                size: 50,
-                color: Colors.grey,
-              ),
-              SizedBox(height: 8),
+                  Icon(Icons.map, size: 50, color: Colors.grey),
+                  SizedBox(height: 8),
                   Text(
                     l10n.mapLocation,
-                    style: TextStyle(
-                      fontSize: 16,
-                  color: Colors.grey,
-                    ),
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
                   ),
-              SizedBox(height: 4),
+                  SizedBox(height: 4),
                   Text(
                     l10n.clickToSelectLocation,
-                    style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey,
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                 ],
               ),
             );
           },
-            ),
+        ),
       ),
     );
   }
 
   Widget _buildImageWidget(int index) {
-    bool hasImage = _selectedImages.length > index && 
-                   _selectedImages[index].path.isNotEmpty;
-    
+    bool hasImage =
+        _selectedImages.length > index &&
+        _selectedImages[index].path.isNotEmpty;
+
     if (!hasImage) {
       return const Center(
-        child: Icon(
-          Icons.camera_alt,
-          color: Colors.blue,
-          size: 30,
-        ),
+        child: Icon(Icons.camera_alt, color: Colors.blue, size: 30),
       );
     }
-    
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(6),
       child: kIsWeb
           ? (_imageBytes.length > index && _imageBytes[index].isNotEmpty)
-              ? Image.memory(
-                  _imageBytes[index],
-                  width: double.infinity,
-                  height: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Center(
-                      child: Icon(
-                        Icons.error,
-                        color: Colors.red,
-                        size: 30,
-                      ),
-                    );
-                  },
-                )
-              : const Center(
-                  child: Icon(
-                    Icons.error,
-                    color: Colors.red,
-                    size: 30,
-                  ),
-                )
-          : (_selectedImages.length > index && _selectedImages[index].path.isNotEmpty)
-              ? Image.file(
-                  _selectedImages[index],
-                  width: double.infinity,
-                  height: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Center(
-                      child: Icon(
-                        Icons.error,
-                        color: Colors.red,
-                        size: 30,
-                      ),
-                    );
-                  },
-                )
-              : const Center(
-                  child: Icon(
-                    Icons.error,
-                    color: Colors.red,
-                    size: 30,
-                  ),
-                ),
+                ? Image.memory(
+                    _imageBytes[index],
+                    width: double.infinity,
+                    height: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Center(
+                        child: Icon(Icons.error, color: Colors.red, size: 30),
+                      );
+                    },
+                  )
+                : const Center(
+                    child: Icon(Icons.error, color: Colors.red, size: 30),
+                  )
+          : (_selectedImages.length > index &&
+                _selectedImages[index].path.isNotEmpty)
+          ? Image.file(
+              _selectedImages[index],
+              width: double.infinity,
+              height: double.infinity,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return const Center(
+                  child: Icon(Icons.error, color: Colors.red, size: 30),
+                );
+              },
+            )
+          : const Center(child: Icon(Icons.error, color: Colors.red, size: 30)),
     );
   }
 
   void _updateLocationText(LatLng position) {
     // Simple location text update based on coordinates
     String locationText = '';
-    if (position.latitude > 31.0 && position.latitude < 31.5 && 
-        position.longitude > 29.5 && position.longitude < 30.0) {
+    if (position.latitude > 31.0 &&
+        position.latitude < 31.5 &&
+        position.longitude > 29.5 &&
+        position.longitude < 30.0) {
       locationText = 'المنتزة - الاسكندرية';
-    } else if (position.latitude > 30.0 && position.latitude < 30.1 && 
-               position.longitude > 31.2 && position.longitude < 31.3) {
+    } else if (position.latitude > 30.0 &&
+        position.latitude < 30.1 &&
+        position.longitude > 31.2 &&
+        position.longitude < 31.3) {
       locationText = 'مدينة نصر - القاهرة';
-    } else if (position.latitude > 29.9 && position.latitude < 30.0 && 
-               position.longitude > 31.2 && position.longitude < 31.3) {
+    } else if (position.latitude > 29.9 &&
+        position.latitude < 30.0 &&
+        position.longitude > 31.2 &&
+        position.longitude < 31.3) {
       locationText = 'المعادي - القاهرة';
-    } else if (position.latitude > 30.0 && position.latitude < 30.1 && 
-               position.longitude > 31.1 && position.longitude < 31.2) {
+    } else if (position.latitude > 30.0 &&
+        position.latitude < 30.1 &&
+        position.longitude > 31.1 &&
+        position.longitude < 31.2) {
       locationText = 'الزمالك - القاهرة';
-    } else if (position.latitude > 30.0 && position.latitude < 30.1 && 
-               position.longitude > 31.3 && position.longitude < 31.4) {
+    } else if (position.latitude > 30.0 &&
+        position.latitude < 30.1 &&
+        position.longitude > 31.3 &&
+        position.longitude < 31.4) {
       locationText = 'الرحاب - القاهرة';
-    } else if (position.latitude > 30.0 && position.latitude < 30.1 && 
-               position.longitude > 30.9 && position.longitude < 31.0) {
+    } else if (position.latitude > 30.0 &&
+        position.latitude < 30.1 &&
+        position.longitude > 30.9 &&
+        position.longitude < 31.0) {
       locationText = 'الشيخ زايد - الجيزة';
-    } else if (position.latitude > 30.0 && position.latitude < 30.1 && 
-               position.longitude > 30.8 && position.longitude < 30.9) {
+    } else if (position.latitude > 30.0 &&
+        position.latitude < 30.1 &&
+        position.longitude > 30.8 &&
+        position.longitude < 30.9) {
       locationText = 'الهرم - الجيزة';
-    } else if (position.latitude > 30.1 && position.latitude < 30.2 && 
-               position.longitude > 31.4 && position.longitude < 31.5) {
+    } else if (position.latitude > 30.1 &&
+        position.latitude < 30.2 &&
+        position.longitude > 31.4 &&
+        position.longitude < 31.5) {
       locationText = 'مدينة الشروق - القاهرة';
     } else {
-      locationText = 'موقع مخصص (${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)})';
+      locationText =
+          'موقع مخصص (${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)})';
     }
-    
+
     setState(() {
       _selectedLocationText = locationText;
     });
@@ -1315,7 +1320,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
 
   void _showLocationPicker() {
     final isRtl = _currentLocale.languageCode == 'ar';
-    
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1340,17 +1345,17 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                   margin: const EdgeInsets.only(top: 12),
                   width: 40,
                   height: 4,
-      decoration: BoxDecoration(
+                  decoration: BoxDecoration(
                     color: Colors.grey[400],
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-                
+
                 // Header
                 Padding(
                   padding: const EdgeInsets.all(20),
-      child: Row(
-        children: [
+                  child: Row(
+                    children: [
                       Text(
                         l10n.selectLocation,
                         style: const TextStyle(
@@ -1367,9 +1372,9 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                     ],
                   ),
                 ),
-                
+
                 // Location options
-            Expanded(
+                Expanded(
                   child: Container(
                     margin: const EdgeInsets.symmetric(horizontal: 20),
                     decoration: BoxDecoration(
@@ -1379,19 +1384,40 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                     child: ListView(
                       padding: const EdgeInsets.all(16),
                       children: [
-                        _buildLocationOption('المنتزة - الاسكندرية', 'Alexandria, Egypt'),
-                        _buildLocationOption('مدينة نصر - القاهرة', 'Nasr City, Cairo, Egypt'),
-                        _buildLocationOption('المعادي - القاهرة', 'Maadi, Cairo, Egypt'),
-                        _buildLocationOption('الزمالك - القاهرة', 'Zamalek, Cairo, Egypt'),
-                        _buildLocationOption('الرحاب - القاهرة', 'Rehab, Cairo, Egypt'),
-                        _buildLocationOption('الشيخ زايد - الجيزة', 'Sheikh Zayed, Giza, Egypt'),
+                        _buildLocationOption(
+                          'المنتزة - الاسكندرية',
+                          'Alexandria, Egypt',
+                        ),
+                        _buildLocationOption(
+                          'مدينة نصر - القاهرة',
+                          'Nasr City, Cairo, Egypt',
+                        ),
+                        _buildLocationOption(
+                          'المعادي - القاهرة',
+                          'Maadi, Cairo, Egypt',
+                        ),
+                        _buildLocationOption(
+                          'الزمالك - القاهرة',
+                          'Zamalek, Cairo, Egypt',
+                        ),
+                        _buildLocationOption(
+                          'الرحاب - القاهرة',
+                          'Rehab, Cairo, Egypt',
+                        ),
+                        _buildLocationOption(
+                          'الشيخ زايد - الجيزة',
+                          'Sheikh Zayed, Giza, Egypt',
+                        ),
                         _buildLocationOption('الهرم - الجيزة', 'Giza, Egypt'),
-                        _buildLocationOption('مدينة الشروق - القاهرة', 'Shorouk City, Cairo, Egypt'),
+                        _buildLocationOption(
+                          'مدينة الشروق - القاهرة',
+                          'Shorouk City, Cairo, Egypt',
+                        ),
                       ],
                     ),
                   ),
                 ),
-                
+
                 // Confirm button
                 Padding(
                   padding: const EdgeInsets.all(20),
@@ -1402,20 +1428,20 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF1e3a8a),
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                child: Text(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: Text(
                         l10n.confirmLocation,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
                           color: Colors.white,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            ),
                 ),
               ],
             ),
@@ -1427,7 +1453,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
 
   Widget _buildLocationOption(String arabicName, String englishName) {
     final l10n = AppLocalizations.of(context)!;
-    
+
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -1451,13 +1477,9 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
         ),
         child: Row(
           children: [
-            const Icon(
-              Icons.location_on,
-              color: Colors.red,
-              size: 24,
-            ),
+            const Icon(Icons.location_on, color: Colors.red, size: 24),
             const SizedBox(width: 12),
-          Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1472,51 +1494,40 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                   const SizedBox(height: 4),
                   Text(
                     englishName,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                   ),
                 ],
               ),
             ),
-            const Icon(
-              Icons.arrow_forward_ios,
-              color: Colors.grey,
-              size: 16,
-            ),
+            const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16),
           ],
         ),
       ),
     );
   }
 
-
   Widget _buildNavigationButtons() {
     final l10n = AppLocalizations.of(context)!;
-    
+
     return Container(
       padding: const EdgeInsets.all(20),
       child: SizedBox(
         width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _currentStep == 2 ? _submitRequest : _nextStep,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 15),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              child: Text(
-            _currentStep == 2 ? l10n.submit : l10n.next,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+        child: ElevatedButton(
+          onPressed: _currentStep == 2 ? _submitRequest : _nextStep,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blue,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 15),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
             ),
+          ),
+          child: Text(
+            _currentStep == 2 ? l10n.submit : l10n.next,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+        ),
       ),
     );
   }
@@ -1537,7 +1548,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
 
   bool _validateCurrentStep() {
     final l10n = AppLocalizations.of(context)!;
-    
+
     switch (_currentStep) {
       case 0:
         if (_selectedTaskTypeId == null) {
@@ -1618,11 +1629,14 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
         }
       }
 
-      final String taskTypeName = _getTaskTypeName(selectedTaskTypeDetails ?? {});
+      final String taskTypeName = _getTaskTypeName(
+        selectedTaskTypeDetails ?? {},
+      );
       final String orderTitle = _buildOrderTitle(taskTypeName);
-      final Map<String, dynamic> locationDetails = await _buildLocationDetails();
-    final String userId = await _getUserId();
-    final int? customerIdInt = int.tryParse(userId);
+      final Map<String, dynamic> locationDetails =
+          await _buildLocationDetails();
+      final String userId = await _getUserId();
+      final int? customerIdInt = int.tryParse(userId);
 
       // Prepare request data (matches backend validation)
       Map<String, dynamic> requestData = {
@@ -1670,11 +1684,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
       // Send to admin panel
       final uri = Uri.parse(ApiConfig.ordersCreate);
       final httpResponse = await http
-          .post(
-            uri,
-            headers: headers,
-            body: jsonEncode(requestData),
-          )
+          .post(uri, headers: headers, body: jsonEncode(requestData))
           .timeout(const Duration(seconds: 30));
 
       Map<String, dynamic>? backendOrder;
@@ -1685,9 +1695,11 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
         }
         backendOrder = resp['data'] as Map<String, dynamic>?;
       } else {
-        throw Exception('HTTP ${httpResponse.statusCode}: ${httpResponse.body}');
+        throw Exception(
+          'HTTP ${httpResponse.statusCode}: ${httpResponse.body}',
+        );
       }
-      
+
       final String? backendOrderId = backendOrder?['id']?.toString();
       requestData['backend_order_id'] = backendOrderId;
       requestData['backend_order'] = backendOrder;
@@ -1705,9 +1717,10 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
       // Get category ID from task type or widget
       int? categoryId = widget.categoryId;
       if (categoryId == null && selectedTaskTypeDetails != null) {
-        final taskCategoryId = selectedTaskTypeDetails['task_category_id'] ?? 
-                               selectedTaskTypeDetails['category_id'] ??
-                               selectedTaskTypeDetails['categoryId'];
+        final taskCategoryId =
+            selectedTaskTypeDetails['task_category_id'] ??
+            selectedTaskTypeDetails['category_id'] ??
+            selectedTaskTypeDetails['categoryId'];
         if (taskCategoryId != null) {
           if (taskCategoryId is int) {
             categoryId = taskCategoryId;
@@ -1733,7 +1746,6 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
 
       // Show success dialog with craftsmen list
       _showSuccessDialogWithCraftsmenList();
-      
     } catch (e) {
       print('Error submitting request: $e');
       final l10n = AppLocalizations.of(context)!;
@@ -1741,7 +1753,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
         _errorMessage = '${l10n.errorSendingRequest}: $e';
         _isLoading = false;
       });
-      
+
       // Show error message to user
       _showErrorSnackBar(l10n.errorSendingRequestRetry);
     }
@@ -1764,7 +1776,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
 
   Future<List<String>> _uploadImages(Map<String, String> headers) async {
     List<String> imageUrls = [];
-    
+
     for (int i = 0; i < _selectedImages.length; i++) {
       final imageFile = _selectedImages[i];
       if (imageFile.path.isEmpty) continue;
@@ -1773,7 +1785,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
         // Convert image to base64
         final bytes = await imageFile.readAsBytes();
         final base64Image = base64Encode(bytes);
-        
+
         // Create data URL format
         imageUrls.add('data:image/jpeg;base64,$base64Image');
       } catch (e) {
@@ -1801,7 +1813,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
     final String savedGovernorate = prefs.getString('user_governorate') ?? '';
     final String savedCity = prefs.getString('user_city') ?? '';
     final String savedDistrict = prefs.getString('user_area') ?? '';
-    
+
     final Map<String, dynamic>? baseLocation = _savedLocation;
     final List<String> parts = [];
 
@@ -1824,7 +1836,9 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
     }
 
     if (parts.isEmpty) {
-      parts.add('${_selectedLocation.latitude.toStringAsFixed(5)}, ${_selectedLocation.longitude.toStringAsFixed(5)}');
+      parts.add(
+        '${_selectedLocation.latitude.toStringAsFixed(5)}, ${_selectedLocation.longitude.toStringAsFixed(5)}',
+      );
     }
 
     return {
@@ -1945,26 +1959,28 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
     });
     _craftsmanDialogVersion.value++;
 
-    _findNearestCraftsman(requestData).then((craftsman) async {
-      if (!mounted) return;
-      setState(() {
-        _isSearchingCraftsman = false;
-        _nearestCraftsman = craftsman;
-      });
-      _craftsmanDialogVersion.value++;
-      final backendOrderId = requestData['backend_order_id']?.toString();
-      if (craftsman != null && backendOrderId != null) {
-        await _inviteCraftsmanToOrder(craftsman, backendOrderId);
-      }
-    }).catchError((error) {
-      print('Error finding craftsman: $error');
-      if (!mounted) return;
-      setState(() {
-        _isSearchingCraftsman = false;
-        _nearestCraftsman = null;
-      });
-      _craftsmanDialogVersion.value++;
-    });
+    _findNearestCraftsman(requestData)
+        .then((craftsman) async {
+          if (!mounted) return;
+          setState(() {
+            _isSearchingCraftsman = false;
+            _nearestCraftsman = craftsman;
+          });
+          _craftsmanDialogVersion.value++;
+          final backendOrderId = requestData['backend_order_id']?.toString();
+          if (craftsman != null && backendOrderId != null) {
+            await _inviteCraftsmanToOrder(craftsman, backendOrderId);
+          }
+        })
+        .catchError((error) {
+          print('Error finding craftsman: $error');
+          if (!mounted) return;
+          setState(() {
+            _isSearchingCraftsman = false;
+            _nearestCraftsman = null;
+          });
+          _craftsmanDialogVersion.value++;
+        });
   }
 
   void _startCraftsmanSearchForAll(
@@ -1978,22 +1994,24 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
     });
     _craftsmanDialogVersion.value++;
 
-    _findAllAvailableCraftsmen(categoryId, locationDetails).then((craftsmen) {
-      if (!mounted) return;
-      setState(() {
-        _isSearchingCraftsman = false;
-        _availableCraftsmen = craftsmen;
-      });
-      _craftsmanDialogVersion.value++;
-    }).catchError((error) {
-      print('Error finding all craftsmen: $error');
-      if (!mounted) return;
-      setState(() {
-        _isSearchingCraftsman = false;
-        _availableCraftsmen = [];
-      });
-      _craftsmanDialogVersion.value++;
-    });
+    _findAllAvailableCraftsmen(categoryId, locationDetails)
+        .then((craftsmen) {
+          if (!mounted) return;
+          setState(() {
+            _isSearchingCraftsman = false;
+            _availableCraftsmen = craftsmen;
+          });
+          _craftsmanDialogVersion.value++;
+        })
+        .catchError((error) {
+          print('Error finding all craftsmen: $error');
+          if (!mounted) return;
+          setState(() {
+            _isSearchingCraftsman = false;
+            _availableCraftsmen = [];
+          });
+          _craftsmanDialogVersion.value++;
+        });
   }
 
   Future<List<Map<String, dynamic>>> _findAllAvailableCraftsmen(
@@ -2018,26 +2036,35 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
           'city': locationDetails['city'].toString(),
         if ((locationDetails['district'] ?? '').toString().isNotEmpty)
           'district': locationDetails['district'].toString(),
-        if ((prefs.getString('user_governorate') ?? '').isNotEmpty && (locationDetails['governorate'] ?? '').toString().isEmpty)
+        if ((prefs.getString('user_governorate') ?? '').isNotEmpty &&
+            (locationDetails['governorate'] ?? '').toString().isEmpty)
           'governorate': prefs.getString('user_governorate') ?? '',
-        if ((prefs.getString('user_city') ?? '').isNotEmpty && (locationDetails['city'] ?? '').toString().isEmpty)
+        if ((prefs.getString('user_city') ?? '').isNotEmpty &&
+            (locationDetails['city'] ?? '').toString().isEmpty)
           'city': prefs.getString('user_city') ?? '',
-        if ((prefs.getString('user_area') ?? '').isNotEmpty && (locationDetails['district'] ?? '').toString().isEmpty)
+        if ((prefs.getString('user_area') ?? '').isNotEmpty &&
+            (locationDetails['district'] ?? '').toString().isEmpty)
           'district': prefs.getString('user_area') ?? '',
       };
 
       queryParams.removeWhere((key, value) => value.isEmpty);
 
-      final uri = Uri.parse(ApiConfig.craftsmanNearby).replace(queryParameters: queryParams);
+      final uri = Uri.parse(
+        ApiConfig.craftsmanNearby,
+      ).replace(queryParameters: queryParams);
       print('Fetching all craftsmen from: $uri');
-      final response = await http.get(uri, headers: headers).timeout(const Duration(seconds: 30));
+      final response = await http
+          .get(uri, headers: headers)
+          .timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['success'] == true) {
           final List<dynamic> list = data['data'] ?? [];
           final craftsmen = list
-              .map<Map<String, dynamic>>((item) => Map<String, dynamic>.from(item))
+              .map<Map<String, dynamic>>(
+                (item) => Map<String, dynamic>.from(item),
+              )
               .toList();
           print('Found ${craftsmen.length} available craftsmen');
           return craftsmen;
@@ -2109,11 +2136,12 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
           );
         }
 
-        // Show scrollable list of craftsmen
-        return SizedBox(
-          height: 300,
+        // Show scrollable list of craftsmen - Fixed for AlertDialog
+        return ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 300, minHeight: 100),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 _localizedText(
@@ -2127,7 +2155,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                 ),
               ),
               const SizedBox(height: 12),
-              Expanded(
+              Flexible(
                 child: ListView.builder(
                   shrinkWrap: true,
                   itemCount: _availableCraftsmen.length,
@@ -2157,9 +2185,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       elevation: 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: Colors.blue.withValues(alpha: 0.1),
@@ -2174,10 +2200,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
         ),
         title: Text(
           name,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -2195,10 +2218,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                   const SizedBox(width: 4),
                   Text(
                     '($ratingCount)',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   ),
                 ],
               ],
@@ -2211,10 +2231,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                   const SizedBox(width: 4),
                   Text(
                     distanceLabel,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   ),
                 ],
               ),
@@ -2256,27 +2273,27 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
 
     try {
       await _inviteCraftsmanToOrder(craftsman, orderId);
-      
+
       if (mounted) {
         Navigator.of(dialogContext).pop();
         final l10n = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_localizedText(
-              'تم إرسال الدعوة للصنايعي بنجاح',
-              'Invitation envoyée à l\'artisan avec succès',
-            )),
+            content: Text(
+              _localizedText(
+                'تم إرسال الدعوة للصنايعي بنجاح',
+                'Invitation envoyée à l\'artisan avec succès',
+              ),
+            ),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 2),
           ),
         );
-        
+
         // Navigate to orders screen
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => const MyOrdersScreen(),
-          ),
-        );
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const MyOrdersScreen()));
         _resetForm();
       }
     } catch (e) {
@@ -2322,8 +2339,11 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
     Map<String, dynamic> craftsman,
   ) {
     final rating = (craftsman['rating'] as num?)?.toDouble() ?? 0.0;
-    final distance = (craftsman['distance_label'] ?? craftsman['distance'])?.toString() ?? '';
-    final name = craftsman['name']?.toString() ??
+    final distance =
+        (craftsman['distance_label'] ?? craftsman['distance'])?.toString() ??
+        '';
+    final name =
+        craftsman['name']?.toString() ??
         _localizedText('صنايعي قريب', 'Artisan à proximité');
     final statusValue =
         (craftsman['craftsman_status'] ?? _currentCraftsmanStatus).toString();
@@ -2341,7 +2361,10 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            _localizedText('تم العثور على صنايعي قريب', 'Artisan trouvé à proximité'),
+            _localizedText(
+              'تم العثور على صنايعي قريب',
+              'Artisan trouvé à proximité',
+            ),
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
@@ -2388,18 +2411,21 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        const Icon(Icons.place, color: Colors.redAccent, size: 18),
-                        const SizedBox(width: 4),
-                        Text(
-                          distance,
-                          style: const TextStyle(fontSize: 14),
+                        const Icon(
+                          Icons.place,
+                          color: Colors.redAccent,
+                          size: 18,
                         ),
+                        const SizedBox(width: 4),
+                        Text(distance, style: const TextStyle(fontSize: 14)),
                       ],
                     ),
                     const SizedBox(height: 6),
                     Container(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: isAccepted
                             ? Colors.green.withValues(alpha: 0.15)
@@ -2424,8 +2450,9 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed:
-                  isAccepted ? () => _handleTalkNow(dialogContext, craftsman) : null,
+              onPressed: isAccepted
+                  ? () => _handleTalkNow(dialogContext, craftsman)
+                  : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: isAccepted ? Colors.green : Colors.grey,
                 foregroundColor: Colors.white,
@@ -2468,14 +2495,26 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
   String _getCraftsmanStatusLabel(String status) {
     switch (status) {
       case 'waiting_response':
-        return _localizedText('بانتظار موافقة الصنايعي', 'En attente de confirmation');
+        return _localizedText(
+          'بانتظار موافقة الصنايعي',
+          'En attente de confirmation',
+        );
       case 'accepted':
-        return _localizedText('تمت الموافقة ويمكن التحدث الآن', 'Accepté, vous pouvez discuter');
+        return _localizedText(
+          'تمت الموافقة ويمكن التحدث الآن',
+          'Accepté, vous pouvez discuter',
+        );
       case 'rejected':
-        return _localizedText('تم رفض الطلب، نبحث عن صنايعي آخر', 'Rejeté, recherche d’un autre artisan');
+        return _localizedText(
+          'تم رفض الطلب، نبحث عن صنايعي آخر',
+          'Rejeté, recherche d’un autre artisan',
+        );
       case 'awaiting_assignment':
       default:
-        return _localizedText('جارٍ تحديد الصنايعي المناسب', 'Recherche d’un artisan disponible');
+        return _localizedText(
+          'جارٍ تحديد الصنايعي المناسب',
+          'Recherche d’un artisan disponible',
+        );
     }
   }
 
@@ -2488,7 +2527,10 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
     openCraftsmanChat(context, craftsman);
   }
 
-  Future<void> _verifyOrderStoredInBackend(String userId, String? orderId) async {
+  Future<void> _verifyOrderStoredInBackend(
+    String userId,
+    String? orderId,
+  ) async {
     if (orderId == null || orderId.isEmpty) {
       print('Backend verification skipped: missing order ID');
       return;
@@ -2502,7 +2544,9 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
       }
 
       final uri = Uri.parse('${ApiConfig.ordersList}?user_id=$userId');
-      final response = await http.get(uri, headers: headers).timeout(const Duration(seconds: 30));
+      final response = await http
+          .get(uri, headers: headers)
+          .timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -2512,14 +2556,20 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
             final dynamic id = order['id'];
             return id != null && id.toString() == orderId;
           });
-          print(exists
-              ? 'Order verification success: order #$orderId found in backend.'
-              : 'Order verification warning: order #$orderId not found in backend list.');
+          print(
+            exists
+                ? 'Order verification success: order #$orderId found in backend.'
+                : 'Order verification warning: order #$orderId not found in backend list.',
+          );
         } else {
-          print('Order verification failed: backend returned success=false (${data['message']})');
+          print(
+            'Order verification failed: backend returned success=false (${data['message']})',
+          );
         }
       } else {
-        print('Order verification failed with HTTP ${response.statusCode}: ${response.body}');
+        print(
+          'Order verification failed with HTTP ${response.statusCode}: ${response.body}',
+        );
       }
     } catch (e) {
       print('Order verification error: $e');
@@ -2549,7 +2599,9 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
     _craftsmanDialogVersion.value++;
   }
 
-  Future<Map<String, dynamic>?> _findNearestCraftsman(Map<String, dynamic> requestData) async {
+  Future<Map<String, dynamic>?> _findNearestCraftsman(
+    Map<String, dynamic> requestData,
+  ) async {
     try {
       final headers = await _buildAuthHeaders();
       if (headers == null) {
@@ -2558,38 +2610,52 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
       }
 
       final prefs = await SharedPreferences.getInstance();
-      final locationDetails = requestData['location_details'] as Map<String, dynamic>? ?? {};
+      final locationDetails =
+          requestData['location_details'] as Map<String, dynamic>? ?? {};
 
       final queryParams = <String, String>{
-        if (widget.categoryId != null) 'category_id': widget.categoryId.toString(),
+        if (widget.categoryId != null)
+          'category_id': widget.categoryId.toString(),
         if ((locationDetails['governorate'] ?? '').toString().isNotEmpty)
           'governorate': locationDetails['governorate'].toString(),
         if ((locationDetails['city'] ?? '').toString().isNotEmpty)
           'city': locationDetails['city'].toString(),
         if ((locationDetails['district'] ?? '').toString().isNotEmpty)
           'district': locationDetails['district'].toString(),
-        if ((prefs.getString('user_governorate') ?? '').isNotEmpty && (locationDetails['governorate'] ?? '').toString().isEmpty)
+        if ((prefs.getString('user_governorate') ?? '').isNotEmpty &&
+            (locationDetails['governorate'] ?? '').toString().isEmpty)
           'governorate': prefs.getString('user_governorate') ?? '',
-        if ((prefs.getString('user_city') ?? '').isNotEmpty && (locationDetails['city'] ?? '').toString().isEmpty)
+        if ((prefs.getString('user_city') ?? '').isNotEmpty &&
+            (locationDetails['city'] ?? '').toString().isEmpty)
           'city': prefs.getString('user_city') ?? '',
-        if ((prefs.getString('user_area') ?? '').isNotEmpty && (locationDetails['district'] ?? '').toString().isEmpty)
+        if ((prefs.getString('user_area') ?? '').isNotEmpty &&
+            (locationDetails['district'] ?? '').toString().isEmpty)
           'district': prefs.getString('user_area') ?? '',
         'limit': '5',
       };
 
       queryParams.removeWhere((key, value) => value.isEmpty);
 
-      final uri = Uri.parse(ApiConfig.craftsmanNearby).replace(queryParameters: queryParams);
-      final response = await http.get(uri, headers: headers).timeout(const Duration(seconds: 30));
+      final uri = Uri.parse(
+        ApiConfig.craftsmanNearby,
+      ).replace(queryParameters: queryParams);
+      final response = await http
+          .get(uri, headers: headers)
+          .timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['success'] == true) {
           final List<dynamic> list = data['data'] ?? [];
           if (list.isNotEmpty) {
-            final nearestCraftsman = Map<String, dynamic>.from(list.first as Map);
+            final nearestCraftsman = Map<String, dynamic>.from(
+              list.first as Map,
+            );
             final prefs = await SharedPreferences.getInstance();
-            await prefs.setString('selected_craftsman', jsonEncode(nearestCraftsman));
+            await prefs.setString(
+              'selected_craftsman',
+              jsonEncode(nearestCraftsman),
+            );
             print('Nearest craftsman loaded: $nearestCraftsman');
             return nearestCraftsman;
           }
@@ -2671,7 +2737,9 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
 
     final token = prefs.getString('access_token');
     if (token == null || token.isEmpty) {
-      throw Exception('لم يتم العثور على بيانات تسجيل الدخول. يرجى تسجيل الدخول مرة أخرى.');
+      throw Exception(
+        'لم يتم العثور على بيانات تسجيل الدخول. يرجى تسجيل الدخول مرة أخرى.',
+      );
     }
 
     final headers = Map<String, String>.from(ApiConfig.headers);
@@ -2685,7 +2753,9 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body);
         final data = body['data'] ?? body['user'] ?? body;
-        final dynamic idValue = data is Map<String, dynamic> ? (data['id'] ?? data['user_id']) : null;
+        final dynamic idValue = data is Map<String, dynamic>
+            ? (data['id'] ?? data['user_id'])
+            : null;
 
         if (idValue != null) {
           final resolvedId = idValue.toString();
@@ -2748,12 +2818,11 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
     }
   }
 
-
   void _showSuccessDialogWithCraftsmenList() {
     if (!mounted) return;
     final l10n = AppLocalizations.of(context)!;
     final isRtl = _currentLocale.languageCode == 'ar';
-    
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -2844,9 +2913,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                   },
                   child: Text(
                     l10n.close,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
