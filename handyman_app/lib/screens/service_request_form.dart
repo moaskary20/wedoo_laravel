@@ -2136,7 +2136,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
           );
         }
 
-        // Show scrollable list of craftsmen - Fixed for AlertDialog
+        // Show scrollable list of craftsmen - Using SingleChildScrollView
         return Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -2153,14 +2153,15 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
               ),
             ),
             const SizedBox(height: 12),
-            SizedBox(
-              height: 250,
-              child: ListView.builder(
-                itemCount: _availableCraftsmen.length,
-                itemBuilder: (context, index) {
-                  final craftsman = _availableCraftsmen[index];
-                  return _buildCraftsmanListItem(dialogContext, craftsman);
-                },
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 250),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: _availableCraftsmen.map((craftsman) {
+                    return _buildCraftsmanListItem(dialogContext, craftsman);
+                  }).toList(),
+                ),
               ),
             ),
           ],
