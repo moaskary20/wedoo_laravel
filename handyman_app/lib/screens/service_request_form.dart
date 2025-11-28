@@ -2137,36 +2137,33 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
         }
 
         // Show scrollable list of craftsmen - Fixed for AlertDialog
-        return ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: 300, minHeight: 100),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                _localizedText(
-                  'الصنايعيون المتاحون (${_availableCraftsmen.length})',
-                  'Artisans disponibles (${_availableCraftsmen.length})',
-                ),
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _localizedText(
+                'الصنايعيون المتاحون (${_availableCraftsmen.length})',
+                'Artisans disponibles (${_availableCraftsmen.length})',
               ),
-              const SizedBox(height: 12),
-              Flexible(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: _availableCraftsmen.length,
-                  itemBuilder: (context, index) {
-                    final craftsman = _availableCraftsmen[index];
-                    return _buildCraftsmanListItem(dialogContext, craftsman);
-                  },
-                ),
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 250,
+              child: ListView.builder(
+                itemCount: _availableCraftsmen.length,
+                itemBuilder: (context, index) {
+                  final craftsman = _availableCraftsmen[index];
+                  return _buildCraftsmanListItem(dialogContext, craftsman);
+                },
+              ),
+            ),
+          ],
         );
       },
     );
