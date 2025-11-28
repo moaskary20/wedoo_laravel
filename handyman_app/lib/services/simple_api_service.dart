@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
 
 class SimpleApiService {
@@ -13,9 +14,21 @@ class SimpleApiService {
     
     // إضافة interceptors
     _dio.interceptors.add(InterceptorsWrapper(
-      onRequest: (options, handler) {
+      onRequest: (options, handler) async {
         // Use web-specific headers for web platform
         options.headers.addAll(kIsWeb ? ApiConfig.webHeaders : ApiConfig.headers);
+        
+        // Add authentication token if available
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          final token = prefs.getString('access_token');
+          if (token != null && token.isNotEmpty) {
+            options.headers['Authorization'] = 'Bearer $token';
+          }
+        } catch (e) {
+          print('Error getting auth token: $e');
+        }
+        
         print('🚀 Simple API Request: ${options.method} ${options.uri}');
         print('📦 Simple API Data: ${options.data}');
         handler.next(options);

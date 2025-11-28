@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
 import 'simple_api_service.dart';
 
@@ -19,8 +20,20 @@ class ApiService {
     
     // إضافة interceptors
     _dio.interceptors.add(InterceptorsWrapper(
-      onRequest: (options, handler) {
+      onRequest: (options, handler) async {
         options.headers.addAll(ApiConfig.headers);
+        
+        // Add authentication token if available
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          final token = prefs.getString('access_token');
+          if (token != null && token.isNotEmpty) {
+            options.headers['Authorization'] = 'Bearer $token';
+          }
+        } catch (e) {
+          print('Error getting auth token: $e');
+        }
+        
         print('🚀 Mobile API Request: ${options.method} ${options.uri}');
         print('📦 Mobile API Data: ${options.data}');
         handler.next(options);

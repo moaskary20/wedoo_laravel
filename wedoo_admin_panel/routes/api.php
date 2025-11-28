@@ -30,6 +30,11 @@ use App\Http\Controllers\Api\ChatController;
 Route::post('/auth/login', [AuthController::class, 'login']);
 Route::post('/auth/register', [AuthController::class, 'register']);
 
+// Password Reset Routes
+Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
+Route::post('/auth/verify-reset-code', [AuthController::class, 'verifyResetCode']);
+Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
+
 Route::get('/task-types/index', [TaskTypeController::class, 'index']);
 Route::get('/categories/list', [CategoryController::class, 'list']);
 Route::get('/shops/list', [ShopController::class, 'list']);

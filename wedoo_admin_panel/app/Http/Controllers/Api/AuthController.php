@@ -102,4 +102,151 @@ class AuthController extends Controller
             'message' => 'Registration successful'
         ], 201);
     }
+
+    public function forgotPassword(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+        ]);
+
+        // Find user by email
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'لا يوجد حساب مرتبط بهذا البريد الإلكتروني'
+            ], 404);
+        }
+
+        // Generate 6-digit code
+        $code = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+
+        // Delete any existing tokens for this email
+        \App\Models\PasswordResetToken::where('email', $request->email)->delete();
+
+        // Create new token
+        \App\Models\PasswordResetToken::create([
+            'email' => $request->email,
+            'token' => $code,
+            'expires_at' => now()->addMinutes(15), // Token expires in 15 minutes
+        ]);
+
+        // Send email with code
+        try {
+            \Illuminate\Support\Facades\Mail::raw(
+                "رمز استعادة كلمة المرور الخاص بك هو: {$code}\n\nهذا الرمز صالح لمدة 15 دقيقة.",
+                function ($message) use ($request) {
+                    $message->to($request->email)
+                            ->subject('رمز استعادة كلمة المرور - WeDoo');
+                }
+            );
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to send password reset email: ' . $e->getMessage());
+            // Continue anyway - code is saved in database
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم إرسال رمز التحقق إلى بريدك الإلكتروني',
+            'data' => [
+                'email' => $request->email,
+                // For testing purposes only - remove in production
+                'code' => config('app.debug') ? $code : null,
+            ]
+        ]);
+    }
+
+    public function verifyResetCode(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'code' => 'required|string|size:6',
+        ]);
+
+        // Find token
+        $resetToken = \App\Models\PasswordResetToken::where('email', $request->email)
+            ->where('token', $request->code)
+            ->first();
+
+        if (!$resetToken) {
+            return response()->json([
+                'success' => false,
+                'message' => 'رمز التحقق غير صحيح'
+            ], 400);
+        }
+
+        // Check if token is expired
+        if ($resetToken->expires_at < now()) {
+            $resetToken->delete();
+            return response()->json([
+                'success' => false,
+                'message' => 'انتهت صلاحية رمز التحقق. يرجى طلب رمز جديد'
+            ], 400);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'رمز التحقق صحيح',
+            'data' => [
+                'email' => $request->email,
+                'verified' => true,
+            ]
+        ]);
+    }
+
+    public function resetPassword(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'code' => 'required|string|size:6',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        // Find token
+        $resetToken = \App\Models\PasswordResetToken::where('email', $request->email)
+            ->where('token', $request->code)
+            ->first();
+
+        if (!$resetToken) {
+            return response()->json([
+                'success' => false,
+                'message' => 'رمز التحقق غير صحيح'
+            ], 400);
+        }
+
+        // Check if token is expired
+        if ($resetToken->expires_at < now()) {
+            $resetToken->delete();
+            return response()->json([
+                'success' => false,
+                'message' => 'انتهت صلاحية رمز التحقق. يرجى طلب رمز جديد'
+            ], 400);
+        }
+
+        // Find user and update password
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'المستخدم غير موجود'
+            ], 404);
+        }
+
+        // Update password
+        $user->password = Hash::make($request->password);
+        $user->save();
+
+        // Delete the used token
+        $resetToken->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم تحديث كلمة المرور بنجاح',
+            'data' => [
+                'email' => $user->email,
+            ]
+        ]);
+    }
 }

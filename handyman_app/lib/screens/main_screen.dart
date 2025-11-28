@@ -31,13 +31,19 @@ class _MainScreenState extends State<MainScreen> {
   Timer? _orderPollingTimer;
   final Map<int, String> _lastMessageTimes = {};
   Set<int> _knownOrderIds = {};
+  Set<int> _knownChatOrderIds = {};
   final NotificationService _notificationService = NotificationService();
 
   @override
   void initState() {
     super.initState();
     _loadCurrentLocale();
-    _loadUserType();
+    _loadUserType().then((_) {
+      // Start order polling only for craftsmen
+      if (_userType == 'craftsman') {
+        _startOrderPolling();
+      }
+    });
     _startChatPolling();
   }
 
@@ -59,7 +65,7 @@ class _MainScreenState extends State<MainScreen> {
 
   Future<void> _checkNewMessages() async {
     try {
-      final response = await ApiService.get('/chat/list');
+      final response = await ApiService.get('/api/chat/list');
       if (response.statusCode == 200 && response.data['success'] == true) {
         final chats = response.data['data'] as List;
 
@@ -116,8 +122,90 @@ class _MainScreenState extends State<MainScreen> {
       setState(() {
         _userType = prefs.getString('user_type') ?? 'customer';
       });
-      // Order polling is handled in craftsman_orders_screen.dart
-      // No need to poll here
+    }
+  }
+
+  void _startOrderPolling() {
+    // Check immediately
+    _checkForNewOrders();
+    // Then check every 10 seconds
+    _orderPollingTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
+      _checkForNewOrders();
+    });
+  }
+
+  Future<void> _checkForNewOrders() async {
+    if (_userType != 'craftsman') return;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('access_token');
+      final userId = prefs.getString('user_id');
+
+      if (token == null || token.isEmpty || userId == null || userId.isEmpty) {
+        return;
+      }
+
+      final headers = Map<String, String>.from(ApiConfig.headers);
+      headers['Authorization'] = 'Bearer $token';
+
+      final uri = Uri.parse(
+        ApiConfig.ordersList,
+      ).replace(queryParameters: {'craftsman_id': userId});
+
+      final response = await http
+          .get(uri, headers: headers)
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true) {
+          final List<dynamic> raw = data['data'] ?? [];
+          final newOrders = raw
+              .map<Map<String, dynamic>>(
+                (item) => Map<String, dynamic>.from(item),
+              )
+              .toList();
+
+          // Check for new orders
+          for (var order in newOrders) {
+            final orderId = order['id'] as int?;
+            if (orderId == null) continue;
+
+            final status = (order['craftsman_status'] ?? order['status'] ?? '')
+                .toString();
+
+            // Show notification for new waiting_response, awaiting_assignment, or pending orders
+            if (!_knownChatOrderIds.contains(orderId) &&
+                (status == 'waiting_response' ||
+                    status == 'awaiting_assignment' ||
+                    status == 'pending')) {
+              _knownChatOrderIds.add(orderId);
+
+              print('=== 🎉 NEW ORDER DETECTED (Global) ===');
+              print('Order ID: $orderId');
+              print('Status: $status');
+              print('Title: ${order['title']}');
+              print('Customer: ${order['customer_name']}');
+
+              // Show notification with sound
+              try {
+                await _notificationService.showNewOrderNotification(
+                  orderId: orderId,
+                  title: order['title'] ?? 'طلب جديد',
+                  customerName: order['customer_name'] ?? 'عميل',
+                  description: order['description'] ?? '',
+                );
+                print('✓ Global notification shown successfully');
+              } catch (e) {
+                print('✗ Error showing global notification: $e');
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      print('Error checking for new orders (global): $e');
     }
   }
 

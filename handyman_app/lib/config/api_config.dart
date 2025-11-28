@@ -1,7 +1,7 @@
 class ApiConfig {
   static const String baseUrl = 'https://free-styel.store';
   static const String webProxyUrl = 'proxy.php';
-  
+
   // API Endpoints
   static const String taskTypes = '$baseUrl/api/task-types/index';
   static const String ordersCreate = '$baseUrl/api/orders/create';
@@ -11,6 +11,10 @@ class ApiConfig {
   static const String craftsmanNearby = '$baseUrl/api/craftsman/nearby';
   static const String authLogin = '$baseUrl/api/auth/login';
   static const String authRegister = '$baseUrl/api/auth/register';
+  static const String authForgotPassword = '$baseUrl/api/auth/forgot-password';
+  static const String authVerifyResetCode =
+      '$baseUrl/api/auth/verify-reset-code';
+  static const String authResetPassword = '$baseUrl/api/auth/reset-password';
   static const String userProfile = '$baseUrl/api/users/profile';
   static const String userUpdate = '$baseUrl/api/users/update';
   static const String notificationsList = '$baseUrl/api/notifications/list';
@@ -24,10 +28,11 @@ class ApiConfig {
   static const String shopsRate = '$baseUrl/api/shops/rate';
   static const String categoriesList = '$baseUrl/api/categories/list';
   static const String settingsGeneral = '$baseUrl/api/settings/general';
-  static const String settingsNotifications = '$baseUrl/api/settings/notifications';
+  static const String settingsNotifications =
+      '$baseUrl/api/settings/notifications';
   static const String settingsPrivacy = '$baseUrl/api/settings/privacy';
   static const String settingsSupport = '$baseUrl/api/settings/support';
-  
+
   // Common Headers
   static Map<String, String> get headers => {
     'Content-Type': 'application/json',
@@ -35,7 +40,7 @@ class ApiConfig {
     'User-Agent': 'WedooApp/1.0 (Flutter)',
     'Origin': 'https://free-styel.store',
   };
-  
+
   // Web-specific headers (for CORS compatibility)
   static Map<String, String> get webHeaders => {
     'Content-Type': 'application/json',
@@ -43,10 +48,14 @@ class ApiConfig {
     'User-Agent': 'WedooApp/1.0 (Flutter Web)',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept, Origin, X-Requested-With',
+    'Access-Control-Allow-Headers':
+        'Content-Type, Authorization, Accept, Origin, X-Requested-With',
   };
 
-  static String orderInvite(int orderId) => '$baseUrl/api/orders/$orderId/invite';
-  static String orderAccept(int orderId) => '$baseUrl/api/orders/$orderId/accept';
-  static String orderReject(int orderId) => '$baseUrl/api/orders/$orderId/reject';
+  static String orderInvite(int orderId) =>
+      '$baseUrl/api/orders/$orderId/invite';
+  static String orderAccept(int orderId) =>
+      '$baseUrl/api/orders/$orderId/accept';
+  static String orderReject(int orderId) =>
+      '$baseUrl/api/orders/$orderId/reject';
 }

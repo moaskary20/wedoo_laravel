@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'demo_location_screen.dart';
 import 'phone_input_screen.dart';
+import 'forgot_password_screen.dart';
 import '../config/api_config.dart';
 import '../services/api_service.dart';
 import '../services/language_service.dart';
@@ -23,7 +24,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isPasswordVisible = false;
   bool _isLoading = false;
   Locale _currentLocale = LanguageService.defaultLocale;
-  
+
   // Backend configuration - Using remote server
 
   @override
@@ -53,7 +54,7 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final isLoggedIn = prefs.getBool('is_logged_in') ?? false;
-      
+
       if (isLoggedIn) {
         // Check if token is still valid
         final loginTimestamp = prefs.getString('login_timestamp');
@@ -61,7 +62,7 @@ class _LoginScreenState extends State<LoginScreen> {
           final loginTime = DateTime.parse(loginTimestamp);
           final now = DateTime.now();
           final difference = now.difference(loginTime);
-          
+
           // If logged in within last 7 days, navigate to main screen
           if (difference.inDays < 7) {
             if (mounted) {
@@ -98,7 +99,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final isRtl = _currentLocale.languageCode == 'ar';
-    
+
     return Directionality(
       textDirection: isRtl ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
@@ -109,7 +110,7 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               children: [
                 const SizedBox(height: 40),
-                
+
                 // Language Selector
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
@@ -117,7 +118,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     GestureDetector(
                       onTap: () => _showLanguageBottomSheet(),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.blue,
                           borderRadius: BorderRadius.circular(20),
@@ -132,7 +136,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              _currentLocale.languageCode == 'ar' ? l10n.arabic : l10n.french,
+                              _currentLocale.languageCode == 'ar'
+                                  ? l10n.arabic
+                                  : l10n.french,
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 12,
@@ -145,9 +151,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 40),
-                
+
                 // Logo
                 Container(
                   width: 120,
@@ -172,7 +178,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
-                
+
                 // Text below logo
                 const SizedBox(height: 20),
                 Text(
@@ -192,9 +198,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                
+
                 const SizedBox(height: 40),
-                
+
                 // Phone Number Field
                 Container(
                   decoration: BoxDecoration(
@@ -217,10 +223,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         color: Colors.grey[600],
                         fontSize: 16,
                       ),
-                      prefixIcon: const Icon(
-                        Icons.phone,
-                        color: Colors.blue,
-                      ),
+                      prefixIcon: const Icon(Icons.phone, color: Colors.blue),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(15),
                         borderSide: BorderSide.none,
@@ -230,9 +233,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 20),
-                
+
                 // Password Field
                 Container(
                   decoration: BoxDecoration(
@@ -255,13 +258,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         color: Colors.grey[600],
                         fontSize: 16,
                       ),
-                      prefixIcon: const Icon(
-                        Icons.lock,
-                        color: Colors.blue,
-                      ),
+                      prefixIcon: const Icon(Icons.lock, color: Colors.blue),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                          _isPasswordVisible
+                              ? Icons.visibility
+                              : Icons.visibility_off,
                           color: Colors.grey[600],
                         ),
                         onPressed: () {
@@ -279,15 +281,19 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 15),
-                
+
                 // Forgot Password Link
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: () {
-                      // Handle forgot password
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const ForgotPasswordScreen(),
+                        ),
+                      );
                     },
                     child: Text(
                       l10n.forgotPassword,
@@ -299,9 +305,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 30),
-                
+
                 // Login Button
                 Container(
                   width: double.infinity,
@@ -332,7 +338,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             height: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
                             ),
                           )
                         : Text(
@@ -345,9 +353,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 20),
-                
+
                 // New User Registration
                 Container(
                   width: double.infinity,
@@ -374,7 +382,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 40),
               ],
             ),
@@ -387,7 +395,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _handleLogin() async {
     final l10n = AppLocalizations.of(context)!;
-    
+
     if (_phoneController.text.isEmpty || _passwordController.text.isEmpty) {
       _showErrorSnackBar(l10n.pleaseFillAllFields);
       return;
@@ -406,16 +414,19 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       // Initialize ApiService
       ApiService.init();
-      
+
       // Send login request to backend using ApiService
-      final response = await ApiService.post('/api/auth/login', data: {
-        'phone': _phoneController.text.trim(),
-        'password': _passwordController.text.trim(),
-      });
+      final response = await ApiService.post(
+        '/api/auth/login',
+        data: {
+          'phone': _phoneController.text.trim(),
+          'password': _passwordController.text.trim(),
+        },
+      );
 
       if (response.statusCode == 200) {
         final responseData = response.data;
-        
+
         if (responseData['success'] == true) {
           // Save user data to SharedPreferences
           final userData = responseData['data'];
@@ -424,20 +435,35 @@ class _LoginScreenState extends State<LoginScreen> {
           await prefs.setString('user_name', userData['name'] ?? '');
           await prefs.setString('user_phone', userData['phone'] ?? '');
           await prefs.setString('user_email', userData['email'] ?? '');
-          await prefs.setString('user_governorate', userData['governorate'] ?? '');
+          await prefs.setString(
+            'user_governorate',
+            userData['governorate'] ?? '',
+          );
           await prefs.setString('user_city', userData['city'] ?? '');
           await prefs.setString('user_area', userData['district'] ?? '');
-          await prefs.setString('user_membership_code', userData['membership_code'] ?? '');
-          await prefs.setString('user_type', userData['user_type'] ?? 'customer');
+          await prefs.setString(
+            'user_membership_code',
+            userData['membership_code'] ?? '',
+          );
+          await prefs.setString(
+            'user_type',
+            userData['user_type'] ?? 'customer',
+          );
           await prefs.setString('access_token', userData['access_token'] ?? '');
-          await prefs.setString('refresh_token', userData['refresh_token'] ?? '');
+          await prefs.setString(
+            'refresh_token',
+            userData['refresh_token'] ?? '',
+          );
           await prefs.setBool('is_logged_in', true);
-          await prefs.setString('login_timestamp', DateTime.now().toIso8601String());
-          
+          await prefs.setString(
+            'login_timestamp',
+            DateTime.now().toIso8601String(),
+          );
+
           // Show success message
           final l10n = AppLocalizations.of(context)!;
           _showSuccessSnackBar(l10n.loginSuccess);
-          
+
           // Navigate to location screen
           if (mounted) {
             Navigator.of(context).pushReplacement(
@@ -448,7 +474,9 @@ class _LoginScreenState extends State<LoginScreen> {
           }
         } else {
           final l10n = AppLocalizations.of(context)!;
-          _showErrorSnackBar(responseData['message'] ?? l10n.invalidPhoneOrPassword);
+          _showErrorSnackBar(
+            responseData['message'] ?? l10n.invalidPhoneOrPassword,
+          );
         }
       } else {
         final l10n = AppLocalizations.of(context)!;
@@ -479,29 +507,29 @@ class _LoginScreenState extends State<LoginScreen> {
     // - Local: starts with 0 followed by 7-14 digits (e.g., 01000690805)
     // - International without +: starts with country code (1-9) and 6-14 digits
     final cleanedPhone = phone.replaceAll(RegExp(r'[\s\-\(\)]'), '');
-    
+
     // Pattern 1: International with + (e.g., +201000690805)
     if (RegExp(r'^\+[1-9]\d{6,14}$').hasMatch(cleanedPhone)) {
       return true;
     }
-    
+
     // Pattern 2: Local number starting with 0 (e.g., 01000690805)
     if (RegExp(r'^0\d{7,14}$').hasMatch(cleanedPhone)) {
       return true;
     }
-    
+
     // Pattern 3: International without + (e.g., 201000690805)
     if (RegExp(r'^[1-9]\d{6,14}$').hasMatch(cleanedPhone)) {
       return true;
     }
-    
+
     return false;
   }
 
   void _showLanguageBottomSheet() {
     final l10n = AppLocalizations.of(context)!;
     final isRtl = _currentLocale.languageCode == 'ar';
-    
+
     showModalBottomSheet(
       context: context,
       builder: (BuildContext context) {
@@ -554,12 +582,12 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       String? deviceId = prefs.getString('device_id');
-      
+
       if (deviceId == null) {
         deviceId = 'device_${DateTime.now().millisecondsSinceEpoch}';
         await prefs.setString('device_id', deviceId);
       }
-      
+
       return deviceId;
     } catch (e) {
       return 'device_${DateTime.now().millisecondsSinceEpoch}';
@@ -569,7 +597,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _saveUserData(Map<String, dynamic> userData) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      
+
       // Save user information
       await prefs.setString('user_id', userData['id'].toString());
       await prefs.setString('user_name', userData['name'] ?? '');
@@ -578,8 +606,11 @@ class _LoginScreenState extends State<LoginScreen> {
       await prefs.setString('access_token', userData['access_token'] ?? '');
       await prefs.setString('refresh_token', userData['refresh_token'] ?? '');
       await prefs.setBool('is_logged_in', true);
-      await prefs.setString('login_timestamp', DateTime.now().toIso8601String());
-      
+      await prefs.setString(
+        'login_timestamp',
+        DateTime.now().toIso8601String(),
+      );
+
       // Save additional user data if available
       if (userData['avatar'] != null) {
         await prefs.setString('user_avatar', userData['avatar']);
