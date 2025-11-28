@@ -2309,6 +2309,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
 
   Widget _buildCraftsmanSearchingView() {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         const SizedBox(height: 4),
         const CircularProgressIndicator(
