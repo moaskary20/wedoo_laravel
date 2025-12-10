@@ -474,16 +474,27 @@ class _CraftsmanSelectionScreenState extends State<CraftsmanSelectionScreen> {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Chat Button
-                        IconButton(
+                        // Chat Button - More visible
+                        ElevatedButton.icon(
                           onPressed: isInviting
                               ? null
                               : () => _openChat(craftsmanId, name),
-                          icon: const Icon(Icons.chat, color: Colors.green),
-                          tooltip: _localizedText('الدردشة', 'Chat'),
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.green.withValues(alpha: 0.1),
-                            padding: const EdgeInsets.all(8),
+                          icon: const Icon(Icons.chat, size: 18),
+                          label: Text(
+                            _localizedText('دردشة', 'Chat'),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            minimumSize: const Size(0, 36),
                           ),
                         ),
                         const SizedBox(width: 8),
