@@ -92,26 +92,53 @@ class ChatController extends Controller
         }
 
         // Check if we have required parameters
-        // For craftsman: need customer_id
-        // For customer: need craftsman_id or chat_id
+        // Logic: If user sends craftsman_id, they are acting as a customer
+        //        If user sends customer_id, they are acting as a craftsman
         if (empty($validated['chat_id'])) {
-            if ($user && $user->user_type === 'craftsman') {
-                // Craftsman needs customer_id to chat with customer
-                if (empty($validated['customer_id'])) {
+            \Log::info('Checking user type and required parameters', [
+                'user_id' => $user?->id,
+                'user_type' => $user?->user_type,
+                'user_name' => $user?->name,
+                'has_customer_id' => !empty($validated['customer_id']),
+                'has_craftsman_id' => !empty($validated['craftsman_id']),
+                'craftsman_id_value' => $validated['craftsman_id'] ?? null,
+                'customer_id_value' => $validated['customer_id'] ?? null,
+                'validated' => $validated,
+            ]);
+            
+            // Determine user's role based on what they're sending, not just user_type
+            // If they send craftsman_id, they want to chat as a customer
+            // If they send customer_id, they want to chat as a craftsman
+            $hasCraftsmanId = !empty($validated['craftsman_id']);
+            $hasCustomerId = !empty($validated['customer_id']);
+            
+            if ($hasCraftsmanId && !$hasCustomerId) {
+                // User is acting as customer (sending craftsman_id to chat with craftsman)
+                // This is valid - no need to check user_type
+                \Log::info('User acting as customer (sending craftsman_id)', [
+                    'user_id' => $user?->id,
+                    'user_type' => $user?->user_type,
+                    'craftsman_id' => $validated['craftsman_id'],
+                ]);
+            } else if ($hasCustomerId && !$hasCraftsmanId) {
+                // User is acting as craftsman (sending customer_id to chat with customer)
+                // This is valid - no need to check user_type
+                \Log::info('User acting as craftsman (sending customer_id)', [
+                    'user_id' => $user?->id,
+                    'user_type' => $user?->user_type,
+                    'customer_id' => $validated['customer_id'],
+                ]);
+            } else if (!$hasCraftsmanId && !$hasCustomerId) {
+                // Neither provided - check based on user_type as fallback
+                if ($user && $user->user_type === 'craftsman') {
                     throw ValidationException::withMessages([
                         'customer_id' => 'customer_id is required when craftsman requests messages',
                     ]);
-                }
-            } else if ($user) {
-                // Customer needs craftsman_id
-                if (empty($validated['craftsman_id'])) {
+                } else if ($user) {
                     throw ValidationException::withMessages([
                         'craftsman_id' => 'craftsman_id is required when customer requests messages',
                     ]);
-                }
-            } else {
-                // No user authenticated - require either chat_id or both customer_id and craftsman_id
-                if (empty($validated['customer_id']) && empty($validated['craftsman_id'])) {
+                } else {
                     throw ValidationException::withMessages([
                         'chat_id' => 'chat_id or (customer_id and craftsman_id) is required',
                     ]);
@@ -139,13 +166,34 @@ class ChatController extends Controller
             // Load relationships safely (won't fail if user doesn't exist)
             $chat->loadMissing(['customer', 'craftsman', 'order']);
         } else {
-            $customerId = ($user && $user->user_type === 'craftsman')
-                ? ($validated['customer_id'] ?? null)
-                : ($user ? $user->id : ($validated['customer_id'] ?? null));
+            // Determine customer_id based on user type
+            $customerId = null;
+            if ($user) {
+                if ($user->user_type === 'craftsman') {
+                    // Craftsman is chatting with a customer - get customer_id from request
+                    $customerId = $validated['customer_id'] ?? null;
+                } else {
+                    // Customer is chatting with a craftsman - use their own ID as customer_id
+                    $customerId = $user->id;
+                }
+            } else {
+                // No authenticated user - get customer_id from request
+                $customerId = $validated['customer_id'] ?? null;
+            }
+
+            \Log::info('Determined customer_id', [
+                'user_id' => $user?->id,
+                'user_type' => $user?->user_type,
+                'customer_id' => $customerId,
+                'validated_customer_id' => $validated['customer_id'] ?? null,
+            ]);
 
             if (!$customerId) {
+                $errorMessage = $user && $user->user_type === 'craftsman'
+                    ? 'customer_id is required when craftsman requests messages'
+                    : 'Unable to determine customer_id. Please provide customer_id or authenticate as a customer.';
                 throw ValidationException::withMessages([
-                    'customer_id' => 'customer_id is required when craftsman requests messages',
+                    'customer_id' => $errorMessage,
                 ]);
             }
 

@@ -639,8 +639,9 @@ Future<void> openCraftsmanChat(
     'chat_id': craftsman['chat_id'],
     'craftsman': craftsman,
     // Copy customer_id and craftsman_id if they exist (for craftsman-customer chats)
+    // For pre-order chat, craftsman_id should always be set
+    'craftsman_id': craftsman['craftsman_id'] ?? craftsman['id'],
     if (craftsman['customer_id'] != null) 'customer_id': craftsman['customer_id'],
-    if (craftsman['craftsman_id'] != null) 'craftsman_id': craftsman['craftsman_id'],
     if (craftsman['order_id'] != null) 'order_id': craftsman['order_id'],
   };
 
@@ -1095,17 +1096,34 @@ class _ChatScreenState extends State<_ChatScreen> {
       if (_chatId != null) {
         body['chat_id'] = _chatId.toString();
       } else {
-        // Check if we have customer_id (when craftsman is chatting with customer)
+        // For customer chatting with craftsman: send craftsman_id only
+        // For craftsman chatting with customer: send customer_id only
+        // Try craftsman_id from conversation first (for pre-order chat)
+        final craftsmanId = widget.conversation['craftsman_id'] ?? 
+                            widget.conversation['craftsman']?['id'] ?? 
+                            widget.conversation['id'];
         final customerId = widget.conversation['customer_id'];
-        if (customerId != null) {
-          body['customer_id'] = customerId.toString();
-        } else {
-          // Fallback to craftsman_id (when customer is chatting with craftsman)
-          final craftsmanId = widget.conversation['craftsman']?['id'] ?? widget.conversation['id'];
-          if (craftsmanId != null) {
-            body['craftsman_id'] = craftsmanId.toString();
+        
+        // When customer sends message to craftsman, send craftsman_id only
+        // Backend will get customer_id from authenticated user
+        if (craftsmanId != null) {
+          // Ensure craftsman_id is converted to string/int properly
+          final craftsmanIdValue = craftsmanId is int ? craftsmanId : (craftsmanId is String ? int.tryParse(craftsmanId) : null);
+          if (craftsmanIdValue != null) {
+            body['craftsman_id'] = craftsmanIdValue.toString();
+          } else {
+            print('ERROR: Invalid craftsman_id when sending message: $craftsmanId');
           }
+        } else if (customerId != null) {
+          // Only send customer_id if craftsman_id is not available (for craftsman sending to customer)
+          body['customer_id'] = customerId.toString();
         }
+      }
+      
+      // Add order_id if available (for pre-order chat)
+      final orderId = widget.conversation['order_id'];
+      if (orderId != null) {
+        body['order_id'] = orderId.toString();
       }
 
       final response = await http
@@ -1465,30 +1483,35 @@ class _ChatScreenState extends State<_ChatScreen> {
         params['chat_id'] = _chatId.toString();
         print('Using chat_id: $_chatId');
       } else {
-        // Check if we have customer_id (when craftsman is chatting with customer)
+        // For customer chatting with craftsman: send craftsman_id only
+        // For craftsman chatting with customer: send customer_id only
+        // Try craftsman_id from conversation first (for pre-order chat)
+        final craftsmanId = widget.conversation['craftsman_id'] ?? 
+                            widget.conversation['craftsman']?['id'] ?? 
+                            widget.conversation['id'];
         final customerId = widget.conversation['customer_id'];
-        final craftsmanId = widget.conversation['craftsman_id'];
+        
         print('Conversation data: ${widget.conversation.keys.toList()}');
         print('customer_id in conversation: $customerId');
         print('craftsman_id in conversation: $craftsmanId');
         
-        if (customerId != null) {
+        // When customer opens chat with craftsman, send craftsman_id only
+        // Backend will get customer_id from authenticated user
+        if (craftsmanId != null) {
+          // Ensure craftsman_id is converted to string/int properly
+          final craftsmanIdValue = craftsmanId is int ? craftsmanId : (craftsmanId is String ? int.tryParse(craftsmanId) : null);
+          if (craftsmanIdValue != null) {
+            params['craftsman_id'] = craftsmanIdValue.toString();
+            print('Using craftsman_id: $craftsmanIdValue (customer chatting with craftsman)');
+          } else {
+            print('ERROR: Invalid craftsman_id: $craftsmanId');
+          }
+        } else if (customerId != null) {
+          // Only send customer_id if craftsman_id is not available (for craftsman chatting with customer)
           params['customer_id'] = customerId.toString();
-          print('Using customer_id: $customerId');
-          
-          // Also send craftsman_id if available (for when user is not authenticated)
-          if (craftsmanId != null) {
-            params['craftsman_id'] = craftsmanId.toString();
-            print('Also sending craftsman_id: $craftsmanId');
-          }
+          print('Using customer_id: $customerId (craftsman chatting with customer)');
         } else {
-          // Fallback to craftsman_id (when customer is chatting with craftsman)
-          final craftsman = widget.conversation['craftsman'];
-          final craftsmanIdFromCraftsman = craftsman?['id'] ?? widget.conversation['id'];
-          if (craftsmanIdFromCraftsman != null) {
-            params['craftsman_id'] = craftsmanIdFromCraftsman.toString();
-            print('Using craftsman_id: $craftsmanIdFromCraftsman');
-          }
+          print('ERROR: Neither craftsman_id nor customer_id is available');
         }
       }
 

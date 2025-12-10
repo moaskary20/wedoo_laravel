@@ -2237,24 +2237,52 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
           ],
         ),
         trailing: _currentOrderId != null && craftsmanId != null
-            ? ElevatedButton(
-                onPressed: () => _inviteCraftsmanFromDialog(
-                  dialogContext,
-                  craftsman,
-                  _currentOrderId!,
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Chat Button
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.of(dialogContext).pop(); // Close dialog first
+                      _openChatWithCraftsman(craftsman, int.parse(_currentOrderId!));
+                    },
+                    icon: const Icon(Icons.chat, size: 16),
+                    label: Text(
+                      _localizedText('دردشة', 'Chat'),
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      minimumSize: const Size(0, 32),
+                    ),
                   ),
-                ),
-                child: Text(
-                  _localizedText('اختر', 'Choisir'),
-                  style: const TextStyle(fontSize: 12),
-                ),
+                  const SizedBox(width: 6),
+                  // Select Button
+                  ElevatedButton(
+                    onPressed: () => _inviteCraftsmanFromDialog(
+                      dialogContext,
+                      craftsman,
+                      _currentOrderId!,
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                    ),
+                    child: Text(
+                      _localizedText('اختر', 'Choisir'),
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
               )
             : null,
       ),
@@ -2272,8 +2300,15 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
     try {
       await _inviteCraftsmanToOrder(craftsman, orderId);
 
-      if (mounted) {
+      // Close dialog first
+      if (mounted && Navigator.of(dialogContext).canPop()) {
         Navigator.of(dialogContext).pop();
+      }
+
+      // Wait a bit for dialog to close
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      if (mounted) {
         final l10n = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -2289,13 +2324,44 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
         );
 
         // Navigate to orders screen
-        Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (_) => const MyOrdersScreen()));
-        _resetForm();
+        if (mounted) {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const MyOrdersScreen()),
+          );
+          _resetForm();
+        }
       }
     } catch (e) {
       print('Error inviting craftsman: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${_localizedText("خطأ", "Erreur")}: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  void _openChatWithCraftsman(Map<String, dynamic> craftsman, int orderId) {
+    if (!mounted) return;
+    
+    try {
+      final craftsmanData = {
+        'id': craftsman['id'],
+        'name': craftsman['name'] ?? 'صنايعي',
+        'craftsman_id': craftsman['id'],
+        'order_id': orderId,
+        'service': widget.categoryName,
+        'specialization': widget.categoryName,
+        'avatar': craftsman['avatar'],
+      };
+
+      openCraftsmanChat(context, craftsmanData);
+    } catch (e) {
+      print('Error opening chat: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
