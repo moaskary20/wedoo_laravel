@@ -7,6 +7,7 @@ use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
 use Filament\Pages\Page;
+use Filament\Actions;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
@@ -32,10 +33,10 @@ class BrevoSettings extends Page implements HasForms
 
     public ?array $data = [];
     
-    public function getFormActions(): array
+    protected function getHeaderActions(): array
     {
         return [
-            Forms\Components\Actions\Action::make('test')
+            Actions\Action::make('test')
                 ->label('اختبار الإيميل')
                 ->icon('heroicon-o-paper-airplane')
                 ->color('info')
@@ -45,9 +46,15 @@ class BrevoSettings extends Page implements HasForms
                 ->action(function () {
                     $this->testEmail();
                 }),
+        ];
+    }
+    
+    protected function getFormActions(): array
+    {
+        return [
             Forms\Components\Actions\Action::make('save')
                 ->label('حفظ الإعدادات')
-                ->submit('save')
+                ->action('save')
                 ->color('success')
                 ->icon('heroicon-o-check'),
         ];
