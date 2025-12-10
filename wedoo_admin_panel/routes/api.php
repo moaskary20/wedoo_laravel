@@ -42,7 +42,8 @@ Route::get('/shops/list', [ShopController::class, 'list']);
 Route::get('/shops/show', [ShopController::class, 'show']);
 Route::get('/craftsman/count', [CraftsmanController::class, 'count']);
 
-// Chat messages (can be accessed without authentication for support messages)
+// Chat messages (can be accessed without authentication for support messages with type=support)
+// For regular messages, authentication is required but handled in the controller
 Route::get('/chat/messages', [ChatController::class, 'messages']);
 
 // Protected routes

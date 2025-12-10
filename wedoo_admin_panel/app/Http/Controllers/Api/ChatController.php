@@ -8,6 +8,7 @@ use App\Models\ChatMessage;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class ChatController extends Controller
 {
@@ -48,10 +49,34 @@ class ChatController extends Controller
         
         $user = $request->user();
         
+        // If user is null but Authorization header exists, try to authenticate manually
+        if (!$user && $request->header('Authorization')) {
+            try {
+                // Try to authenticate using Sanctum
+                $authHeader = $request->header('Authorization');
+                if ($authHeader && str_starts_with($authHeader, 'Bearer ')) {
+                    $token = str_replace('Bearer ', '', $authHeader);
+                    $personalAccessToken = PersonalAccessToken::findToken($token);
+                    if ($personalAccessToken) {
+                        $user = $personalAccessToken->tokenable;
+                        \Log::info('User authenticated manually from token', [
+                            'user_id' => $user?->id,
+                            'user_type' => $user?->user_type,
+                        ]);
+                    }
+                }
+            } catch (\Exception $e) {
+                \Log::warning('Failed to authenticate user from token', [
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+        
         \Log::info('User from request', [
             'user_id' => $user?->id,
             'user_type' => $user?->user_type,
             'user_exists' => $user !== null,
+            'has_auth_header' => $request->header('Authorization') !== null,
         ]);
         
         // For support messages, allow unauthenticated requests with user_id
