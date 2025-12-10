@@ -179,7 +179,8 @@ class BrevoSettings extends Page implements HasForms
                     ->columns(2),
             ])
             ->statePath('data')
-            ->columns(2);
+            ->columns(2)
+            ->model($this->data);
     }
 
     

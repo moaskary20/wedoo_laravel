@@ -16,5 +16,17 @@
             </x-filament::button>
         </div>
     </form>
+    
+    @if ($errors->any())
+        <div class="mt-4">
+            <x-filament::notification type="danger">
+                <ul>
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </x-filament::notification>
+        </div>
+    @endif
 </x-filament-panels::page>
 
