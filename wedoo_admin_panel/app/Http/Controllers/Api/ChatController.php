@@ -181,8 +181,11 @@ class ChatController extends Controller
                     \Log::info('User acting as customer (sent craftsman_id)', [
                         'user_id' => $user->id,
                         'user_type' => $user->user_type,
+                        'user_name' => $user->name,
                         'customer_id' => $customerId,
                         'craftsman_id' => $validated['craftsman_id'],
+                        'has_craftsman_id' => $hasCraftsmanId,
+                        'has_customer_id' => $hasCustomerId,
                     ]);
                 } else if ($hasCustomerId && !$hasCraftsmanId) {
                     // User is sending customer_id - they are acting as craftsman
@@ -202,13 +205,27 @@ class ChatController extends Controller
                     }
                 }
             } else {
-                // No authenticated user - get customer_id from request
-                $customerId = $validated['customer_id'] ?? null;
+                // No authenticated user
+                if ($hasCraftsmanId && !$hasCustomerId) {
+                    // User is sending craftsman_id but not authenticated
+                    // This means they want to chat as a customer, but we need customer_id
+                    // Since they're not authenticated, we can't determine customer_id
+                    \Log::warning('Unauthenticated user sending craftsman_id without customer_id', [
+                        'craftsman_id' => $validated['craftsman_id'],
+                    ]);
+                    throw ValidationException::withMessages([
+                        'customer_id' => 'Authentication required. Please log in to chat with a craftsman.',
+                    ]);
+                } else {
+                    // Get customer_id from request
+                    $customerId = $validated['customer_id'] ?? null;
+                }
             }
 
             \Log::info('Determined customer_id', [
                 'user_id' => $user?->id,
                 'user_type' => $user?->user_type,
+                'user_authenticated' => $user !== null,
                 'customer_id' => $customerId,
                 'has_craftsman_id' => $hasCraftsmanId,
                 'has_customer_id' => $hasCustomerId,
@@ -216,7 +233,9 @@ class ChatController extends Controller
             ]);
 
             if (!$customerId) {
-                $errorMessage = 'Unable to determine customer_id. Please provide customer_id or authenticate as a customer.';
+                $errorMessage = $user 
+                    ? 'Unable to determine customer_id. Please provide customer_id or ensure you are authenticated as a customer.'
+                    : 'Authentication required. Please log in to use the chat feature.';
                 throw ValidationException::withMessages([
                     'customer_id' => $errorMessage,
                 ]);
