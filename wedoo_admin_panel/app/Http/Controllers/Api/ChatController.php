@@ -204,6 +204,23 @@ class ChatController extends Controller
                         $customerId = $user->id;
                     }
                 }
+                } else if ($hasCustomerId && !$hasCraftsmanId) {
+                    // User is sending customer_id - they are acting as craftsman
+                    // Use customer_id from request
+                    $customerId = $validated['customer_id'];
+                    \Log::info('User acting as craftsman (sent customer_id)', [
+                        'user_id' => $user->id,
+                        'user_type' => $user->user_type,
+                        'customer_id' => $customerId,
+                    ]);
+                } else {
+                    // Fallback to user_type if parameters are ambiguous
+                    if ($user->user_type === 'craftsman') {
+                        $customerId = $validated['customer_id'] ?? null;
+                    } else {
+                        $customerId = $user->id;
+                    }
+                }
             } else {
                 // No authenticated user
                 if ($hasCraftsmanId && !$hasCustomerId) {
