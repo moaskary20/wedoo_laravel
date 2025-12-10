@@ -3,8 +3,8 @@
         {{ $this->form }}
         
         <x-filament-panels::form.actions
-            :actions="$this->getCachedFormActions()"
-            :full-width="$this->hasFullWidthFormActions()"
+            :actions="$this->getFormActions()"
+            :full-width="false"
         />
     </form>
 </x-filament-panels::page>

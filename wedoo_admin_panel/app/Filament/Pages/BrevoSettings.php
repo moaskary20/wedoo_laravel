@@ -3,6 +3,8 @@
 namespace App\Filament\Pages;
 
 use Filament\Forms;
+use Filament\Forms\Concerns\InteractsWithForms;
+use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
 use Filament\Pages\Page;
 use Filament\Notifications\Notification;
@@ -10,11 +12,11 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Mail;
 
-class BrevoSettings extends Page
+class BrevoSettings extends Page implements HasForms
 {
-    protected static ?string $navigationIcon = 'heroicon-o-envelope';
+    use InteractsWithForms;
     
-    protected static string $view = 'filament.pages.brevo-settings';
+    protected static ?string $navigationIcon = 'heroicon-o-envelope';
     
     protected static ?string $slug = 'brevo-settings';
     
@@ -29,6 +31,27 @@ class BrevoSettings extends Page
     protected static bool $shouldRegisterNavigation = true;
 
     public ?array $data = [];
+    
+    public function getFormActions(): array
+    {
+        return [
+            Forms\Components\Actions\Action::make('test')
+                ->label('اختبار الإيميل')
+                ->icon('heroicon-o-paper-airplane')
+                ->color('info')
+                ->requiresConfirmation()
+                ->modalHeading('اختبار إرسال الإيميل')
+                ->modalDescription('سيتم إرسال إيميل تجريبي إلى الإيميل المرسل المحدد.')
+                ->action(function () {
+                    $this->testEmail();
+                }),
+            Forms\Components\Actions\Action::make('save')
+                ->label('حفظ الإعدادات')
+                ->submit('save')
+                ->color('success')
+                ->icon('heroicon-o-check'),
+        ];
+    }
 
     public function mount(): void
     {
@@ -45,6 +68,8 @@ class BrevoSettings extends Page
             'mail_from_name' => env('MAIL_FROM_NAME', 'WeDoo'),
         ]);
     }
+    
+    protected static string $view = 'filament.pages.brevo-settings';
 
     public function form(Form $form): Form
     {
@@ -150,26 +175,6 @@ class BrevoSettings extends Page
             ->columns(2);
     }
 
-    protected function getFormActions(): array
-    {
-        return [
-            Forms\Components\Actions\Action::make('test')
-                ->label('اختبار الإيميل')
-                ->icon('heroicon-o-paper-airplane')
-                ->color('info')
-                ->requiresConfirmation()
-                ->modalHeading('اختبار إرسال الإيميل')
-                ->modalDescription('سيتم إرسال إيميل تجريبي إلى الإيميل المرسل المحدد.')
-                ->action(function () {
-                    $this->testEmail();
-                }),
-            Forms\Components\Actions\Action::make('save')
-                ->label('حفظ الإعدادات')
-                ->submit('save')
-                ->color('success')
-                ->icon('heroicon-o-check'),
-        ];
-    }
     
     public function testEmail(): void
     {
