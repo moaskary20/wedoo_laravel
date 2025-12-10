@@ -155,18 +155,27 @@ class AuthController extends Controller
             'expires_at' => now()->addMinutes(15), // Token expires in 15 minutes
         ]);
 
-        // Send email with code
+        // Send email with code using Brevo
         try {
-            \Illuminate\Support\Facades\Mail::raw(
-                "رمز استعادة كلمة المرور الخاص بك هو: {$code}\n\nهذا الرمز صالح لمدة 15 دقيقة.",
-                function ($message) use ($request) {
-                    $message->to($request->email)
-                            ->subject('رمز استعادة كلمة المرور - WeDoo');
-                }
-            );
+            \Illuminate\Support\Facades\Mail::to($request->email)
+                ->send(new \App\Mail\PasswordResetMail($code, $request->email));
+            
+            \Illuminate\Support\Facades\Log::info('Password reset email sent successfully', [
+                'email' => $request->email,
+            ]);
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Failed to send password reset email: ' . $e->getMessage());
-            // Continue anyway - code is saved in database
+            \Illuminate\Support\Facades\Log::error('Failed to send password reset email', [
+                'email' => $request->email,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            // Return error if email sending fails
+            return response()->json([
+                'success' => false,
+                'message' => 'فشل إرسال الإيميل. يرجى المحاولة مرة أخرى لاحقاً.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
         }
 
         return response()->json([
