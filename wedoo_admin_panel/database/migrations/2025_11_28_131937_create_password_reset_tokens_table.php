@@ -11,16 +11,20 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('password_reset_tokens', function (Blueprint $table) {
-            $table->id();
-            $table->string('email')->index();
-            $table->string('token', 6); // 6-digit code
-            $table->timestamp('expires_at');
-            $table->timestamps();
-            
-            // Add index for faster lookups
-            $table->index(['email', 'token']);
-        });
+        // Check if table exists, if not create it
+        if (!Schema::hasTable('password_reset_tokens')) {
+            Schema::create('password_reset_tokens', function (Blueprint $table) {
+                $table->id();
+                $table->string('email')->index();
+                $table->string('token', 6); // 6-digit code
+                $table->timestamp('expires_at');
+                $table->timestamps();
+                
+                // Add index for faster lookups
+                $table->index(['email', 'token']);
+            });
+        }
+        // If table already exists, skip creation (it was created by default Laravel migration)
     }
 
     /**
