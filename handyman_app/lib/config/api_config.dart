@@ -32,6 +32,10 @@ class ApiConfig {
       '$baseUrl/api/settings/notifications';
   static const String settingsPrivacy = '$baseUrl/api/settings/privacy';
   static const String settingsSupport = '$baseUrl/api/settings/support';
+  static const String reviewsCreate = '$baseUrl/api/reviews/create';
+  static String reviewsCanReview(int orderId) => '$baseUrl/api/reviews/can-review/$orderId';
+  static String reviewsGetByOrder(int orderId) => '$baseUrl/api/reviews/order/$orderId';
+  static String reviewsGetByCraftsman(int craftsmanId) => '$baseUrl/api/reviews/craftsman/$craftsmanId';
 
   // Common Headers
   static Map<String, String> get headers => {

@@ -519,12 +519,8 @@ class ChatController extends Controller
 
         $chat->loadMissing('order');
 
-        if ($chat->order && $chat->order->craftsman_status !== 'accepted') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Craftsman must accept the order before starting the chat',
-            ], 422);
-        }
+        // Allow chat before order acceptance - customers and craftsmen can chat before accepting
+        // This enables communication during the invitation phase
 
         if (!$user) {
             throw ValidationException::withMessages([

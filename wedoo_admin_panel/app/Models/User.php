@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use App\Models\TaskType;
 
 class User extends Authenticatable
 {
@@ -94,5 +95,11 @@ class User extends Authenticatable
     public function chatsAsCraftsman()
     {
         return $this->hasMany(Chat::class, 'craftsman_id');
+    }
+
+    public function taskTypes()
+    {
+        return $this->belongsToMany(TaskType::class, 'craftsman_task_types', 'craftsman_id', 'task_type_id')
+            ->withTimestamps();
     }
 }

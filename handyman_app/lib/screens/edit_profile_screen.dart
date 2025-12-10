@@ -33,6 +33,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   // Profile image
   File? _selectedImage;
   Uint8List? _imageBytes;
+  String? _savedProfileImagePath; // Cache for saved image path/base64
   final ImagePicker _picker = ImagePicker();
 
   // Backend configuration
@@ -56,6 +57,47 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       final userGovernorate = prefs.getString('user_governorate') ?? '';
       final userCity = prefs.getString('user_city') ?? '';
       final userArea = prefs.getString('user_area') ?? '';
+      
+      // Load saved profile image
+      final savedProfileImage = prefs.getString('user_profile_image');
+      if (savedProfileImage != null && savedProfileImage.isNotEmpty) {
+        setState(() {
+          _savedProfileImagePath = savedProfileImage;
+        });
+        
+        // Check if it's a file path or base64
+        if (!savedProfileImage.startsWith('data:image') && 
+            !savedProfileImage.startsWith('/9j/') && 
+            !savedProfileImage.startsWith('iVBOR')) {
+          // It's a file path
+          final imageFile = File(savedProfileImage);
+          if (await imageFile.exists()) {
+            setState(() {
+              _selectedImage = imageFile;
+            });
+            // Also load bytes for web compatibility
+            if (kIsWeb) {
+              final bytes = await imageFile.readAsBytes();
+              setState(() {
+                _imageBytes = bytes;
+              });
+            }
+          }
+        } else {
+          // It's base64 data
+          try {
+            final base64Data = savedProfileImage.replaceAll('data:image/png;base64,', '')
+                .replaceAll('data:image/jpeg;base64,', '')
+                .replaceAll('data:image/jpg;base64,', '');
+            final bytes = base64Decode(base64Data);
+            setState(() {
+              _imageBytes = bytes;
+            });
+          } catch (e) {
+            print('Error decoding base64 image: $e');
+          }
+        }
+      }
       
       setState(() {
         _nameController.text = userName.isNotEmpty ? userName : 'مستخدم';
@@ -272,17 +314,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Widget _buildProfileImage() {
+    // Show selected image (newly picked) - highest priority
     if (_selectedImage != null) {
       if (kIsWeb) {
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(60),
-          child: Image.memory(
-            _imageBytes!,
-            width: 120,
-            height: 120,
-            fit: BoxFit.cover,
-          ),
-        );
+        if (_imageBytes != null) {
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(60),
+            child: Image.memory(
+              _imageBytes!,
+              width: 120,
+              height: 120,
+              fit: BoxFit.cover,
+            ),
+          );
+        }
       } else {
         return ClipRRect(
           borderRadius: BorderRadius.circular(60),
@@ -291,16 +336,78 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             width: 120,
             height: 120,
             fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return const Icon(
+                Icons.person,
+                size: 60,
+                color: Colors.grey,
+              );
+            },
           ),
         );
       }
-    } else {
-      return const Icon(
-        Icons.person,
-        size: 60,
-        color: Colors.grey,
-      );
     }
+    
+    // Show saved image from cache or SharedPreferences
+    if (_savedProfileImagePath != null && _savedProfileImagePath!.isNotEmpty) {
+      try {
+        // Check if it's base64 data
+        if (_savedProfileImagePath!.startsWith('data:image') || 
+            _savedProfileImagePath!.startsWith('/9j/') || 
+            _savedProfileImagePath!.startsWith('iVBOR')) {
+          // It's base64 data
+          final base64Data = _savedProfileImagePath!.replaceAll('data:image/png;base64,', '')
+              .replaceAll('data:image/jpeg;base64,', '')
+              .replaceAll('data:image/jpg;base64,', '');
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(60),
+            child: Image.memory(
+              base64Decode(base64Data),
+              width: 120,
+              height: 120,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return const Icon(
+                  Icons.person,
+                  size: 60,
+                  color: Colors.grey,
+                );
+              },
+            ),
+          );
+        } else {
+          // It's a file path
+          final imageFile = File(_savedProfileImagePath!);
+          if (imageFile.existsSync()) {
+            return ClipRRect(
+              borderRadius: BorderRadius.circular(60),
+              child: Image.file(
+                imageFile,
+                width: 120,
+                height: 120,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return const Icon(
+                    Icons.person,
+                    size: 60,
+                    color: Colors.grey,
+                  );
+                },
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        print('Error displaying saved profile image: $e');
+      }
+    }
+    
+    // Default icon if no image
+    return const Icon(
+      Icons.person,
+      size: 60,
+      color: Colors.grey,
+    );
   }
 
   void _showImagePickerOptions() {
@@ -903,6 +1010,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         
         // Also save locally for immediate display
         await _saveProfileImageLocally();
+        
+        // Update cached image path
+        final prefs = await SharedPreferences.getInstance();
+        final savedImage = prefs.getString('user_profile_image');
+        setState(() {
+          _savedProfileImagePath = savedImage;
+        });
       }
 
       // TODO: Uncomment when backend is ready
@@ -931,6 +1045,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       */
 
       _showSuccessSnackBar(l10n.dataSavedToAdmin);
+      
+      // Force rebuild to show updated image immediately
+      if (mounted) {
+        setState(() {});
+      }
       
       // Navigate back with success result
       if (mounted) {

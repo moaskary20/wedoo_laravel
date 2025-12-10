@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\Order;
 use App\Models\User;
 use App\Models\Chat;
+use App\Models\TaskType;
 
 class OrderController extends Controller
 {
@@ -126,15 +127,41 @@ class OrderController extends Controller
             ], 403);
         }
 
-        $orders = Order::with(['customer', 'taskType'])
+        // Get craftsman's task type IDs
+        $craftsmanTaskTypeIds = $user->taskTypes()->pluck('task_types.id')->toArray();
+        
+        // Get orders assigned to this craftsman
+        $assignedOrders = Order::with(['customer', 'taskType'])
             ->where('craftsman_id', $user->id)
             ->orderByDesc('created_at')
             ->get()
             ->map(fn ($order) => $this->transformOrder($order));
 
+        // Get available orders matching craftsman's task types
+        // Only show orders that match the craftsman's selected task types
+        $availableOrders = Order::with(['customer', 'taskType'])
+            ->where('status', 'pending')
+            ->where('craftsman_status', 'awaiting_assignment')
+            ->whereNull('craftsman_id') // Not assigned yet
+            ->when(!empty($craftsmanTaskTypeIds), function ($query) use ($craftsmanTaskTypeIds) {
+                return $query->whereIn('task_type_id', $craftsmanTaskTypeIds);
+            })
+            ->when(empty($craftsmanTaskTypeIds), function ($query) use ($user) {
+                // If no task types selected, filter by category only
+                return $query->whereHas('taskType', function ($q) use ($user) {
+                    $q->where('category_id', $user->category_id);
+                });
+            })
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(fn ($order) => $this->transformOrder($order));
+
+        // Combine assigned and available orders
+        $allOrders = $assignedOrders->merge($availableOrders)->unique('id')->values();
+
         return response()->json([
             'success' => true,
-            'data' => $orders,
+            'data' => $allOrders,
             'message' => 'Assigned orders retrieved successfully',
         ]);
     }
@@ -255,6 +282,9 @@ class OrderController extends Controller
 
     protected function transformOrder(Order $order): array
     {
+        // Check if order has a review
+        $review = \App\Models\Review::where('order_id', $order->id)->first();
+        
         return [
             'id' => $order->id,
             'customer_id' => $order->customer_id,
@@ -276,6 +306,13 @@ class OrderController extends Controller
             'craftsman_status' => $order->craftsman_status,
             'notes' => $order->notes,
             'images' => $order->images ?? [],
+            'has_review' => $review ? true : false,
+            'review' => $review ? [
+                'id' => $review->id,
+                'rating' => $review->rating,
+                'comment' => $review->comment,
+                'created_at' => optional($review->created_at)?->format('Y-m-d H:i:s'),
+            ] : null,
             'created_at' => optional($order->created_at)?->format('Y-m-d H:i:s'),
         ];
     }

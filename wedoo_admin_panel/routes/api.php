@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\ShopController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PromoCodeController;
 use App\Http\Controllers\Api\RatingController;
+use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\ChatController;
@@ -75,6 +76,12 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // Ratings
     Route::post('/shops/rate', [RatingController::class, 'rate']);
+    
+    // Reviews (Order Reviews)
+    Route::post('/reviews/create', [ReviewController::class, 'create']);
+    Route::get('/reviews/order/{orderId}', [ReviewController::class, 'getByOrder']);
+    Route::get('/reviews/craftsman/{craftsmanId}', [ReviewController::class, 'getByCraftsman']);
+    Route::get('/reviews/can-review/{orderId}', [ReviewController::class, 'canReview']);
     
     // Settings
     Route::get('/settings/general', [SettingsController::class, 'general']);

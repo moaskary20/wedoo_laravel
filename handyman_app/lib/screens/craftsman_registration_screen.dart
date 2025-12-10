@@ -21,7 +21,10 @@ class _CraftsmanRegistrationScreenState extends State<CraftsmanRegistrationScree
   bool _isPasswordVisible = false;
   bool _isLoading = false;
   bool _isLoadingCategories = true;
+  bool _isLoadingTaskTypes = false;
   List<Map<String, dynamic>> _categories = [];
+  List<Map<String, dynamic>> _taskTypes = [];
+  Set<int> _selectedTaskTypeIds = {};
   String? _categoryError;
 
   final List<String> _ageRanges = ['20-35', '35-45', '45-65'];
@@ -412,7 +415,12 @@ class _CraftsmanRegistrationScreenState extends State<CraftsmanRegistrationScree
               onChanged: (value) {
                 setState(() {
                   _selectedCategoryId = value;
+                  _selectedTaskTypeIds.clear(); // Clear selected tasks when category changes
+                  _taskTypes.clear();
                 });
+                if (value != null) {
+                  _loadTaskTypes(value);
+                }
               },
             ),
           ),
@@ -424,6 +432,146 @@ class _CraftsmanRegistrationScreenState extends State<CraftsmanRegistrationScree
             style: const TextStyle(color: Colors.orange, fontSize: 12),
           ),
         ],
+        // Task Types Selection (shown after category is selected)
+        if (_selectedCategoryId != null) ...[
+          const SizedBox(height: 30),
+          _buildTaskTypesSelection(),
+        ],
+      ],
+    );
+  }
+
+  Future<void> _loadTaskTypes(int categoryId) async {
+    setState(() {
+      _isLoadingTaskTypes = true;
+      _taskTypes.clear();
+    });
+
+    try {
+      final response = await http
+          .get(
+            Uri.parse('${ApiConfig.taskTypes}?category_id=$categoryId'),
+            headers: ApiConfig.headers,
+          )
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true) {
+          final items = (data['data'] as List<dynamic>? ?? [])
+              .where((item) => item['id'] != null && (item['status'] == 'active' || item['status'] == null))
+              .map<Map<String, dynamic>>((item) {
+            return {
+              'id': item['id'],
+              'name': item['name_ar'] ?? item['name'] ?? 'مهمة',
+              'name_ar': item['name_ar'] ?? item['name'],
+            };
+          }).toList();
+
+          setState(() {
+            _taskTypes = items;
+          });
+        }
+      }
+    } catch (e) {
+      print('Error loading task types: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingTaskTypes = false;
+        });
+      }
+    }
+  }
+
+  Widget _buildTaskTypesSelection() {
+    if (_isLoadingTaskTypes) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 20),
+        child: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (_taskTypes.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 10),
+        child: Text(
+          'لا توجد مهام متاحة في هذا القسم',
+          style: TextStyle(fontSize: 14, color: Colors.grey),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Align(
+          alignment: Alignment.centerRight,
+          child: Text(
+            'اختر المهام التي تستطيع العمل فيها',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(15),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          constraints: const BoxConstraints(maxHeight: 200),
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: _taskTypes.length,
+            itemBuilder: (context, index) {
+              final taskType = _taskTypes[index];
+              final taskTypeId = taskType['id'] as int;
+              final isSelected = _selectedTaskTypeIds.contains(taskTypeId);
+
+              return CheckboxListTile(
+                value: isSelected,
+                onChanged: (bool? value) {
+                  setState(() {
+                    if (value == true) {
+                      _selectedTaskTypeIds.add(taskTypeId);
+                    } else {
+                      _selectedTaskTypeIds.remove(taskTypeId);
+                    }
+                  });
+                },
+                title: Text(
+                  taskType['name'] as String,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Colors.black87,
+                  ),
+                ),
+                activeColor: Colors.blue,
+                controlAffinity: ListTileControlAffinity.trailing,
+              );
+            },
+          ),
+        ),
+        if (_selectedTaskTypeIds.isEmpty && !_isLoadingTaskTypes)
+          const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: Text(
+              'يرجى اختيار مهمة واحدة على الأقل',
+              style: TextStyle(color: Colors.orange, fontSize: 12),
+            ),
+          ),
       ],
     );
   }
@@ -435,6 +583,11 @@ class _CraftsmanRegistrationScreenState extends State<CraftsmanRegistrationScree
         _selectedAgeRange == null ||
         _selectedCategoryId == null) {
       _showErrorSnackBar('يرجى ملء جميع الحقول');
+      return;
+    }
+
+    if (_selectedTaskTypeIds.isEmpty) {
+      _showErrorSnackBar('يرجى اختيار مهمة واحدة على الأقل');
       return;
     }
 
@@ -463,6 +616,8 @@ class _CraftsmanRegistrationScreenState extends State<CraftsmanRegistrationScree
       await prefs.setString('temp_user_age_range', _selectedAgeRange!);
       await prefs.setString('temp_user_type', 'craftsman');
       await prefs.setInt('temp_user_category_id', _selectedCategoryId!);
+      // Save selected task type IDs as JSON string
+      await prefs.setString('temp_user_task_type_ids', jsonEncode(_selectedTaskTypeIds.toList()));
       
       // Show success message
       _showSuccessSnackBar('تم حفظ بيانات الصنايعي بنجاح');

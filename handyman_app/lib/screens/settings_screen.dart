@@ -66,6 +66,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _loadUserData();
   }
 
+  @override
+  void didUpdateWidget(SettingsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reload data when widget updates
+    _loadUserData();
+  }
+
   Future<void> _loadUserData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -122,22 +129,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       
-      // First try local storage (most recent)
+      // First try local storage (most recent) - this is the primary source
       final localImage = prefs.getString('user_profile_image');
       if (localImage != null && localImage.isNotEmpty) {
-        print('Loading profile image from local storage');
+        print('Loading profile image from local storage: ${localImage.substring(0, localImage.length > 50 ? 50 : localImage.length)}...');
         return localImage;
       }
       
       // If no local image, try admin panel data
       final adminImages = prefs.getStringList('admin_profile_images') ?? [];
       if (adminImages.isNotEmpty) {
-        // Get the latest image
-        final latestImageData = adminImages.last;
-        final imageData = jsonDecode(latestImageData);
-        if (imageData['user_id'] == await _getUserId()) {
-          print('Loading profile image from admin panel');
-          return imageData['image_data'];
+        // Get the latest image for this user
+        final userId = await _getUserId();
+        for (var i = adminImages.length - 1; i >= 0; i--) {
+          try {
+            final imageData = jsonDecode(adminImages[i]);
+            if (imageData['user_id'] == userId) {
+              print('Loading profile image from admin panel');
+              return imageData['image_data'];
+            }
+          } catch (e) {
+            print('Error parsing admin image data: $e');
+          }
         }
       }
       
@@ -372,9 +385,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
               MaterialPageRoute(builder: (context) => const EditProfileScreen()),
             );
             
-            // Reload user data when returning from edit profile
-            if (result == true || result == null) {
-              _loadUserData();
+            // Always reload user data when returning from edit profile
+            // Clear cached image first to force reload
+            setState(() {
+              _userProfileImage = null;
+            });
+            
+            // Reload all user data including profile image
+            await _loadUserData();
+            
+            // Force rebuild to show updated image
+            if (mounted) {
+              setState(() {});
             }
           }),
           _buildSettingsItem(l10n.notifications, Icons.notifications, () {

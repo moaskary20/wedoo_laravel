@@ -189,6 +189,47 @@ class _CraftsmanSelectionScreenState extends State<CraftsmanSelectionScreen> {
     return _currentLocale.languageCode == 'ar' ? arabic : french;
   }
 
+  Future<void> _openChat(int craftsmanId, String craftsmanName) async {
+    try {
+      // Get craftsman data from the list
+      final craftsman = _craftsmen.firstWhere(
+        (c) => c['id'] == craftsmanId,
+        orElse: () => {},
+      );
+
+      if (craftsman.isEmpty) {
+        throw Exception('Craftsman not found');
+      }
+
+      // Prepare craftsman data for chat
+      final craftsmanData = {
+        'id': craftsmanId,
+        'name': craftsmanName,
+        'craftsman_id': craftsmanId,
+        'order_id': widget.orderId,
+        'service': widget.categoryName,
+        'specialization': widget.categoryName,
+        'avatar': craftsman['avatar'],
+      };
+
+      // Open chat using the existing function
+      if (mounted) {
+        openCraftsmanChat(context, craftsmanData);
+      }
+    } catch (e) {
+      print('Error opening chat: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${_localizedText("خطأ", "Erreur")}: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -428,36 +469,55 @@ class _CraftsmanSelectionScreenState extends State<CraftsmanSelectionScreen> {
                       ],
                     ),
                   ),
-                  // Select Button
+                  // Action Buttons
                   if (craftsmanId != null)
-                    ElevatedButton(
-                      onPressed: isInviting
-                          ? null
-                          : () => _inviteCraftsman(craftsmanId),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: isSelected ? Colors.green : Colors.blue,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 10,
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Chat Button
+                        IconButton(
+                          onPressed: isInviting
+                              ? null
+                              : () => _openChat(craftsmanId, name),
+                          icon: const Icon(Icons.chat, color: Colors.green),
+                          tooltip: _localizedText('الدردشة', 'Chat'),
+                          style: IconButton.styleFrom(
+                            backgroundColor: Colors.green.withValues(alpha: 0.1),
+                            padding: const EdgeInsets.all(8),
+                          ),
                         ),
-                      ),
-                      child: isInviting
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            )
-                          : Text(
-                              _localizedText('اختر', 'Choisir'),
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                              ),
+                        const SizedBox(width: 8),
+                        // Select/Invite Button
+                        ElevatedButton(
+                          onPressed: isInviting
+                              ? null
+                              : () => _inviteCraftsman(craftsmanId),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: isSelected ? Colors.green : Colors.blue,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 10,
                             ),
+                          ),
+                          child: isInviting
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  ),
+                                )
+                              : Text(
+                                  _localizedText('اختر', 'Choisir'),
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                        ),
+                      ],
                     ),
                 ],
               ),

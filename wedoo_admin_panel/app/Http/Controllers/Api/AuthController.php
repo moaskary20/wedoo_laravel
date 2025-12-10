@@ -58,12 +58,16 @@ class AuthController extends Controller
             'phone' => 'required|string|max:255|unique:users,phone',
             'user_type' => 'required|in:customer,craftsman',
             'category_id' => 'nullable|exists:categories,id',
+            'task_type_ids' => 'nullable|array',
+            'task_type_ids.*' => 'exists:task_types,id',
             'governorate' => 'nullable|string|max:255',
             'city' => 'nullable|string|max:255',
             'district' => 'nullable|string|max:255',
         ], [
             'phone.required' => 'رقم الهاتف مطلوب',
             'phone.unique' => 'رقم الهاتف مستخدم بالفعل. يرجى استخدام رقم آخر',
+            'task_type_ids.array' => 'يجب أن تكون المهام مصفوفة',
+            'task_type_ids.*.exists' => 'إحدى المهام المختارة غير موجودة',
         ]);
 
         $user = User::create([
@@ -78,6 +82,25 @@ class AuthController extends Controller
             'city' => $request->city,
             'district' => $request->district,
         ]);
+
+        // Attach task types to craftsman if provided
+        if ($request->user_type === 'craftsman' && $request->has('task_type_ids') && is_array($request->task_type_ids)) {
+            $taskTypeIds = array_filter($request->task_type_ids, function($id) {
+                return is_numeric($id);
+            });
+            
+            if (!empty($taskTypeIds)) {
+                // Verify all task types belong to the selected category
+                $validTaskTypes = \App\Models\TaskType::where('category_id', $request->category_id)
+                    ->whereIn('id', $taskTypeIds)
+                    ->pluck('id')
+                    ->toArray();
+                
+                if (!empty($validTaskTypes)) {
+                    $user->taskTypes()->sync($validTaskTypes);
+                }
+            }
+        }
 
         $token = $user->createToken('auth_token')->plainTextToken;
 

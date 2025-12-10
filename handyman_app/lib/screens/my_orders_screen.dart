@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 import '../services/language_service.dart';
 import 'conversations_screen.dart';
+import 'review_screen.dart';
 import 'package:handyman_app/l10n/app_localizations.dart';
 
 class MyOrdersScreen extends StatefulWidget {
@@ -490,6 +491,35 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
           
           const SizedBox(height: 12),
           
+          // Review Button (for completed orders)
+          if (_isOrderCompleted(order)) ...[
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _navigateToReview(order),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                icon: Icon(
+                  order['has_review'] == true ? Icons.edit : Icons.star,
+                  size: 20,
+                ),
+                label: Text(
+                  order['has_review'] == true ? 'تعديل التقييم' : 'تقييم الصنايعي',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+          
           // Details Button
           SizedBox(
             width: double.infinity,
@@ -741,6 +771,32 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
       return 'brush';
     }
     return 'home_repair_service';
+  }
+
+  bool _isOrderCompleted(Map<String, dynamic> order) {
+    final status = (order['status_key'] ?? order['progress_key'] ?? '').toString();
+    return status == 'completed';
+  }
+
+  Future<void> _navigateToReview(Map<String, dynamic> order) async {
+    final result = await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => ReviewScreen(
+          orderId: order['id'].toString(),
+          craftsmanName: order['craftsman_name'],
+          orderTitle: order['service'],
+          existingReview: order['review'],
+        ),
+      ),
+    );
+
+    // Reload orders if review was submitted
+    if (result == true) {
+      setState(() {
+        _isLoading = true;
+      });
+      await _loadOrders();
+    }
   }
 
   Widget _buildFloatingHelpButton() {

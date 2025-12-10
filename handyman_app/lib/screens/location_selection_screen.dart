@@ -419,6 +419,17 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
 
       if (userType == 'craftsman' && categoryId != null) {
         registrationData['category_id'] = categoryId;
+        
+        // Add task_type_ids if available
+        final taskTypeIdsJson = prefs.getString('temp_user_task_type_ids');
+        if (taskTypeIdsJson != null && taskTypeIdsJson.isNotEmpty) {
+          try {
+            final taskTypeIds = List<int>.from(jsonDecode(taskTypeIdsJson));
+            registrationData['task_type_ids'] = taskTypeIds;
+          } catch (e) {
+            print('Error parsing task_type_ids: $e');
+          }
+        }
       }
 
       // Debug: Print registration data
