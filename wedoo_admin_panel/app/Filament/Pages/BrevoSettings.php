@@ -16,6 +16,8 @@ class BrevoSettings extends Page
     
     protected static string $view = 'filament.pages.brevo-settings';
     
+    protected static ?string $slug = 'brevo-settings';
+    
     protected static ?string $navigationLabel = 'إعدادات الإيميل';
     
     protected static ?string $title = 'إعدادات الإيميل (Brevo)';
