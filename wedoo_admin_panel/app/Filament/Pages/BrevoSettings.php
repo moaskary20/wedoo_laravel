@@ -8,20 +8,23 @@ use Filament\Pages\Page;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Mail;
 
 class BrevoSettings extends Page
 {
-    protected static ?string $navigationIcon = 'heroicon-o-cog-6-tooth';
+    protected static ?string $navigationIcon = 'heroicon-o-envelope';
     
     protected static string $view = 'filament.pages.brevo-settings';
     
-    protected static ?string $navigationLabel = 'إعدادات Brevo';
+    protected static ?string $navigationLabel = 'إعدادات الإيميل';
     
-    protected static ?string $title = 'إعدادات Brevo';
+    protected static ?string $title = 'إعدادات الإيميل (Brevo)';
     
     protected static ?string $navigationGroup = 'الإعدادات';
     
     protected static ?int $navigationSort = 1;
+    
+    protected static bool $shouldRegisterNavigation = true;
 
     public ?array $data = [];
 
@@ -45,8 +48,19 @@ class BrevoSettings extends Page
     {
         return $form
             ->schema([
+                Forms\Components\Section::make('معلومات')
+                    ->description('استخدم هذه الصفحة لإدارة إعدادات Brevo لإرسال الإيميلات من التطبيق.')
+                    ->schema([
+                        Forms\Components\Placeholder::make('info')
+                            ->label('')
+                            ->content('💡 نصيحة: يمكنك الحصول على SMTP Key من Brevo Dashboard → SMTP & API → SMTP → Generate new SMTP key')
+                    ])
+                    ->collapsible()
+                    ->collapsed(),
+                
                 Forms\Components\Section::make('إعدادات Brevo الأساسية')
-                    ->description('قم بإدخال بيانات Brevo SMTP لإرسال الإيميلات')
+                    ->description('قم بإدخال بيانات Brevo SMTP لإرسال الإيميلات. يمكنك الحصول على SMTP Key من Brevo Dashboard → SMTP & API → SMTP')
+                    ->icon('heroicon-o-envelope')
                     ->schema([
                         Forms\Components\Select::make('mail_mailer')
                             ->label('نوع Mailer')
@@ -99,7 +113,8 @@ class BrevoSettings extends Page
                     ->columns(2),
                 
                 Forms\Components\Section::make('إعدادات المرسل')
-                    ->description('إعدادات الإيميل المرسل')
+                    ->description('إعدادات الإيميل المرسل. يجب أن يكون الإيميل مفعّل في Brevo (Senders & IP)')
+                    ->icon('heroicon-o-user')
                     ->schema([
                         Forms\Components\TextInput::make('brevo_from_email')
                             ->label('إيميل المرسل')
@@ -136,12 +151,47 @@ class BrevoSettings extends Page
     protected function getFormActions(): array
     {
         return [
+            Forms\Components\Actions\Action::make('test')
+                ->label('اختبار الإيميل')
+                ->icon('heroicon-o-paper-airplane')
+                ->color('info')
+                ->requiresConfirmation()
+                ->modalHeading('اختبار إرسال الإيميل')
+                ->modalDescription('سيتم إرسال إيميل تجريبي إلى الإيميل المرسل المحدد.')
+                ->action(function () {
+                    $this->testEmail();
+                }),
             Forms\Components\Actions\Action::make('save')
                 ->label('حفظ الإعدادات')
                 ->submit('save')
                 ->color('success')
                 ->icon('heroicon-o-check'),
         ];
+    }
+    
+    public function testEmail(): void
+    {
+        try {
+            $fromEmail = env('BREVO_FROM_EMAIL', env('MAIL_FROM_ADDRESS', 'noreply@wedoo.com'));
+            
+            // إرسال إيميل تجريبي
+            Mail::raw('هذا إيميل تجريبي من لوحة التحكم. إعدادات Brevo تعمل بشكل صحيح!', function ($message) use ($fromEmail) {
+                $message->to($fromEmail)
+                    ->subject('اختبار إعدادات Brevo - WeDoo');
+            });
+            
+            Notification::make()
+                ->title('نجح')
+                ->body('تم إرسال الإيميل التجريبي بنجاح! تحقق من صندوق الوارد.')
+                ->success()
+                ->send();
+        } catch (\Exception $e) {
+            Notification::make()
+                ->title('خطأ')
+                ->body('فشل إرسال الإيميل: ' . $e->getMessage())
+                ->danger()
+                ->send();
+        }
     }
 
     public function save(): void
