@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:handyman_app/l10n/app_localizations.dart';
+import 'package:dio/dio.dart';
 import '../config/api_config.dart';
 import '../services/api_service.dart';
 import 'reset_password_screen.dart';
@@ -290,7 +291,26 @@ class _VerifyResetCodeScreenState extends State<VerifyResetCodeScreen> {
       }
     } catch (e) {
       print('Error verifying code: $e');
-      _showErrorSnackBar('حدث خطأ في الاتصال. يرجى المحاولة مرة أخرى');
+      
+      // Handle DioException to extract error message from response
+      if (e is DioException && e.response != null) {
+        final statusCode = e.response?.statusCode;
+        final responseData = e.response?.data;
+        
+        print('📦 Error Response: $statusCode - $responseData');
+        
+        // If backend returned a message, show it
+        if (responseData != null && responseData['message'] != null) {
+          _showErrorSnackBar(responseData['message']);
+        } else if (statusCode == 400 || statusCode == 422) {
+          // 400/422 usually means validation error, show generic message
+          _showErrorSnackBar('رمز التحقق غير صحيح');
+        } else {
+          _showErrorSnackBar('حدث خطأ في الاتصال. يرجى المحاولة مرة أخرى');
+        }
+      } else {
+        _showErrorSnackBar('حدث خطأ في الاتصال. يرجى المحاولة مرة أخرى');
+      }
     } finally {
       if (mounted) {
         setState(() {
