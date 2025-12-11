@@ -515,6 +515,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         imageQuality: 85, // Compress image to reduce size
         maxWidth: 1024, // Limit image width
         maxHeight: 1024, // Limit image height
+        requestFullMetadata: false, // Faster on web, reduces Blob URL issues
       );
       
       if (image != null) {
