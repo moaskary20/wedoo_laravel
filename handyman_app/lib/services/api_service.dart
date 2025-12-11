@@ -14,7 +14,7 @@ class ApiService {
       return;
     }
     
-    _dio.options.baseUrl = ApiConfig.baseUrl;
+    // Don't set baseUrl to allow both full URLs and relative paths
     _dio.options.connectTimeout = Duration(seconds: 30);
     _dio.options.receiveTimeout = Duration(seconds: 30);
     

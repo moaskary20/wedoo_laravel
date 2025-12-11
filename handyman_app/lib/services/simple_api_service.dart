@@ -8,7 +8,7 @@ class SimpleApiService {
   
   static void init() {
     // Use direct API calls for all platforms
-    _dio.options.baseUrl = ApiConfig.baseUrl;
+    // Don't set baseUrl to allow both full URLs and relative paths
     _dio.options.connectTimeout = Duration(seconds: 30);
     _dio.options.receiveTimeout = Duration(seconds: 30);
     
