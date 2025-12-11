@@ -2147,7 +2147,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                 'Artisans disponibles (${_availableCraftsmen.length})',
               ),
               style: const TextStyle(
-                fontSize: 16,
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Colors.black87,
               ),
@@ -2186,11 +2186,12 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: ListTile(
         leading: CircleAvatar(
+          radius: 28,
           backgroundColor: Colors.blue.withValues(alpha: 0.1),
           child: Text(
             name.isNotEmpty ? name.substring(0, 1).toUpperCase() : '?',
             style: const TextStyle(
-              fontSize: 18,
+              fontSize: 22,
               fontWeight: FontWeight.bold,
               color: Colors.blue,
             ),
@@ -2198,7 +2199,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
         ),
         title: Text(
           name,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -2206,30 +2207,30 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
             const SizedBox(height: 4),
             Row(
               children: [
-                const Icon(Icons.star, color: Colors.orange, size: 16),
+                const Icon(Icons.star, color: Colors.orange, size: 18),
                 const SizedBox(width: 4),
                 Text(
                   rating.toStringAsFixed(1),
-                  style: const TextStyle(fontSize: 14),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
                 if (ratingCount > 0) ...[
                   const SizedBox(width: 4),
                   Text(
                     '($ratingCount)',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                   ),
                 ],
               ],
             ),
             if (distanceLabel.isNotEmpty) ...[
-              const SizedBox(height: 2),
+              const SizedBox(height: 4),
               Row(
                 children: [
-                  const Icon(Icons.place, color: Colors.redAccent, size: 14),
+                  const Icon(Icons.place, color: Colors.redAccent, size: 16),
                   const SizedBox(width: 4),
                   Text(
                     distanceLabel,
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    style: TextStyle(fontSize: 14, color: Colors.grey[700], fontWeight: FontWeight.w500),
                   ),
                 ],
               ),
@@ -2246,22 +2247,22 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                       Navigator.of(dialogContext).pop(); // Close dialog first
                       _openChatWithCraftsman(craftsman, int.parse(_currentOrderId!));
                     },
-                    icon: const Icon(Icons.chat, size: 16),
+                    icon: const Icon(Icons.chat, size: 18),
                     label: Text(
                       _localizedText('دردشة', 'Chat'),
-                      style: const TextStyle(fontSize: 11),
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
+                        horizontal: 12,
+                        vertical: 10,
                       ),
-                      minimumSize: const Size(0, 32),
+                      minimumSize: const Size(0, 40),
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 8),
                   // Select Button
                   ElevatedButton(
                     onPressed: () => _inviteCraftsmanFromDialog(
@@ -2273,13 +2274,14 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                       backgroundColor: Colors.blue,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
+                        horizontal: 20,
+                        vertical: 10,
                       ),
+                      minimumSize: const Size(0, 40),
                     ),
                     child: Text(
                       _localizedText('اختر', 'Choisir'),
-                      style: const TextStyle(fontSize: 12),
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],
@@ -2919,7 +2921,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                 Text(
                   l10n.createServiceRequest,
                   style: const TextStyle(
-                    fontSize: 20,
+                    fontSize: 24,
                     fontWeight: FontWeight.bold,
                     color: Colors.black87,
                   ),
@@ -2932,9 +2934,10 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                     'Commande créée avec succès. Choisissez un artisan dans la liste suivante:',
                   ),
                   style: const TextStyle(
-                    fontSize: 16,
-                    color: Colors.black54,
-                    height: 1.4,
+                    fontSize: 18,
+                    color: Colors.black87,
+                    height: 1.5,
+                    fontWeight: FontWeight.w500,
                   ),
                   textAlign: TextAlign.center,
                 ),
