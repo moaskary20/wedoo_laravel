@@ -210,7 +210,12 @@ class BrevoSettings extends Page implements HasForms
 
     public function save(): void
     {
-        $data = $this->form->getState();
+        try {
+            $data = $this->form->getState();
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            // Filament handles validation errors automatically
+            return;
+        }
         
         $envPath = base_path('.env');
         
