@@ -128,66 +128,107 @@ class AuthController extends Controller
 
     public function forgotPassword(Request $request)
     {
-        $request->validate([
-            'email' => 'required|email',
-        ]);
+        try {
+            $request->validate([
+                'email' => 'required|email',
+            ]);
 
-        // Find user by email
-        $user = User::where('email', $request->email)->first();
+            // Find user by email
+            $user = User::where('email', $request->email)->first();
 
-        if (!$user) {
-            // Return 200 with success: false instead of 404 to avoid client errors
+            if (!$user) {
+                // Return 200 with success: false instead of 404 to avoid client errors
+                return response()->json([
+                    'success' => false,
+                    'message' => 'لا يوجد حساب مرتبط بهذا البريد الإلكتروني'
+                ], 200);
+            }
+
+            // Generate 6-digit code
+            $code = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+
+            // Delete any existing tokens for this email
+            try {
+                \App\Models\PasswordResetToken::where('email', $request->email)->delete();
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::warning('Failed to delete existing reset tokens', [
+                    'email' => $request->email,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            // Create new token
+            try {
+                \App\Models\PasswordResetToken::create([
+                    'email' => $request->email,
+                    'token' => $code,
+                    'expires_at' => now()->addMinutes(15), // Token expires in 15 minutes
+                ]);
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Failed to create password reset token', [
+                    'email' => $request->email,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
+                
+                return response()->json([
+                    'success' => false,
+                    'message' => 'حدث خطأ في النظام. يرجى المحاولة مرة أخرى.',
+                    'error' => config('app.debug') ? $e->getMessage() : null,
+                ], 500);
+            }
+
+            // Send email with code using Brevo
+            try {
+                \Illuminate\Support\Facades\Mail::to($request->email)
+                    ->send(new \App\Mail\PasswordResetMail($code, $request->email));
+                
+                \Illuminate\Support\Facades\Log::info('Password reset email sent successfully', [
+                    'email' => $request->email,
+                ]);
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Failed to send password reset email', [
+                    'email' => $request->email,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
+                
+                // Return error if email sending fails, but still return 200 to avoid client errors
+                return response()->json([
+                    'success' => false,
+                    'message' => 'فشل إرسال الإيميل. يرجى المحاولة مرة أخرى لاحقاً.',
+                    'error' => config('app.debug') ? $e->getMessage() : null,
+                ], 200);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم إرسال رمز التحقق إلى بريدك الإلكتروني',
+                'data' => [
+                    'email' => $request->email,
+                    // For testing purposes only - remove in production
+                    'code' => config('app.debug') ? $code : null,
+                ]
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'لا يوجد حساب مرتبط بهذا البريد الإلكتروني'
-            ], 200);
-        }
-
-        // Generate 6-digit code
-        $code = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-
-        // Delete any existing tokens for this email
-        \App\Models\PasswordResetToken::where('email', $request->email)->delete();
-
-        // Create new token
-        \App\Models\PasswordResetToken::create([
-            'email' => $request->email,
-            'token' => $code,
-            'expires_at' => now()->addMinutes(15), // Token expires in 15 minutes
-        ]);
-
-        // Send email with code using Brevo
-        try {
-            \Illuminate\Support\Facades\Mail::to($request->email)
-                ->send(new \App\Mail\PasswordResetMail($code, $request->email));
-            
-            \Illuminate\Support\Facades\Log::info('Password reset email sent successfully', [
-                'email' => $request->email,
-            ]);
+                'message' => 'البيانات المدخلة غير صحيحة',
+                'errors' => $e->errors(),
+            ], 422);
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Failed to send password reset email', [
-                'email' => $request->email,
+            \Illuminate\Support\Facades\Log::error('Unexpected error in forgotPassword', [
+                'email' => $request->email ?? 'unknown',
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
             
-            // Return error if email sending fails
             return response()->json([
                 'success' => false,
-                'message' => 'فشل إرسال الإيميل. يرجى المحاولة مرة أخرى لاحقاً.',
+                'message' => 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.',
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
-
-        return response()->json([
-            'success' => true,
-            'message' => 'تم إرسال رمز التحقق إلى بريدك الإلكتروني',
-            'data' => [
-                'email' => $request->email,
-                // For testing purposes only - remove in production
-                'code' => config('app.debug') ? $code : null,
-            ]
-        ]);
     }
 
     public function verifyResetCode(Request $request)
