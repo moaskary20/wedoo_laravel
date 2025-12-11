@@ -109,68 +109,73 @@ class _VerifyResetCodeScreenState extends State<VerifyResetCodeScreen> {
               const SizedBox(height: 40),
 
               // OTP Input Fields
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: List.generate(6, (index) {
-                  return SizedBox(
-                    width: 45,
-                    height: 55,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.1),
-                            blurRadius: 5,
-                            offset: const Offset(0, 3),
+              // Use Directionality to ensure LTR reading order regardless of app RTL
+              Directionality(
+                textDirection: TextDirection.ltr,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: List.generate(6, (index) {
+                    return SizedBox(
+                      width: 45,
+                      height: 55,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 5,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: TextField(
+                          controller: _controllers[index],
+                          focusNode: _focusNodes[index],
+                          textAlign: TextAlign.center,
+                          keyboardType: TextInputType.number,
+                          maxLength: 1,
+                          textDirection: TextDirection.ltr, // Force LTR for numbers
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1976D2),
                           ),
-                        ],
-                      ),
-                      child: TextField(
-                        controller: _controllers[index],
-                        focusNode: _focusNodes[index],
-                        textAlign: TextAlign.center,
-                        keyboardType: TextInputType.number,
-                        maxLength: 1,
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1976D2),
-                        ),
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                        ],
-                        decoration: const InputDecoration(
-                          counterText: '',
-                          border: InputBorder.none,
-                        ),
-                        onChanged: (value) {
-                          try {
-                            if (value.isNotEmpty && index < 5) {
-                              _focusNodes[index + 1].requestFocus();
-                            } else if (value.isEmpty && index > 0) {
-                              _focusNodes[index - 1].requestFocus();
-                            }
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
+                          decoration: const InputDecoration(
+                            counterText: '',
+                            border: InputBorder.none,
+                          ),
+                          onChanged: (value) {
+                            try {
+                              if (value.isNotEmpty && index < 5) {
+                                _focusNodes[index + 1].requestFocus();
+                              } else if (value.isEmpty && index > 0) {
+                                _focusNodes[index - 1].requestFocus();
+                              }
 
-                            // Auto-verify when all digits are entered
-                            if (index == 5 && value.isNotEmpty) {
-                              // Add a small delay to ensure the last digit is set
-                              Future.delayed(const Duration(milliseconds: 100), () {
-                                if (mounted) {
-                                  _handleVerifyCode();
-                                }
-                              });
+                              // Auto-verify when all digits are entered
+                              if (index == 5 && value.isNotEmpty) {
+                                // Add a small delay to ensure the last digit is set
+                                Future.delayed(const Duration(milliseconds: 100), () {
+                                  if (mounted) {
+                                    _handleVerifyCode();
+                                  }
+                                });
+                              }
+                            } catch (e) {
+                              // Silently handle any keyboard-related errors
+                              print('Keyboard handling error (ignored): $e');
                             }
-                          } catch (e) {
-                            // Silently handle any keyboard-related errors
-                            print('Keyboard handling error (ignored): $e');
-                          }
-                        },
+                          },
+                        ),
                       ),
-                    ),
-                  );
-                }),
+                    );
+                  }),
+                ),
               ),
 
               const SizedBox(height: 30),
@@ -263,7 +268,11 @@ class _VerifyResetCodeScreenState extends State<VerifyResetCodeScreen> {
   }
 
   String _getCode() {
-    return _controllers.map((c) => c.text).join();
+    // Read code from left to right (LTR) regardless of UI direction
+    // This ensures the code is read in the correct order
+    final code = _controllers.map((c) => c.text).join();
+    print('🔍 Code read from fields: $code');
+    return code;
   }
 
   void _handleVerifyCode() async {
