@@ -518,21 +518,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       );
       
       if (image != null) {
+        // CRITICAL: On web, we must read bytes IMMEDIATELY before Blob URL is revoked
+        // The Blob URL can be revoked very quickly, so we read bytes in the same microtask
+        Uint8List bytes;
+        
         try {
-          // CRITICAL: Read image bytes IMMEDIATELY after picking
-          // On web, Blob URLs can be revoked quickly, so we must read bytes synchronously if possible
-          Uint8List bytes;
-          
-          // Read bytes immediately - critical for web to avoid Blob URL revocation
-          // We read bytes synchronously in the same microtask to prevent any delays
+          // Read bytes immediately without any delays
+          // This is critical for web where Blob URLs can be revoked
           bytes = await image.readAsBytes();
           
-          // Additional validation for web
-          if (kIsWeb) {
-            // Double-check that we got valid bytes on web
-            if (bytes.isEmpty) {
-              throw Exception('الصورة المختارة فارغة');
-            }
+          // Validate bytes were read successfully
+          if (bytes.isEmpty) {
+            _showErrorSnackBar('الصورة المختارة فارغة. يرجى اختيار صورة أخرى');
+            return;
           }
           
           // Validate image size (max 5MB)
@@ -541,12 +539,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             return;
           }
           
-          // Validate that we actually got bytes
-          if (bytes.isEmpty) {
-            _showErrorSnackBar('الصورة المختارة فارغة. يرجى اختيار صورة أخرى');
-            return;
-          }
-          
+          // Store the image bytes and file reference
           setState(() {
             // Only create File object for mobile platforms
             if (!kIsWeb) {
@@ -560,16 +553,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           
           _showSuccessSnackBar(l10n.imageSelectedSuccessfully);
         } catch (e) {
-          print('Error reading image file: $e');
-          String errorMsg = 'خطأ في قراءة الصورة';
+          print('Error reading image bytes: $e');
           
-          // Provide more specific error messages
-          final errorString = e.toString().toLowerCase();
-          if (errorString.contains('blob') || errorString.contains('revoked')) {
-            errorMsg = 'انتهت صلاحية الصورة. يرجى اختيار صورة أخرى';
-          } else if (errorString.contains('permission')) {
+          // Check if it's a Blob URL revocation error
+          final errorStr = e.toString().toLowerCase();
+          String errorMsg;
+          
+          if (errorStr.contains('blob') || errorStr.contains('revoked')) {
+            errorMsg = 'انتهت صلاحية الصورة. يرجى اختيار الصورة مرة أخرى';
+          } else if (errorStr.contains('permission')) {
             errorMsg = 'يرجى منح صلاحيات الوصول للصور';
-          } else if (errorString.contains('network')) {
+          } else if (errorStr.contains('network')) {
             errorMsg = 'خطأ في الاتصال. يرجى التحقق من الإنترنت';
           } else {
             errorMsg = 'خطأ في قراءة الصورة. يرجى المحاولة مرة أخرى';
