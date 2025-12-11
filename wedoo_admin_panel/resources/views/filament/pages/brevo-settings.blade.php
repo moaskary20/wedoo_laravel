@@ -1,5 +1,10 @@
 <x-filament-panels::page>
     <form wire:submit="save">
+        @php
+            // Ensure $errors variable exists for Filament forms
+            $errors = $errors ?? \Illuminate\Support\Facades\View::shared('errors', new \Illuminate\Support\ViewErrorBag);
+        @endphp
+        
         {{ $this->form }}
         
         <div class="flex justify-end gap-4 mt-6">

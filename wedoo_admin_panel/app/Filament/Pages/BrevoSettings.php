@@ -81,6 +81,7 @@ class BrevoSettings extends Page implements HasForms
     public function form(Form $form): Form
     {
         return $form
+            ->statePath('data')
             ->schema([
                 Forms\Components\Section::make('معلومات')
                     ->description('استخدم هذه الصفحة لإدارة إعدادات Brevo لإرسال الإيميلات من التطبيق.')
@@ -178,7 +179,6 @@ class BrevoSettings extends Page implements HasForms
                     ])
                     ->columns(2),
             ])
-            ->statePath('data')
             ->columns(2);
     }
 
