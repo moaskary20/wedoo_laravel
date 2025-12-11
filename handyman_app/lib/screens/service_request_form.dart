@@ -2220,9 +2220,10 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 8),
-                  // Rating (Stars)
+                  // Rating (Stars) and Distance
                   Row(
                     children: [
+                      // Rating
                       const Icon(Icons.star, color: Colors.orange, size: 16),
                       const SizedBox(width: 4),
                       Text(
@@ -2239,6 +2240,28 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                      // Distance
+                      if (distanceLabel.isNotEmpty) ...[
+                        const SizedBox(width: 12),
+                        const Icon(
+                          Icons.place,
+                          color: Colors.redAccent,
+                          size: 14,
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            distanceLabel,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[700],
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
