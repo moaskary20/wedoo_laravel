@@ -523,32 +523,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           // On web, Blob URLs can be revoked quickly, so we must read bytes synchronously if possible
           Uint8List bytes;
           
+          // Read bytes immediately - critical for web to avoid Blob URL revocation
+          // We read bytes synchronously in the same microtask to prevent any delays
+          bytes = await image.readAsBytes();
+          
+          // Additional validation for web
           if (kIsWeb) {
-            // On web, use a more reliable method to read bytes
-            try {
-              // Try to read bytes immediately using the XFile's internal method
-              // This should work before the Blob URL is revoked
-              bytes = await image.readAsBytes();
-              
-              // Double-check that we got valid bytes
-              if (bytes.isEmpty) {
-                throw Exception('الصورة المختارة فارغة');
-              }
-            } catch (e) {
-              print('Error reading image bytes on web: $e');
-              
-              // If Blob URL is revoked, the error will contain 'Blob' or 'revoked'
-              if (e.toString().contains('Blob') || e.toString().contains('revoked')) {
-                _showErrorSnackBar('انتهت صلاحية الصورة. يرجى اختيار الصورة مرة أخرى بسرعة');
-                return;
-              }
-              
-              // For other errors, try to provide a helpful message
-              throw Exception('فشل في قراءة الصورة: ${e.toString()}');
+            // Double-check that we got valid bytes on web
+            if (bytes.isEmpty) {
+              throw Exception('الصورة المختارة فارغة');
             }
-          } else {
-            // For mobile, read bytes normally
-            bytes = await image.readAsBytes();
           }
           
           // Validate image size (max 5MB)
