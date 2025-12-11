@@ -2184,113 +2184,151 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
       margin: const EdgeInsets.only(bottom: 8),
       elevation: 1,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      child: ListTile(
-        leading: CircleAvatar(
-          radius: 28,
-          backgroundColor: Colors.blue.withValues(alpha: 0.1),
-          child: Text(
-            name.isNotEmpty ? name.substring(0, 1).toUpperCase() : '?',
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Colors.blue,
-            ),
-          ),
-        ),
-        title: Text(
-          name,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
           children: [
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                const Icon(Icons.star, color: Colors.orange, size: 18),
-                const SizedBox(width: 4),
-                Text(
-                  rating.toStringAsFixed(1),
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            // Avatar
+            CircleAvatar(
+              radius: 24,
+              backgroundColor: Colors.blue.withValues(alpha: 0.1),
+              child: Text(
+                name.isNotEmpty ? name.substring(0, 1).toUpperCase() : '?',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue,
                 ),
-                if (ratingCount > 0) ...[
-                  const SizedBox(width: 4),
-                  Text(
-                    '($ratingCount)',
-                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                  ),
-                ],
-              ],
+              ),
             ),
-            if (distanceLabel.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Row(
+            const SizedBox(width: 12),
+            // Name and details
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.place, color: Colors.redAccent, size: 16),
-                  const SizedBox(width: 4),
+                  // Name - single line with ellipsis
                   Text(
-                    distanceLabel,
-                    style: TextStyle(fontSize: 14, color: Colors.grey[700], fontWeight: FontWeight.w500),
+                    name,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
+                  const SizedBox(height: 4),
+                  // Rating
+                  Row(
+                    children: [
+                      const Icon(Icons.star, color: Colors.orange, size: 16),
+                      const SizedBox(width: 4),
+                      Text(
+                        rating.toStringAsFixed(1),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (ratingCount > 0) ...[
+                        const SizedBox(width: 4),
+                        Text(
+                          '($ratingCount)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  // Distance
+                  if (distanceLabel.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.place,
+                          color: Colors.redAccent,
+                          size: 14,
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            distanceLabel,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[700],
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
+              ),
+            ),
+            // Buttons
+            if (_currentOrderId != null && craftsmanId != null) ...[
+              const SizedBox(width: 8),
+              // Chat Button
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.of(dialogContext).pop();
+                  _openChatWithCraftsman(craftsman, int.parse(_currentOrderId!));
+                },
+                icon: const Icon(Icons.chat, size: 14),
+                label: Text(
+                  _localizedText('دردشة', 'Chat'),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 6,
+                  ),
+                  minimumSize: const Size(0, 32),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+              const SizedBox(width: 6),
+              // Select Button
+              ElevatedButton(
+                onPressed: () => _inviteCraftsmanFromDialog(
+                  dialogContext,
+                  craftsman,
+                  _currentOrderId!,
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  minimumSize: const Size(0, 32),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(
+                  _localizedText('اختر', 'Choisir'),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ],
           ],
         ),
-        trailing: _currentOrderId != null && craftsmanId != null
-            ? Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Chat Button
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.of(dialogContext).pop(); // Close dialog first
-                      _openChatWithCraftsman(craftsman, int.parse(_currentOrderId!));
-                    },
-                    icon: const Icon(Icons.chat, size: 14),
-                    label: Text(
-                      _localizedText('دردشة', 'Chat'),
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 6,
-                      ),
-                      minimumSize: const Size(0, 32),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  // Select Button
-                  ElevatedButton(
-                    onPressed: () => _inviteCraftsmanFromDialog(
-                      dialogContext,
-                      craftsman,
-                      _currentOrderId!,
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      minimumSize: const Size(0, 32),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    child: Text(
-                      _localizedText('اختر', 'Choisir'),
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ],
-              )
-            : null,
       ),
     );
   }
