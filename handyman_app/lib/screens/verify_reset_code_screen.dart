@@ -146,15 +146,25 @@ class _VerifyResetCodeScreenState extends State<VerifyResetCodeScreen> {
                           border: InputBorder.none,
                         ),
                         onChanged: (value) {
-                          if (value.isNotEmpty && index < 5) {
-                            _focusNodes[index + 1].requestFocus();
-                          } else if (value.isEmpty && index > 0) {
-                            _focusNodes[index - 1].requestFocus();
-                          }
+                          try {
+                            if (value.isNotEmpty && index < 5) {
+                              _focusNodes[index + 1].requestFocus();
+                            } else if (value.isEmpty && index > 0) {
+                              _focusNodes[index - 1].requestFocus();
+                            }
 
-                          // Auto-verify when all digits are entered
-                          if (index == 5 && value.isNotEmpty) {
-                            _handleVerifyCode();
+                            // Auto-verify when all digits are entered
+                            if (index == 5 && value.isNotEmpty) {
+                              // Add a small delay to ensure the last digit is set
+                              Future.delayed(const Duration(milliseconds: 100), () {
+                                if (mounted) {
+                                  _handleVerifyCode();
+                                }
+                              });
+                            }
+                          } catch (e) {
+                            // Silently handle any keyboard-related errors
+                            print('Keyboard handling error (ignored): $e');
                           }
                         },
                       ),
