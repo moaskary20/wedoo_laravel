@@ -359,13 +359,36 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
               ..clear()
               ..addAll(chats.map((chat) {
                 final craftsman = chat['craftsman'] ?? {};
-                final order = chat['order'] ?? {};
-                final name = craftsman['name'] ?? order['title'] ?? 'صنايعي';
+                final order = chat['order']; // Can be null
+                final customer = chat['customer'] ?? {};
+                
+                // Handle name: use craftsman name, or customer name if craftsman not available
+                String name;
+                if (craftsman['name'] != null && craftsman['name'].toString().isNotEmpty) {
+                  name = craftsman['name'].toString();
+                } else if (customer['name'] != null && customer['name'].toString().isNotEmpty) {
+                  name = customer['name'].toString();
+                } else if (order != null && order['title'] != null) {
+                  name = order['title'].toString();
+                } else {
+                  name = 'صنايعي';
+                }
+                
+                // Handle service: use order title, or category name, or default
+                String service;
+                if (order != null && order['title'] != null && order['title'].toString().isNotEmpty) {
+                  service = order['title'].toString();
+                } else if (craftsman['category_name'] != null && craftsman['category_name'].toString().isNotEmpty) {
+                  service = craftsman['category_name'].toString();
+                } else {
+                  service = 'محادثة عامة';
+                }
+                
                 return {
                   'id': craftsman['id']?.toString() ?? chat['id'].toString(),
                   'chat_id': chat['id'],
                   'name': name,
-                  'service': order['title'] ?? craftsman['category_name'] ?? 'خدمة',
+                  'service': service,
                   'lastMessage': chat['last_message'] ?? '',
                   'time': chat['last_message_at'] ?? '',
                   'unreadCount': chat['unread_count'] ?? 0,
@@ -373,7 +396,10 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                   'avatar': null,
                   'isSupport': false,
                   'craftsman': craftsman,
-                  'customer_id': chat['customer']?['id'],
+                  'customer': customer,
+                  'customer_id': customer['id'] ?? chat['customer']?['id'],
+                  'order': order, // Store order object (can be null)
+                  'order_id': order?['id'] ?? chat['order_id'], // Store order_id (can be null)
                 };
               }));
           });
