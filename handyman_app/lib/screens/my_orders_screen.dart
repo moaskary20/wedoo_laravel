@@ -631,6 +631,12 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
       'iconName': _guessIconName(raw['task_type_name'] ?? ''),
       'budget_value': raw['budget'],
       'source': 'backend',
+      // Review data
+      'has_review': raw['has_review'] ?? false,
+      'review': raw['review'],
+      // Craftsman and customer info
+      'craftsman_name': raw['craftsman_name'],
+      'customer_name': raw['customer_name'],
     };
   }
 
