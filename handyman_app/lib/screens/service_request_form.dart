@@ -2187,6 +2187,7 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Avatar
             CircleAvatar(
@@ -2202,13 +2203,13 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
               ),
             ),
             const SizedBox(width: 12),
-            // Name and details
+            // Name, Rating, and Buttons
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Name - single line with ellipsis
+                  // Name - single line at the top
                   Text(
                     name,
                     style: const TextStyle(
@@ -2218,8 +2219,8 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 4),
-                  // Rating
+                  const SizedBox(height: 8),
+                  // Rating (Stars)
                   Row(
                     children: [
                       const Icon(Icons.star, color: Colors.orange, size: 16),
@@ -2243,27 +2244,60 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                       ],
                     ],
                   ),
-                  // Distance
-                  if (distanceLabel.isNotEmpty) ...[
-                    const SizedBox(height: 2),
+                  // Buttons below rating
+                  if (_currentOrderId != null && craftsmanId != null) ...[
+                    const SizedBox(height: 8),
                     Row(
                       children: [
-                        const Icon(
-                          Icons.place,
-                          color: Colors.redAccent,
-                          size: 14,
-                        ),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            distanceLabel,
-                            style: TextStyle(
+                        // Chat Button
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.of(dialogContext).pop();
+                            _openChatWithCraftsman(craftsman, int.parse(_currentOrderId!));
+                          },
+                          icon: const Icon(Icons.chat, size: 14),
+                          label: Text(
+                            _localizedText('دردشة', 'Chat'),
+                            style: const TextStyle(
                               fontSize: 12,
-                              color: Colors.grey[700],
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w600,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 6,
+                            ),
+                            minimumSize: const Size(0, 32),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        // Select Button
+                        ElevatedButton(
+                          onPressed: () => _inviteCraftsmanFromDialog(
+                            dialogContext,
+                            craftsman,
+                            _currentOrderId!,
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            minimumSize: const Size(0, 32),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: Text(
+                            _localizedText('اختر', 'Choisir'),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ],
@@ -2272,61 +2306,6 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                 ],
               ),
             ),
-            // Buttons
-            if (_currentOrderId != null && craftsmanId != null) ...[
-              const SizedBox(width: 8),
-              // Chat Button
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.of(dialogContext).pop();
-                  _openChatWithCraftsman(craftsman, int.parse(_currentOrderId!));
-                },
-                icon: const Icon(Icons.chat, size: 14),
-                label: Text(
-                  _localizedText('دردشة', 'Chat'),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 6,
-                  ),
-                  minimumSize: const Size(0, 32),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-              ),
-              const SizedBox(width: 6),
-              // Select Button
-              ElevatedButton(
-                onPressed: () => _inviteCraftsmanFromDialog(
-                  dialogContext,
-                  craftsman,
-                  _currentOrderId!,
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  minimumSize: const Size(0, 32),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Text(
-                  _localizedText('اختر', 'Choisir'),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
           ],
         ),
       ),
