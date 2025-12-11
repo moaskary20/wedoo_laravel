@@ -1584,7 +1584,7 @@ class _ChatScreenState extends State<_ChatScreen> {
             _messages.addAll(messages.map((msg) => {
                   'id': msg['id'],
                   'text': msg['text'] ?? msg['message'],
-                  'isMe': msg['is_me'] == true || msg['sender_type'] == 'user',
+                  'isMe': msg['is_me'] == true, // Backend correctly determines is_me based on sender_id
                   'time': msg['created_at'] ?? DateTime.now().toString(),
                   'type': msg['message_type'] ?? 'text',
                   'sender_name': msg['sender_name'], // Add sender name
