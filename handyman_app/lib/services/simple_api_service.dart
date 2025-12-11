@@ -54,13 +54,45 @@ class SimpleApiService {
           ? path
           : '${ApiConfig.baseUrl}$path';
       
-      print('🚀 Simple API: محاولة POST $url');
-      print('📦 Path: $path, Full URL: $url');
-      final response = await _dio.post(url, data: data);
+      print('🚀 Simple API: محاولة POST');
+      print('   📍 Path: $path');
+      print('   🌐 Full URL: $url');
+      print('   📦 Data: $data');
+      
+      // Use Dio without baseUrl to avoid conflicts
+      final dio = Dio();
+      dio.options.connectTimeout = Duration(seconds: 30);
+      dio.options.receiveTimeout = Duration(seconds: 30);
+      
+      // Add headers
+      final headers = kIsWeb ? ApiConfig.webHeaders : ApiConfig.headers;
+      
+      // Add auth token if available
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final token = prefs.getString('access_token');
+        if (token != null && token.isNotEmpty) {
+          headers['Authorization'] = 'Bearer $token';
+        }
+      } catch (e) {
+        print('Error getting auth token: $e');
+      }
+      
+      final response = await dio.post(
+        url,
+        data: data,
+        options: Options(headers: headers),
+      );
+      
       print('✅ Simple API: نجح POST $url');
+      print('   📦 Response: ${response.statusCode}');
       return response;
     } catch (e) {
-      print('❌ Simple API: فشل POST $path - $e');
+      print('❌ Simple API: فشل POST $path');
+      print('   🔴 Error: $e');
+      if (e is DioException && e.response != null) {
+        print('   📦 Error Response: ${e.response?.statusCode} - ${e.response?.data}');
+      }
       rethrow;
     }
   }

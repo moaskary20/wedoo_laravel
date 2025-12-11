@@ -65,10 +65,43 @@ class ApiService {
           : '${ApiConfig.baseUrl}$path';
       
       print('📱 Mobile Platform: استخدام Dio مباشرة');
-      print('📦 Path: $path, Full URL: $url');
-      return await _dio.post(url, data: data);
+      print('   📍 Path: $path');
+      print('   🌐 Full URL: $url');
+      print('   📦 Data: $data');
+      
+      // Create new Dio instance without baseUrl to avoid conflicts
+      final dio = Dio();
+      dio.options.connectTimeout = Duration(seconds: 30);
+      dio.options.receiveTimeout = Duration(seconds: 30);
+      
+      // Add headers
+      final headers = Map<String, String>.from(ApiConfig.headers);
+      
+      // Add auth token if available
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final token = prefs.getString('access_token');
+        if (token != null && token.isNotEmpty) {
+          headers['Authorization'] = 'Bearer $token';
+        }
+      } catch (e) {
+        print('Error getting auth token: $e');
+      }
+      
+      final response = await dio.post(
+        url,
+        data: data,
+        options: Options(headers: headers),
+      );
+      
+      print('✅ Mobile API: نجح POST $url');
+      print('   📦 Response: ${response.statusCode}');
+      return response;
     } catch (e) {
       print('❌ Mobile API Error: $e');
+      if (e is DioException && e.response != null) {
+        print('   📦 Error Response: ${e.response?.statusCode} - ${e.response?.data}');
+      }
       rethrow;
     }
   }
