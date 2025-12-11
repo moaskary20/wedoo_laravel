@@ -136,10 +136,11 @@ class AuthController extends Controller
         $user = User::where('email', $request->email)->first();
 
         if (!$user) {
+            // Return 200 with success: false instead of 404 to avoid client errors
             return response()->json([
                 'success' => false,
                 'message' => 'لا يوجد حساب مرتبط بهذا البريد الإلكتروني'
-            ], 404);
+            ], 200);
         }
 
         // Generate 6-digit code
