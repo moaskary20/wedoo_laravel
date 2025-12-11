@@ -81,7 +81,13 @@ class SimpleApiService {
       final response = await dio.post(
         url,
         data: data,
-        options: Options(headers: headers),
+        options: Options(
+          headers: headers,
+          // Allow 400 and 422 status codes as valid responses (they may contain useful error messages)
+          validateStatus: (status) {
+            return status != null && status < 500; // Allow all status codes < 500
+          },
+        ),
       );
       
       print('✅ Simple API: نجح POST $url');

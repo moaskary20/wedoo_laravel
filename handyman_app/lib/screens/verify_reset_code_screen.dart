@@ -274,6 +274,9 @@ class _VerifyResetCodeScreenState extends State<VerifyResetCodeScreen> {
         data: {'email': widget.email, 'code': code},
       );
 
+      print('📦 Verify Code Response: ${response.statusCode} - ${response.data}');
+
+      // Check if request was successful (200) and success flag is true
       if (response.statusCode == 200 && response.data['success'] == true) {
         _showSuccessSnackBar(response.data['message'] ?? 'تم التحقق بنجاح');
 
@@ -287,12 +290,14 @@ class _VerifyResetCodeScreenState extends State<VerifyResetCodeScreen> {
           );
         }
       } else {
-        _showErrorSnackBar(response.data['message'] ?? 'رمز التحقق غير صحيح');
+        // Handle 400/422 responses (validation errors) - these are now valid responses
+        final errorMessage = response.data['message'] ?? 'رمز التحقق غير صحيح';
+        _showErrorSnackBar(errorMessage);
       }
     } catch (e) {
       print('Error verifying code: $e');
       
-      // Handle DioException to extract error message from response
+      // Handle DioException to extract error message from response (for 500+ errors)
       if (e is DioException && e.response != null) {
         final statusCode = e.response?.statusCode;
         final responseData = e.response?.data;
@@ -302,9 +307,6 @@ class _VerifyResetCodeScreenState extends State<VerifyResetCodeScreen> {
         // If backend returned a message, show it
         if (responseData != null && responseData['message'] != null) {
           _showErrorSnackBar(responseData['message']);
-        } else if (statusCode == 400 || statusCode == 422) {
-          // 400/422 usually means validation error, show generic message
-          _showErrorSnackBar('رمز التحقق غير صحيح');
         } else {
           _showErrorSnackBar('حدث خطأ في الاتصال. يرجى المحاولة مرة أخرى');
         }
