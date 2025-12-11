@@ -476,26 +476,59 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Future<void> _pickImage(ImageSource source) async {
     try {
-      final XFile? image = await _picker.pickImage(source: source);
+      final l10n = AppLocalizations.of(context)!;
+      
+      // Request permissions if needed (for Android)
+      if (!kIsWeb && source == ImageSource.camera) {
+        // Camera permission is handled by image_picker plugin
+      }
+      
+      final XFile? image = await _picker.pickImage(
+        source: source,
+        imageQuality: 85, // Compress image to reduce size
+        maxWidth: 1024, // Limit image width
+        maxHeight: 1024, // Limit image height
+      );
+      
       if (image != null) {
-        setState(() {
-          _selectedImage = File(image.path);
-        });
-        
-        // Convert to bytes for web compatibility
-        if (kIsWeb) {
+        try {
+          // Read image bytes first
           final bytes = await image.readAsBytes();
+          
+          // Validate image size (max 5MB)
+          if (bytes.length > 5 * 1024 * 1024) {
+            _showErrorSnackBar('حجم الصورة كبير جداً. يرجى اختيار صورة أصغر من 5 ميجابايت');
+            return;
+          }
+          
           setState(() {
-            _imageBytes = bytes;
+            _selectedImage = File(image.path);
+            _imageBytes = bytes; // Always store bytes for both web and mobile
           });
+          
+          _showSuccessSnackBar(l10n.imageSelectedSuccessfully);
+        } catch (e) {
+          print('Error reading image file: $e');
+          _showErrorSnackBar('خطأ في قراءة الصورة: ${e.toString()}');
         }
-        
-        final l10n = AppLocalizations.of(context)!;
-        _showSuccessSnackBar(l10n.imageSelectedSuccessfully);
+      } else {
+        // User cancelled image selection
+        print('User cancelled image selection');
       }
     } catch (e) {
       final l10n = AppLocalizations.of(context)!;
-      _showErrorSnackBar(l10n.errorSelectingImage);
+      String errorMessage = l10n.errorSelectingImage;
+      
+      // Provide more specific error messages
+      if (e.toString().contains('permission')) {
+        errorMessage = 'يرجى منح صلاحيات الكاميرا/المعرض من إعدادات التطبيق';
+      } else if (e.toString().contains('camera')) {
+        errorMessage = 'خطأ في فتح الكاميرا. يرجى المحاولة مرة أخرى';
+      } else if (e.toString().contains('gallery')) {
+        errorMessage = 'خطأ في فتح المعرض. يرجى المحاولة مرة أخرى';
+      }
+      
+      _showErrorSnackBar(errorMessage);
       print('Image picker error: $e');
     }
   }
