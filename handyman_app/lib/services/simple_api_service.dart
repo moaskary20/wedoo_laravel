@@ -48,9 +48,16 @@ class SimpleApiService {
   
   static Future<Response> post(String path, {Map<String, dynamic>? data}) async {
     try {
-      print('🚀 Simple API: محاولة POST $path');
-      final response = await _dio.post(path, data: data);
-      print('✅ Simple API: نجح POST $path');
+      // إذا كان path يبدأ بـ http:// أو https://، استخدمه مباشرة
+      // وإلا استخدم baseUrl + path
+      final url = path.startsWith('http://') || path.startsWith('https://')
+          ? path
+          : '${ApiConfig.baseUrl}$path';
+      
+      print('🚀 Simple API: محاولة POST $url');
+      print('📦 Path: $path, Full URL: $url');
+      final response = await _dio.post(url, data: data);
+      print('✅ Simple API: نجح POST $url');
       return response;
     } catch (e) {
       print('❌ Simple API: فشل POST $path - $e');
@@ -60,9 +67,15 @@ class SimpleApiService {
   
   static Future<Response> get(String path, {Map<String, dynamic>? queryParameters}) async {
     try {
-      print('🚀 Simple API: محاولة GET $path');
-      final response = await _dio.get(path, queryParameters: queryParameters);
-      print('✅ Simple API: نجح GET $path');
+      // إذا كان path يبدأ بـ http:// أو https://، استخدمه مباشرة
+      // وإلا استخدم baseUrl + path
+      final url = path.startsWith('http://') || path.startsWith('https://')
+          ? path
+          : '${ApiConfig.baseUrl}$path';
+      
+      print('🚀 Simple API: محاولة GET $url');
+      final response = await _dio.get(url, queryParameters: queryParameters);
+      print('✅ Simple API: نجح GET $url');
       return response;
     } catch (e) {
       print('❌ Simple API: فشل GET $path - $e');

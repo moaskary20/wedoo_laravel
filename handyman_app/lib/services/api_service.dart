@@ -58,8 +58,15 @@ class ApiService {
     }
     
     try {
+      // إذا كان path يبدأ بـ http:// أو https://، استخدمه مباشرة
+      // وإلا استخدم baseUrl + path
+      final url = path.startsWith('http://') || path.startsWith('https://')
+          ? path
+          : '${ApiConfig.baseUrl}$path';
+      
       print('📱 Mobile Platform: استخدام Dio مباشرة');
-      return await _dio.post(path, data: data);
+      print('📦 Path: $path, Full URL: $url');
+      return await _dio.post(url, data: data);
     } catch (e) {
       print('❌ Mobile API Error: $e');
       rethrow;

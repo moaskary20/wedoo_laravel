@@ -9,12 +9,11 @@ class ApiConfig {
   static const String ordersAssigned = '$baseUrl/api/orders/assigned';
   static const String craftsmanCount = '$baseUrl/api/craftsman/count';
   static const String craftsmanNearby = '$baseUrl/api/craftsman/nearby';
-  static const String authLogin = '$baseUrl/api/auth/login';
-  static const String authRegister = '$baseUrl/api/auth/register';
-  static const String authForgotPassword = '$baseUrl/api/auth/forgot-password';
-  static const String authVerifyResetCode =
-      '$baseUrl/api/auth/verify-reset-code';
-  static const String authResetPassword = '$baseUrl/api/auth/reset-password';
+  static const String authLogin = '/api/auth/login';
+  static const String authRegister = '/api/auth/register';
+  static const String authForgotPassword = '/api/auth/forgot-password';
+  static const String authVerifyResetCode = '/api/auth/verify-reset-code';
+  static const String authResetPassword = '/api/auth/reset-password';
   static const String userProfile = '$baseUrl/api/users/profile';
   static const String userUpdate = '$baseUrl/api/users/update';
   static const String notificationsList = '$baseUrl/api/notifications/list';
