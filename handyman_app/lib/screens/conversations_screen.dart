@@ -725,8 +725,8 @@ class _ChatScreenState extends State<_ChatScreen> {
   }
   
   void _startMessagePolling() {
-    // Poll for new messages every 5 seconds
-    Future.delayed(const Duration(seconds: 5), () {
+    // Poll for new messages every 3 seconds to ensure real-time updates
+    Future.delayed(const Duration(seconds: 3), () {
       if (mounted) {
         _refreshMessages();
         _startMessagePolling(); // Continue polling
