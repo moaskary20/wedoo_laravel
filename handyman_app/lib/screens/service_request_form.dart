@@ -2200,6 +2200,8 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
         title: Text(
           name,
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -2247,22 +2249,23 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                       Navigator.of(dialogContext).pop(); // Close dialog first
                       _openChatWithCraftsman(craftsman, int.parse(_currentOrderId!));
                     },
-                    icon: const Icon(Icons.chat, size: 18),
+                    icon: const Icon(Icons.chat, size: 14),
                     label: Text(
                       _localizedText('دردشة', 'Chat'),
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
+                        horizontal: 8,
+                        vertical: 6,
                       ),
-                      minimumSize: const Size(0, 40),
+                      minimumSize: const Size(0, 32),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   // Select Button
                   ElevatedButton(
                     onPressed: () => _inviteCraftsmanFromDialog(
@@ -2274,14 +2277,15 @@ class _ServiceRequestFormState extends State<ServiceRequestForm> {
                       backgroundColor: Colors.blue,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 10,
+                        horizontal: 12,
+                        vertical: 6,
                       ),
-                      minimumSize: const Size(0, 40),
+                      minimumSize: const Size(0, 32),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                     child: Text(
                       _localizedText('اختر', 'Choisir'),
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ],
