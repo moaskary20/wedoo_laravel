@@ -231,16 +231,24 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         data: {'email': email},
       );
 
-      if (response.statusCode == 200 && response.data['success'] == true) {
-        _showSuccessSnackBar(response.data['message'] ?? 'تم إرسال رمز التحقق');
+      // Handle both 200 and 404 responses
+      if (response.statusCode == 200) {
+        if (response.data['success'] == true) {
+          _showSuccessSnackBar(response.data['message'] ?? 'تم إرسال رمز التحقق');
 
-        // Navigate to verify code screen
-        if (mounted) {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) =>
-                  VerifyResetCodeScreen(email: _emailController.text.trim()),
-            ),
+          // Navigate to verify code screen
+          if (mounted) {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) =>
+                    VerifyResetCodeScreen(email: _emailController.text.trim()),
+              ),
+            );
+          }
+        } else {
+          // Backend returned success: false (e.g., user not found)
+          _showErrorSnackBar(
+            response.data['message'] ?? 'حدث خطأ أثناء إرسال رمز التحقق',
           );
         }
       } else {
