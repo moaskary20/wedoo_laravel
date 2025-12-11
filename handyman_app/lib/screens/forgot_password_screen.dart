@@ -215,9 +215,20 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     });
 
     try {
+      final email = _emailController.text.trim();
+      final endpoint = ApiConfig.authForgotPassword;
+      final fullUrl = endpoint.startsWith('http://') || endpoint.startsWith('https://')
+          ? endpoint
+          : '${ApiConfig.baseUrl}$endpoint';
+      
+      print('🔍 Forgot Password Request:');
+      print('   Email: $email');
+      print('   Endpoint: $endpoint');
+      print('   Full URL: $fullUrl');
+      
       final response = await ApiService.post(
-        ApiConfig.authForgotPassword,
-        data: {'email': _emailController.text.trim()},
+        endpoint,
+        data: {'email': email},
       );
 
       if (response.statusCode == 200 && response.data['success'] == true) {
