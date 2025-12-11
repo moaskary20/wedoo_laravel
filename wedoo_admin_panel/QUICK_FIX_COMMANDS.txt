@@ -1,0 +1,20 @@
+# ==========================================
+# أوامر سريعة لإصلاح المشكلة على السيرفر
+# نسخ ولصق كل هذه الأوامر مرة واحدة
+# ==========================================
+
+cd /var/www/wedoo_laravel/wedoo_admin_panel && \
+git pull origin main && \
+php artisan config:clear && \
+php artisan cache:clear && \
+php artisan view:clear && \
+php artisan route:clear && \
+rm -rf storage/framework/views/* && \
+php artisan config:cache && \
+php artisan route:cache && \
+php artisan view:cache && \
+chmod -R 775 storage bootstrap/cache && \
+chown -R www-data:www-data storage bootstrap/cache && \
+systemctl restart apache2 && \
+echo "✅ تم الانتهاء! جرب فتح الصفحة الآن."
+
