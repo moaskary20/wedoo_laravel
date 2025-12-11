@@ -1,59 +1,127 @@
-# إصلاح خطأ BrevoSettings
+# إصلاح خطأ Undefined variable $errors في صفحة إعدادات Brevo
 
-## الخطأ:
+## المشكلة
+عند محاولة حفظ إعدادات Brevo على السيرفر الخارجي، يظهر الخطأ:
 ```
-TypeError: Filament\Forms\ComponentContainer::model(): Argument #1 ($model) must be of type Illuminate\Database\Eloquent\Model|string|null, array given, called in /var/www/wedoo_laravel/wedoo_admin_panel/app/Filament/Pages/BrevoSettings.php on line 183
-```
-
-## السبب:
-السيرفر يعمل بنسخة قديمة من الكود تحتوي على `->model($this->data)` الذي تم إزالته في التحديثات الأخيرة.
-
-## الحل:
-
-### 1. سحب التحديثات من GitHub:
-```bash
-cd /var/www/wedoo_laravel/wedoo_admin_panel
-git pull origin main
+ErrorException: Undefined variable $errors
 ```
 
-### 2. مسح Cache:
-```bash
-php artisan route:clear
-php artisan config:clear
-php artisan cache:clear
-php artisan optimize:clear
-composer dump-autoload
-```
+## الحل
 
-### 3. التحقق من الملف:
-تأكد من أن السطر 183 في `app/Filament/Pages/BrevoSettings.php` لا يحتوي على `->model()`:
+### 1. تحديث الملفات على السيرفر
+
+#### أ. تحديث `app/Filament/Pages/BrevoSettings.php`
+
+في دالة `save()`، أضف try-catch للتعامل مع validation errors:
 
 ```php
-// يجب أن يكون:
-            ->statePath('data')
-            ->columns(2);
+public function save(): void
+{
+    try {
+        $data = $this->form->getState();
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        // Filament handles validation errors automatically
+        return;
     }
-
-// وليس:
-            ->statePath('data')
-            ->columns(2)
-            ->model($this->data);  // ❌ هذا خطأ
-    }
+    
+    // باقي الكود...
+}
 ```
 
-## إذا استمرت المشكلة:
+#### ب. التأكد من أن `resources/views/filament/pages/brevo-settings.blade.php` لا يحتوي على استخدام `$errors`
 
-### التحقق من الملف مباشرة:
+يجب أن يكون الملف بهذا الشكل:
+
+```blade
+<x-filament-panels::page>
+    <form wire:submit="save">
+        {{ $this->form }}
+        
+        <div class="flex justify-end gap-4 mt-6">
+            <x-filament::button 
+                type="button" 
+                color="info" 
+                wire:click="testEmail" 
+                wire:confirm="هل تريد إرسال إيميل تجريبي؟"
+                icon="heroicon-o-paper-airplane">
+                اختبار الإيميل
+            </x-filament::button>
+            <x-filament::button type="submit" color="success" icon="heroicon-o-check">
+                حفظ الإعدادات
+            </x-filament::button>
+        </div>
+    </form>
+</x-filament-panels::page>
+```
+
+**ملاحظة:** لا تستخدم `@if ($errors->any())` في Blade template لأن Filament يتعامل مع الأخطاء تلقائياً.
+
+### 2. خطوات التطبيق على السيرفر
+
 ```bash
+# 1. الانتقال إلى مجلد المشروع
 cd /var/www/wedoo_laravel/wedoo_admin_panel
-grep -n "->model" app/Filament/Pages/BrevoSettings.php
+
+# 2. سحب آخر التحديثات من GitHub
+git pull origin main
+
+# 3. مسح Cache
+php artisan config:clear
+php artisan cache:clear
+php artisan view:clear
+php artisan route:clear
+
+# 4. إعادة بناء Cache
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+
+# 5. إعادة تشغيل PHP-FPM (إذا لزم الأمر)
+sudo systemctl restart php8.2-fpm
+# أو
+sudo service php8.2-fpm restart
 ```
 
-إذا ظهرت أي نتائج، قم بحذف السطر الذي يحتوي على `->model($this->data)`.
+### 3. التحقق من الصلاحيات
 
-### أو استبدل الملف بالكامل:
+تأكد من أن ملف `.env` قابل للكتابة:
+
 ```bash
-cd /var/www/wedoo_laravel/wedoo_admin_panel
-git checkout HEAD -- app/Filament/Pages/BrevoSettings.php
+chmod 644 .env
+chown www-data:www-data .env
 ```
 
+### 4. التحقق من Logs
+
+إذا استمرت المشكلة، تحقق من Laravel logs:
+
+```bash
+tail -f storage/logs/laravel.log
+```
+
+## ملاحظات مهمة
+
+1. **Filament يتعامل مع الأخطاء تلقائياً:** لا حاجة لاستخدام `$errors` في Blade templates عند استخدام Filament Forms.
+
+2. **Validation:** Filament Forms تقوم بالتحقق من صحة البيانات تلقائياً عند استدعاء `getState()`.
+
+3. **Cache:** بعد أي تغيير في الكود، يجب مسح Cache دائماً.
+
+4. **Permissions:** تأكد من أن Laravel لديه صلاحيات الكتابة على ملف `.env`.
+
+## إذا استمرت المشكلة
+
+1. تحقق من إصدار Filament:
+   ```bash
+   composer show filament/filament
+   ```
+
+2. تأكد من أن جميع التبعيات محدثة:
+   ```bash
+   composer update
+   ```
+
+3. تحقق من أن Livewire يعمل بشكل صحيح:
+   ```bash
+   php artisan livewire:discover
+   ```
