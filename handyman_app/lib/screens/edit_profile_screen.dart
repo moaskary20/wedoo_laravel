@@ -315,37 +315,64 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Widget _buildProfileImage() {
     // Show selected image (newly picked) - highest priority
-    if (_selectedImage != null) {
-      if (kIsWeb) {
-        if (_imageBytes != null) {
-          return ClipRRect(
-            borderRadius: BorderRadius.circular(60),
-            child: Image.memory(
-              _imageBytes!,
-              width: 120,
-              height: 120,
-              fit: BoxFit.cover,
-            ),
-          );
-        }
-      } else {
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(60),
-          child: Image.file(
-            _selectedImage!,
-            width: 120,
-            height: 120,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) {
-              return const Icon(
-                Icons.person,
-                size: 60,
-                color: Colors.grey,
-              );
-            },
-          ),
-        );
-      }
+    // For web, always use bytes if available
+    if (kIsWeb && _imageBytes != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(60),
+        child: Image.memory(
+          _imageBytes!,
+          width: 120,
+          height: 120,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return const Icon(
+              Icons.person,
+              size: 60,
+              color: Colors.grey,
+            );
+          },
+        ),
+      );
+    }
+    
+    // For mobile, use File if available
+    if (_selectedImage != null && !kIsWeb) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(60),
+        child: Image.file(
+          _selectedImage!,
+          width: 120,
+          height: 120,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return const Icon(
+              Icons.person,
+              size: 60,
+              color: Colors.grey,
+            );
+          },
+        ),
+      );
+    }
+    
+    // For mobile, if we have bytes but no file, use bytes
+    if (_imageBytes != null && !kIsWeb) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(60),
+        child: Image.memory(
+          _imageBytes!,
+          width: 120,
+          height: 120,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return const Icon(
+              Icons.person,
+              size: 60,
+              color: Colors.grey,
+            );
+          },
+        ),
+      );
     }
     
     // Show saved image from cache or SharedPreferences
@@ -492,8 +519,23 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       
       if (image != null) {
         try {
-          // Read image bytes first
-          final bytes = await image.readAsBytes();
+          // Read image bytes immediately - this is critical for web to avoid Blob URL revocation
+          Uint8List bytes;
+          
+          // For web, we must read bytes immediately before the Blob URL is revoked
+          if (kIsWeb) {
+            try {
+              // Read bytes immediately after picking
+              bytes = await image.readAsBytes();
+            } catch (e) {
+              // If reading fails, the Blob URL might be revoked
+              print('Error reading image bytes on web: $e');
+              throw Exception('فشل في قراءة الصورة. يرجى المحاولة مرة أخرى');
+            }
+          } else {
+            // For mobile, read bytes normally
+            bytes = await image.readAsBytes();
+          }
           
           // Validate image size (max 5MB)
           if (bytes.length > 5 * 1024 * 1024) {
@@ -501,15 +543,41 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             return;
           }
           
+          // Validate that we actually got bytes
+          if (bytes.isEmpty) {
+            _showErrorSnackBar('الصورة المختارة فارغة. يرجى اختيار صورة أخرى');
+            return;
+          }
+          
           setState(() {
-            _selectedImage = File(image.path);
+            // Only create File object for mobile platforms
+            if (!kIsWeb) {
+              _selectedImage = File(image.path);
+            } else {
+              // For web, we don't need File object, just bytes
+              _selectedImage = null;
+            }
             _imageBytes = bytes; // Always store bytes for both web and mobile
           });
           
           _showSuccessSnackBar(l10n.imageSelectedSuccessfully);
         } catch (e) {
           print('Error reading image file: $e');
-          _showErrorSnackBar('خطأ في قراءة الصورة: ${e.toString()}');
+          String errorMsg = 'خطأ في قراءة الصورة';
+          
+          // Provide more specific error messages
+          final errorString = e.toString().toLowerCase();
+          if (errorString.contains('blob') || errorString.contains('revoked')) {
+            errorMsg = 'انتهت صلاحية الصورة. يرجى اختيار صورة أخرى';
+          } else if (errorString.contains('permission')) {
+            errorMsg = 'يرجى منح صلاحيات الوصول للصور';
+          } else if (errorString.contains('network')) {
+            errorMsg = 'خطأ في الاتصال. يرجى التحقق من الإنترنت';
+          } else {
+            errorMsg = 'خطأ في قراءة الصورة. يرجى المحاولة مرة أخرى';
+          }
+          
+          _showErrorSnackBar(errorMsg);
         }
       } else {
         // User cancelled image selection
