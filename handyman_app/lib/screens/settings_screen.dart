@@ -136,6 +136,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
         return localImage;
       }
       
+      // If no local image, try user_avatar from server (saved during login)
+      final userAvatar = prefs.getString('user_avatar');
+      if (userAvatar != null && userAvatar.isNotEmpty) {
+        print('Loading profile image from user_avatar (server): ${userAvatar.substring(0, userAvatar.length > 50 ? 50 : userAvatar.length)}...');
+        // Also save it to user_profile_image for consistency
+        await prefs.setString('user_profile_image', userAvatar);
+        return userAvatar;
+      }
+      
       // If no local image, try admin panel data
       final adminImages = prefs.getStringList('admin_profile_images') ?? [];
       if (adminImages.isNotEmpty) {

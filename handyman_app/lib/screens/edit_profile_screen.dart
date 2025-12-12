@@ -7,6 +7,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import '../services/language_service.dart';
+import '../config/api_config.dart';
 import 'conversations_screen.dart';
 import 'package:handyman_app/l10n/app_localizations.dart';
 
@@ -1113,32 +1114,82 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         });
       }
 
-      // TODO: Uncomment when backend is ready
-      /*
-      // Real API call to save profile
-      final response = await http.put(
-        Uri.parse('$_baseUrl$_updateProfileEndpoint'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': 'Bearer ${await _getUserToken()}',
-        },
-        body: jsonEncode(profileData),
-      );
+      // Real API call to save profile to server
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final token = prefs.getString('access_token');
+        
+        if (token != null && token.isNotEmpty) {
+          // Prepare request data (only include fields that are being updated)
+          final requestData = <String, dynamic>{};
+          
+          if (_nameController.text.trim().isNotEmpty) {
+            requestData['name'] = _nameController.text.trim();
+          }
+          if (_emailController.text.trim().isNotEmpty) {
+            requestData['email'] = _emailController.text.trim();
+          }
+          if (_phoneController.text.trim().isNotEmpty) {
+            requestData['phone'] = _phoneController.text.trim();
+          }
+          if (_selectedGovernorate.isNotEmpty) {
+            requestData['governorate'] = _selectedGovernorate;
+          }
+          if (_selectedCity.isNotEmpty) {
+            requestData['city'] = _selectedCity;
+          }
+          if (_selectedArea.isNotEmpty) {
+            requestData['district'] = _selectedArea;
+          }
+          if (_newPasswordController.text.isNotEmpty) {
+            requestData['password'] = _newPasswordController.text;
+          }
+          
+          // Add profile image if selected
+          if (_selectedImage != null && _imageBytes != null) {
+            // Convert image to base64 for API
+            requestData['profile_image'] = base64Encode(_imageBytes!);
+            requestData['image_type'] = 'base64';
+          }
+          
+          final response = await http.post(
+            Uri.parse(ApiConfig.userUpdate),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode(requestData),
+          );
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final responseData = jsonDecode(response.body);
-        if (responseData['success'] == true) {
-          _showSuccessSnackBar('تم حفظ البيانات بنجاح');
+          if (response.statusCode == 200 || response.statusCode == 201) {
+            final responseData = jsonDecode(response.body);
+            if (responseData['success'] == true) {
+              // Update local avatar if server returned new avatar URL
+              if (responseData['data'] != null && responseData['data']['avatar'] != null) {
+                final avatarUrl = responseData['data']['avatar'] as String;
+                await prefs.setString('user_avatar', avatarUrl);
+                await prefs.setString('user_profile_image', avatarUrl);
+                print('Profile image saved to server: $avatarUrl');
+              }
+              
+              _showSuccessSnackBar('تم حفظ البيانات بنجاح');
+            } else {
+              _showErrorSnackBar(responseData['message'] ?? 'فشل في حفظ البيانات');
+            }
+          } else {
+            print('Server error: ${response.statusCode} - ${response.body}');
+            _showErrorSnackBar('خطأ في الخادم. يرجى المحاولة مرة أخرى');
+          }
         } else {
-          _showErrorSnackBar(responseData['message'] ?? 'فشل في حفظ البيانات');
+          // No token, just save locally
+          _showSuccessSnackBar(l10n.dataSavedToAdmin);
         }
-      } else {
-        _showErrorSnackBar('خطأ في الخادم. يرجى المحاولة مرة أخرى');
+      } catch (e) {
+        print('Error uploading profile to server: $e');
+        // Continue with local save even if server upload fails
+        _showSuccessSnackBar(l10n.dataSavedToAdmin);
       }
-      */
-
-      _showSuccessSnackBar(l10n.dataSavedToAdmin);
       
       // Force rebuild to show updated image immediately
       if (mounted) {

@@ -614,6 +614,12 @@ class _LoginScreenState extends State<LoginScreen> {
       // Save additional user data if available
       if (userData['avatar'] != null) {
         await prefs.setString('user_avatar', userData['avatar']);
+        // Also save to user_profile_image if not already set (for consistency)
+        final existingProfileImage = prefs.getString('user_profile_image');
+        if (existingProfileImage == null || existingProfileImage.isEmpty) {
+          await prefs.setString('user_profile_image', userData['avatar']);
+          print('Saved avatar to user_profile_image during login');
+        }
       }
       if (userData['location'] != null) {
         await prefs.setString('user_location', userData['location']);
