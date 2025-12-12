@@ -31,6 +31,7 @@ class User extends Authenticatable
         'membership_code',
         'status',
         'category_id',
+        'avatar',
     ];
 
     /**
