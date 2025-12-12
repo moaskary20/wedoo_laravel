@@ -66,8 +66,27 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           _savedProfileImagePath = savedProfileImage;
         });
         
-        // Check if it's a file path or base64
-        if (!savedProfileImage.startsWith('data:image') && 
+        // Check if it's a URL from server
+        if (savedProfileImage.startsWith('http://') || savedProfileImage.startsWith('https://')) {
+          // It's a URL from server - download and cache it
+          try {
+            print('Loading profile image from URL: $savedProfileImage');
+            final response = await http.get(Uri.parse(savedProfileImage));
+            if (response.statusCode == 200) {
+              final bytes = response.bodyBytes;
+              setState(() {
+                _imageBytes = bytes;
+              });
+              print('Profile image loaded from URL successfully: ${bytes.length} bytes');
+            } else {
+              print('Failed to load image from URL: ${response.statusCode}');
+            }
+          } catch (e) {
+            print('Error loading image from URL: $e');
+          }
+        }
+        // Check if it's a file path
+        else if (!savedProfileImage.startsWith('data:image') && 
             !savedProfileImage.startsWith('/9j/') && 
             !savedProfileImage.startsWith('iVBOR')) {
           // It's a file path
@@ -78,6 +97,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             });
             // Also load bytes for web compatibility
             if (kIsWeb) {
+              final bytes = await imageFile.readAsBytes();
+              setState(() {
+                _imageBytes = bytes;
+              });
+            } else {
+              // For mobile, also load bytes
               final bytes = await imageFile.readAsBytes();
               setState(() {
                 _imageBytes = bytes;
@@ -1171,6 +1196,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 await prefs.setString('user_avatar', avatarUrl);
                 await prefs.setString('user_profile_image', avatarUrl);
                 print('Profile image saved to server: $avatarUrl');
+                
+                // Also update local cached image path
+                setState(() {
+                  _savedProfileImagePath = avatarUrl;
+                });
+              } else {
+                // If server didn't return avatar URL but we uploaded image, keep local save
+                // The local save was already done in _saveProfileImageLocally()
+                print('Server response successful but no avatar URL returned');
               }
               
               _showSuccessSnackBar('تم حفظ البيانات بنجاح');
