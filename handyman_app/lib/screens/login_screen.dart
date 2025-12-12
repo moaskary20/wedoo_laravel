@@ -612,13 +612,19 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       // Save additional user data if available
-      if (userData['avatar'] != null) {
-        await prefs.setString('user_avatar', userData['avatar']);
-        // Also save to user_profile_image if not already set (for consistency)
-        final existingProfileImage = prefs.getString('user_profile_image');
-        if (existingProfileImage == null || existingProfileImage.isEmpty) {
-          await prefs.setString('user_profile_image', userData['avatar']);
-          print('Saved avatar to user_profile_image during login');
+      if (userData['avatar'] != null && userData['avatar'].toString().isNotEmpty) {
+        final avatarUrl = userData['avatar'].toString();
+        await prefs.setString('user_avatar', avatarUrl);
+        // Always update user_profile_image with server avatar (server is source of truth)
+        await prefs.setString('user_profile_image', avatarUrl);
+        print('Saved avatar to user_profile_image during login: $avatarUrl');
+      } else {
+        // If server doesn't have avatar, check if we have a preserved one from logout
+        final preservedImage = prefs.getString('user_profile_image');
+        if (preservedImage != null && preservedImage.isNotEmpty) {
+          // Keep the preserved image
+          await prefs.setString('user_avatar', preservedImage);
+          print('Kept preserved profile image during login: $preservedImage');
         }
       }
       if (userData['location'] != null) {

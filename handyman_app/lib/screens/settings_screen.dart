@@ -839,7 +839,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
       try {
         // Clear all user data from SharedPreferences
         final prefs = await SharedPreferences.getInstance();
+        
+        // Save profile image temporarily before clearing (will be restored on login)
+        final profileImage = prefs.getString('user_profile_image');
+        final userAvatar = prefs.getString('user_avatar');
+        
+        // Clear all data
         await prefs.clear();
+        
+        // Restore profile image if it was a URL (from server), not local file path
+        if (profileImage != null && profileImage.isNotEmpty) {
+          // Only restore if it's a URL (starts with http:// or https://)
+          if (profileImage.startsWith('http://') || profileImage.startsWith('https://')) {
+            await prefs.setString('user_profile_image', profileImage);
+            await prefs.setString('user_avatar', profileImage);
+            print('Preserved profile image URL during logout: $profileImage');
+          }
+        } else if (userAvatar != null && userAvatar.isNotEmpty) {
+          // If profile_image was not set but avatar was, restore avatar
+          if (userAvatar.startsWith('http://') || userAvatar.startsWith('https://')) {
+            await prefs.setString('user_profile_image', userAvatar);
+            await prefs.setString('user_avatar', userAvatar);
+            print('Preserved avatar URL during logout: $userAvatar');
+          }
+        }
         
         // Show success message
         if (mounted) {
