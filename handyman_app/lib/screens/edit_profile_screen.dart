@@ -404,8 +404,34 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     // Show saved image from cache or SharedPreferences
     if (_savedProfileImagePath != null && _savedProfileImagePath!.isNotEmpty) {
       try {
+        // First check if it's a URL from server
+        if (_savedProfileImagePath!.startsWith('http://') || _savedProfileImagePath!.startsWith('https://')) {
+          // It's a URL from server - use Image.network
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(60),
+            child: Image.network(
+              _savedProfileImagePath!,
+              width: 120,
+              height: 120,
+              fit: BoxFit.cover,
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return const Center(
+                  child: CircularProgressIndicator(),
+                );
+              },
+              errorBuilder: (context, error, stackTrace) {
+                return const Icon(
+                  Icons.person,
+                  size: 60,
+                  color: Colors.grey,
+                );
+              },
+            ),
+          );
+        }
         // Check if it's base64 data
-        if (_savedProfileImagePath!.startsWith('data:image') || 
+        else if (_savedProfileImagePath!.startsWith('data:image') || 
             _savedProfileImagePath!.startsWith('/9j/') || 
             _savedProfileImagePath!.startsWith('iVBOR')) {
           // It's base64 data
