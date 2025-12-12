@@ -42,6 +42,7 @@ class AuthController extends Controller
                 'district' => $user->district,
                 'membership_code' => $user->membership_code ?? '',
                 'category_id' => $user->category_id,
+                'avatar' => $user->avatar,
                 'access_token' => $token,
                 'refresh_token' => $token, // Using same token for refresh
             ],
